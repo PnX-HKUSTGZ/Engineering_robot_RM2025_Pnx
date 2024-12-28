@@ -1,0 +1,18 @@
+launch:
+
+  - arg:
+      name: 'Namespace'
+      default: 'ENGINEER_RM_25'
+
+  - arg:
+      name: 'VideoPath'
+      default: '/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180155626.avi'
+
+
+  - node:
+      name: 'video_driver'
+      pkg: 'videodriver'
+      namespace: '$(var Namespace)'
+      exec: 'video_driver'
+  - executable:
+      cmd: 'ros2 param set $(var Namespace)/video_driver VideoPath $(var VideoPath)'
