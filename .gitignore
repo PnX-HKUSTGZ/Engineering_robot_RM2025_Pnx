@@ -1,0 +1,5 @@
+image/
+.vscode/
+build/
+install/
+log/
