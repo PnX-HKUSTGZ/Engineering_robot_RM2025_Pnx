@@ -1,4 +1,3 @@
-#include <bits/stdc++.h>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -23,7 +22,7 @@ class VideoDriver:public rclcpp::Node{
         using namespace std::chrono;
         publisher_=this->create_publisher<sensor_msgs::msg::Image>("OriginalVideo",10);
         timer_=this->create_wall_timer(33ms,std::bind(&VideoDriver::PublishVideoCallBack,this));
-        this->declare_parameter<std::string>("VideoPath",std::string("/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180155626.avi"));
+        this->declare_parameter<std::string>("VideoPath",std::string("/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180203703.mp4"));
         PrintINFO(this->get_logger(),"VideoDriver is running");
     }
     private:
@@ -50,6 +49,8 @@ void VideoDriver::PublishVideoCallBack(){
         rclcpp::shutdown();
         return;
     }
+    cv::imshow("???",frame);
+    cv::waitKey(33);
     publisher_->publish(*cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",frame).toImageMsg());
     PrintINFO(this->get_logger(),"Publish video");
 }
