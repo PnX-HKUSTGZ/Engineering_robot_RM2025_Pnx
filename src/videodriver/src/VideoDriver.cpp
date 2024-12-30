@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <sstream>
 #include <string>
+#include "interfaces/srv/imagerequest.hpp"
 // #include <bits/stdc++.h>
 
 namespace ENGINEER_RM_25{
@@ -18,40 +19,42 @@ void PrintINFO(const rclcpp::Logger & logger,const Args&... args){
 
 class VideoDriver:public rclcpp::Node{
     public:
+    using Imagerequest=interfaces::srv::Imagerequest;
     VideoDriver():Node("VideoDriver"){
         using namespace std::chrono;
-        publisher_=this->create_publisher<sensor_msgs::msg::Image>("OriginalVideo",10);
-        timer_=this->create_wall_timer(33ms,std::bind(&VideoDriver::PublishVideoCallBack,this));
+        using namespace std::placeholders;
+        service_=this->create_service<Imagerequest>("OriginalVideo",std::bind(&VideoDriver::PublishVideoCallBack,this,_1,_2));
         this->declare_parameter<std::string>("VideoPath",std::string("/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180203703.mp4"));
-        PrintINFO(this->get_logger(),"VideoDriver is running");
+        PrintINFO(this->get_logger(),"VideoDriver service is running");
+
+        video.open(this->get_parameter("VideoPath").as_string().c_str());
+        PrintINFO(this->get_logger(),"Open video in",this->get_parameter("VideoPath").as_string());
+        RCLCPP_INFO(this->get_logger(),"Waiting.....");
     }
     private:
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Service<Imagerequest>::SharedPtr service_;
+    // rclcpp::TimerBase::SharedPtr timer_;
     cv::VideoCapture video;
-    void PublishVideoCallBack();
+    void PublishVideoCallBack(const std::shared_ptr<Imagerequest::Request> req,std::shared_ptr<Imagerequest::Response> res);
 };
 
-void VideoDriver::PublishVideoCallBack(){
-    video.open(this->get_parameter("VideoPath").as_string().c_str());
-    PrintINFO(this->get_logger(),"Open video in",this->get_parameter("VideoPath").as_string());
-    if(!video.isOpened()){
-        timer_->cancel();
-        PrintINFO(this->get_logger(),"Video is not opened");
-        rclcpp::shutdown();
-        return;
-    }
+void VideoDriver::PublishVideoCallBack(const std::shared_ptr<Imagerequest::Request>req,std::shared_ptr<Imagerequest::Response> res){
+    (void)req;
     cv::Mat frame;
     video>>frame;
     if(frame.empty()){
-        timer_->cancel();
+        res->end=1;
         PrintINFO(this->get_logger(),"Video comes to end");
         rclcpp::shutdown();
         return;
     }
-    cv::imshow("???",frame);
-    cv::waitKey(33);
-    publisher_->publish(*cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",frame).toImageMsg());
+    res->end=0;
+    // cv::imshow("???",frame);
+    // cv::waitKey(33);
+    RCLCPP_INFO(this->get_logger(),"SIZE of fram : [%d,%d]",(int)(frame.size().height),(frame.size().width));
+
+    auto imageptr=cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",frame).toImageMsg();
+    res->image=*imageptr;
     PrintINFO(this->get_logger(),"Publish video");
 }
 

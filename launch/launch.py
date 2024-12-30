@@ -14,4 +14,10 @@ def generate_launch_description():
                 {'VideoPath':'/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180155626.avi'},
                 ],
         ),
+        Node(
+            package='detect_arrow',
+            executable='detect_arrow',
+            name='detect_arrow',
+            namespace='ENGINEER_RM_25'
+        )
     ])

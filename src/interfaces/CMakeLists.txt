@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(detect_arrow)
+project(interfaces)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -7,27 +7,17 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(cv_bridge REQUIRED)
-find_package(rclcpp_components REQUIRED)
-find_package(interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
 
-add_executable(detect_arrow src/DetectArrow.cpp)
+# uncomment the following section in order to fill in
+# further dependencies manually.
+# find_package(<dependency> REQUIRED)
 
-ament_target_dependencies(detect_arrow
-  rclcpp
-  OpenCV
-  sensor_msgs
-  cv_bridge
-  rclcpp_components
-  interfaces
-)
-
-install(TARGETS
-  detect_arrow
-  DESTINATION lib/${PROJECT_NAME}
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/Imagerequest.srv"
+  DEPENDENCIES sensor_msgs
 )
 
 if(BUILD_TESTING)

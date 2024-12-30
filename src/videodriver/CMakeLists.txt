@@ -14,6 +14,7 @@ find_package(OpenCV REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(interfaces REQUIRED)
 
 # add_library(video_driver SHARED src/VideoDriver.cpp)
 
@@ -46,6 +47,7 @@ ament_target_dependencies(video_driver
   sensor_msgs
   cv_bridge
   rclcpp_components
+  interfaces
 )
 
 install(TARGETS video_driver
