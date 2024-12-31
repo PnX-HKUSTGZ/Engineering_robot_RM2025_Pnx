@@ -101,20 +101,17 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     static int maxn=0,minn=1e9,approsiz=0;
     static bool pre=0;
     cv::Mat CounterImage;
+    std::vector<cv::Vec2f> lines;
     Counters counters_;
     Counter isarrow;
-
-    cv::Canny(BinaryImage,CounterImage,100.,200.,3,true);
     
-    // cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
 
     // cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(225,0,0),1);
 
     // cv::imshow("edge1",OriginalImage);
     // cv::imshow("edge",edge);
     // cv::waitKey(33);
-
-    
 
     for(auto &counter_ :counters_){
 
@@ -153,6 +150,30 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         }
 
     }
+
+    // cv::Canny(BinaryImage,CounterImage,100.,200.,3,true);
+    // cv::HoughLines(CounterImage,lines,50,CV_PI/360,150);
+
+    // for(auto & line : lines){
+    //     cv::line(OriginalImage,cv::Point(line[0],line[1]),cv::Point(line[2],line[3]),cv::Scalar(0,0,225));
+    // }
+
+
+    // for (size_t i = 0; i < lines.size(); i++){
+    //     float rho = lines[i][0], theta = lines[i][1];    //距离精度、角度精度
+    //     cv::Point pt1, pt2;                                  //定义两点p1和p2
+    //     double a = cos(theta), b = sin(theta);           //a:cos  b:sin
+    //     //以x0和y0作为参照点，求出(x1, y1)和(x2, y2)
+    //     double x0 = a * rho, y0 = b * rho;
+    //     pt1.x = cvRound(x0 - 1000 * (-b));
+    //     pt1.y = cvRound(y0 - 1000 * (a));
+    //     pt2.x = cvRound(x0 + 1000 * (-b));
+    //     pt2.y = cvRound(y0 + 1000 * (a));
+    //     line(OriginalImage, pt1, pt2, cv::Scalar(0,0,225), 1);       //绘制直线
+    // }
+
+    // cv::imshow("Hough",OriginalImage);
+    // cv::waitKey(33);
 
     return 1;
 }
