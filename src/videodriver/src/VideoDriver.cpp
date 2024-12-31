@@ -8,7 +8,10 @@
 #include "interfaces/srv/imagerequest.hpp"
 // #include <bits/stdc++.h>
 
+
 namespace ENGINEER_RM_25{
+
+std::mutex mtxvideo;
 
 template <typename... Args>
 void PrintINFO(const rclcpp::Logger & logger,const Args&... args){
@@ -24,7 +27,7 @@ class VideoDriver:public rclcpp::Node{
         using namespace std::chrono;
         using namespace std::placeholders;
         service_=this->create_service<Imagerequest>("OriginalVideo",std::bind(&VideoDriver::PublishVideoCallBack,this,_1,_2));
-        this->declare_parameter<std::string>("VideoPath",std::string("/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180203703.mp4"));
+        this->declare_parameter<std::string>("VideoPath",std::string("/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180155626.avi"));
         PrintINFO(this->get_logger(),"VideoDriver service is running");
 
         video.open(this->get_parameter("VideoPath").as_string().c_str());
@@ -41,7 +44,9 @@ class VideoDriver:public rclcpp::Node{
 void VideoDriver::PublishVideoCallBack(const std::shared_ptr<Imagerequest::Request>req,std::shared_ptr<Imagerequest::Response> res){
     (void)req;
     cv::Mat frame;
+    mtxvideo.lock();
     video>>frame;
+    mtxvideo.unlock();
     if(frame.empty()){
         res->end=1;
         PrintINFO(this->get_logger(),"Video comes to end");
@@ -50,7 +55,7 @@ void VideoDriver::PublishVideoCallBack(const std::shared_ptr<Imagerequest::Reque
     }
     res->end=0;
     // cv::imshow("???",frame);
-    // cv::waitKey(33);
+    // cv::waitKey(3);
     RCLCPP_INFO(this->get_logger(),"SIZE of fram : [%d,%d]",(int)(frame.size().height),(frame.size().width));
 
     auto imageptr=cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",frame).toImageMsg();

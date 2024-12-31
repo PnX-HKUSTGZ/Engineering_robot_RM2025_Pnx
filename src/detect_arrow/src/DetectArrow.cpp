@@ -3,9 +3,12 @@
 #include <cv_bridge/cv_bridge.h>
 #include "interfaces/srv/imagerequest.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include <thread>
 
 using namespace std::chrono;
 using namespace std::placeholders;
+
+std::mutex mtxvideoget;
 
 class Arrow_detector:public rclcpp::Node{
     public:
@@ -21,6 +24,7 @@ class Arrow_detector:public rclcpp::Node{
     rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
     rclcpp::Node::SharedPtr node_shred_ptr;
+    cv::Mat PreProgress(const cv::Mat & OriginalImage);
 };
 
 void Arrow_detector::CreatGetImageTimer(){
@@ -35,7 +39,7 @@ void Arrow_detector::CreatGetImageTimer(){
 
 void Arrow_detector::GetImage(){
     using namespace std::chrono;
-
+    mtxvideoget.lock();
     while(!client_->wait_for_service(1s)){
         if(!rclcpp::ok()){
             RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
@@ -76,8 +80,14 @@ void Arrow_detector::GetImage(){
     }
     cv::Mat originalframe=cv_ptr->image;
     RCLCPP_INFO(this->get_logger(), "Get frame");
-    cv::imshow("Video",originalframe);
-    cv::waitKey(33);
+    // cv::imshow("Video",originalframe);
+    // cv::waitKey(33);
+    PreProgress(originalframe);
+    mtxvideoget.unlock();
+}
+
+cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
+
 }
 
 int main (int argc,char* argv[]){
@@ -87,7 +97,7 @@ int main (int argc,char* argv[]){
     // rclcpp::TimerBase::SharedPtr timer_=node->create_wall_timer(33ms,std::bind(&Arrow_detector::GetImage,node));
 
     while(1){
-        std::this_thread::sleep_for(33ms);
+        // std::this_thread::sleep_for(33ms);
         node->GetImage();
     }
 

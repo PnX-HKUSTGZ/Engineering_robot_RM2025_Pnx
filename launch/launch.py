@@ -11,7 +11,7 @@ def generate_launch_description():
             name='video_driver',
             namespace='ENGINEER_RM_25',
             parameters=[
-                {'VideoPath':'/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180155626.avi'},
+                {'VideoPath':'/home/lqx/code/Engineering_robot_RM2025_Pnx/video/Video_20241228180203703.mp4'},
                 ],
         ),
         Node(
