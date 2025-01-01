@@ -4,6 +4,10 @@
 #include "interfaces/srv/imagerequest.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include <thread>
+#include <algorithm>
+#include <sstream>
+
+#define DeBug
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -14,6 +18,40 @@ typedef std::vector<cv::Point> Counter;
 std::mutex mtxvideoget;
 
 const long double eps=1e-9;
+
+struct Slope{
+    int p1,p2;
+    double slope;
+};
+
+double GetAngleAccordingToHorizon(cv::Point p1,cv::Point p2){
+    cv::Point horison(1,0),tar=p1-p2;
+    if(tar.y>=eps) tar=-tar;
+    double dot_=tar.dot(horison);
+    double cos_=dot_/(cv::norm(tar)*cv::norm(horison));
+    double angle=std::acos(cos_)/CV_PI*180;
+    return angle;
+}
+
+double GetAngle(cv::Point2f p1,cv::Point2f p2,cv::Point2f p3){
+    cv::Point2f vec1=p2-p1,vec2=p3-p1;
+    double dot_=vec1.dot(vec2);
+    double cos_=dot_/(cv::norm(vec2)*cv::norm(vec1));
+    double angle=std::acos(cos_)/CV_PI*180;
+    return angle;
+}
+
+double DistancePoints(const cv::Point & p1,const cv::Point & p2){
+    return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
+}
+
+double DistancePoints(const cv::Point2f & p1,const cv::Point & p2){
+    return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
+}
+
+double DistancePoints(const cv::Point & p1,const cv::Point2f & p2){
+    return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
+}
 
 class Arrow_detector:public rclcpp::Node{
     public:
@@ -98,12 +136,13 @@ void Arrow_detector::GetImage(){
 
 bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
-    static int maxn=0,minn=1e9,approsiz=0;
-    static bool pre=0;
+    // static int maxn=0,minn=1e9,approsiz=0;
+    // static bool pre=0;
     cv::Mat CounterImage;
     std::vector<cv::Vec2f> lines;
     Counters counters_;
     Counter isarrow;
+    Counter arrowapproxcurve;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
 
@@ -131,49 +170,166 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         bool lwratio=1.1<=LengthWidthRatio&&LengthWidthRatio<=(4/sqrt(2));
         bool approxsize=(6<=approxcurve.size()&&approxcurve.size()<=10);
 
-        if(lwratio&&pixel_in){
-            maxn=std::max(maxn,pixel_num);
-            minn=std::min(minn,pixel_num);
+        // if(lwratio&&pixel_in){
+        //     maxn=std::max(maxn,pixel_num);
+        //     minn=std::min(minn,pixel_num);
             
-            RCLCPP_INFO(this->get_logger(),"size of approxcurve: %ld",approxcurve.size());
-            RCLCPP_INFO(this->get_logger(),"max min pixel %d,%d",maxn,minn);
-            cv::drawContours(OriginalImage,Counters{approxcurve},-1,cv::Scalar(0,225,0),1);
-            cv::imshow("approxcurve",OriginalImage);
-            cv::waitKey(33);
-            pre=1;
-        }
-        else{
-            pre=0;
-            cv::drawContours(OriginalImage,Counters{approxcurve},-1,cv::Scalar(0,225,0),1);
-            cv::imshow("approxcurve",OriginalImage);
-            cv::waitKey(0);
-        }
+        //     RCLCPP_INFO(this->get_logger(),"size of approxcurve: %ld",approxcurve.size());
+        //     RCLCPP_INFO(this->get_logger(),"max min pixel %d,%d",maxn,minn);
+        //     cv::drawContours(OriginalImage,Counters{approxcurve},-1,cv::Scalar(0,225,0),1);
+        //     cv::imshow("approxcurve",OriginalImage);
+        //     cv::waitKey(33);
+        //     pre=1;
+        // }
+        // else{
+        //     pre=0;
+        //     cv::drawContours(OriginalImage,Counters{approxcurve},-1,cv::Scalar(0,225,0),1);
+        //     cv::imshow("approxcurve",OriginalImage);
+        //     cv::waitKey(0);
+        // }
 
+        if(pixel_in&&lwratio&&approxsize){
+            isarrow=counter_;
+            arrowapproxcurve=approxcurve;
+            break;
+        }
     }
 
-    // cv::Canny(BinaryImage,CounterImage,100.,200.,3,true);
-    // cv::HoughLines(CounterImage,lines,50,CV_PI/360,150);
+    if(isarrow.empty()){
+        RCLCPP_WARN(this->get_logger(),"fail to find arrow!");
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"find arrow!");
 
-    // for(auto & line : lines){
-    //     cv::line(OriginalImage,cv::Point(line[0],line[1]),cv::Point(line[2],line[3]),cv::Scalar(0,0,225));
-    // }
+    cv::Point2f center;
+    std::vector<cv::Point2f> TrianglePeaks;
+    float radius;
+    cv::minEnclosingCircle(isarrow,center,radius);
+    cv::minEnclosingTriangle(isarrow,TrianglePeaks);
 
+    #ifdef DeBug
 
-    // for (size_t i = 0; i < lines.size(); i++){
-    //     float rho = lines[i][0], theta = lines[i][1];    //距离精度、角度精度
-    //     cv::Point pt1, pt2;                                  //定义两点p1和p2
-    //     double a = cos(theta), b = sin(theta);           //a:cos  b:sin
-    //     //以x0和y0作为参照点，求出(x1, y1)和(x2, y2)
-    //     double x0 = a * rho, y0 = b * rho;
-    //     pt1.x = cvRound(x0 - 1000 * (-b));
-    //     pt1.y = cvRound(y0 - 1000 * (a));
-    //     pt2.x = cvRound(x0 + 1000 * (-b));
-    //     pt2.y = cvRound(y0 + 1000 * (a));
-    //     line(OriginalImage, pt1, pt2, cv::Scalar(0,0,225), 1);       //绘制直线
-    // }
+    cv::circle(OriginalImage,center,radius,cv::Scalar(225,0,225));
+    cv::circle(OriginalImage,center,2,cv::Scalar(225,0,225),-1);
+    cv::line(OriginalImage,TrianglePeaks[0],TrianglePeaks[1],cv::Scalar(0,225,225));
+    cv::line(OriginalImage,TrianglePeaks[0],TrianglePeaks[2],cv::Scalar(0,225,225));
+    cv::line(OriginalImage,TrianglePeaks[1],TrianglePeaks[2],cv::Scalar(0,225,225));
+    cv::drawContours(OriginalImage,Counters{isarrow},-1,cv::Scalar(225,225,0));
+    cv::drawContours(OriginalImage,Counters{arrowapproxcurve},-1,cv::Scalar(150,225,150));
 
-    // cv::imshow("Hough",OriginalImage);
+    #endif
+
+    double maxAngle=0;
+    cv::Point2f TrianglePeak;
+    for(int i=0;i<3;i++){
+        if(maxAngle<GetAngle(TrianglePeaks[i],TrianglePeaks[(i+1)%3],TrianglePeaks[(i+2)%3])){
+            TrianglePeak=TrianglePeaks[i];
+            maxAngle=GetAngle(TrianglePeaks[i],TrianglePeaks[(i+1)%3],TrianglePeaks[(i+2)%3]);
+        }
+    }
+
+    // cv::circle(OriginalImage,TrianglePeak,2,cv::Scalar(225,0,225),-1);
+    // cv::imshow("11111",OriginalImage);
     // cv::waitKey(33);
+
+    std::vector<Slope> slopes;
+    double HorizonThreshold=10,RThreshold=20,LThreshold=0;
+    int TryCnt=0;
+    std::vector<bool> UsedLineMakePair(20,false);
+    std::vector<std::pair<Slope,Slope>> HorizonLinePair;
+
+    for(int i=arrowapproxcurve.size()-1,siz=arrowapproxcurve.size();i>=0;i--){
+        slopes.push_back(Slope{i,(i+1)%siz,GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz])});
+        // cv::line(OriginalImage,arrowapproxcurve[i],arrowapproxcurve[e],cv::Scalar(225,225,225));
+        std::stringstream ss;
+        ss<<std::fixed<<std::setprecision(2)<<GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz]);
+        cv::putText(OriginalImage,ss.str(),(arrowapproxcurve[i]+arrowapproxcurve[(i+1)%siz])/2,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(115,216,22));
+        RCLCPP_INFO(this->get_logger(),"angle: %lf",GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz]));
+    }
+
+    std::sort(slopes.begin(),slopes.end(),[](const Slope & a,const Slope & b){
+        return a.slope<b.slope;
+    });
+
+    // cv::imshow("lll",OriginalImage);
+    // cv::waitKey(33);
+
+    while(HorizonLinePair.size()!=3&&TryCnt<=20){
+        HorizonLinePair.clear();
+        for(int i=slopes.size()-1;i>=0;i--) UsedLineMakePair[i]=0;
+
+        HorizonThreshold=(RThreshold+LThreshold)/2;
+        for(int i=slopes.size()-1;i;i--){
+            if(UsedLineMakePair[i]||std::abs(slopes[i].slope-slopes[i-1].slope)>HorizonThreshold) continue;
+            HorizonLinePair.push_back(std::make_pair(slopes[i],slopes[i-1]));
+            UsedLineMakePair[i]=UsedLineMakePair[i-1]=1;
+        }
+        if(HorizonLinePair.size()==3) break;
+        if(HorizonLinePair.size()<3) LThreshold=HorizonThreshold;
+        else if(HorizonLinePair.size()>3) RThreshold=HorizonThreshold;
+        TryCnt++;
+    }
+
+    if(HorizonLinePair.size()!=3){
+        RCLCPP_WARN(this->get_logger(),"fail to find horizon line pairs");
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"find horizon line pairs!");
+
+    std::sort(HorizonLinePair.begin(),HorizonLinePair.end(),[&arrowapproxcurve](const std::pair<Slope,Slope>& a,const std::pair<Slope,Slope>& b){
+        return  DistancePoints(arrowapproxcurve[a.first.p1],arrowapproxcurve[a.first.p2])+DistancePoints(arrowapproxcurve[a.second.p1],arrowapproxcurve[a.second.p2]) >
+            DistancePoints(arrowapproxcurve[b.first.p1],arrowapproxcurve[b.first.p2])+DistancePoints(arrowapproxcurve[b.second.p1],arrowapproxcurve[b.second.p2]);
+    });
+
+    std::vector<int> CountPoint(isarrow.size(),0);
+    std::vector<int> RightAnglePeaks;
+    std::vector<int> SidePeaks;
+    for(int i=0;i<=1;i++){
+        CountPoint[HorizonLinePair[i].first.p1]++;
+        CountPoint[HorizonLinePair[i].first.p2]++;
+        CountPoint[HorizonLinePair[i].second.p1]++;
+        CountPoint[HorizonLinePair[i].second.p2]++;
+        if(CountPoint[HorizonLinePair[i].first.p1]==2) RightAnglePeaks.push_back(HorizonLinePair[i].first.p1);
+        if(CountPoint[HorizonLinePair[i].first.p2]==2) RightAnglePeaks.push_back(HorizonLinePair[i].first.p2);
+        if(CountPoint[HorizonLinePair[i].second.p1]==2) RightAnglePeaks.push_back(HorizonLinePair[i].second.p1);
+        if(CountPoint[HorizonLinePair[i].second.p2]==2) RightAnglePeaks.push_back(HorizonLinePair[i].second.p2);
+    }
+
+    if(RightAnglePeaks.size()!=2){
+        RCLCPP_ERROR(this->get_logger(),"RightAnglePeaks.size != 2");
+
+        #ifdef DeBug
+        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[0].first.p1],arrowapproxcurve[HorizonLinePair[0].first.p2],cv::Scalar(100,200,150),5);
+        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[0].second.p1],arrowapproxcurve[HorizonLinePair[0].second.p2],cv::Scalar(100,200,150),5);
+        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[1].first.p1],arrowapproxcurve[HorizonLinePair[1].first.p2],cv::Scalar(50,220,225),5);
+        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[1].second.p1],arrowapproxcurve[HorizonLinePair[1].second.p2],cv::Scalar(50,220,225),5);
+        cv::imshow("Fail",OriginalImage);
+        cv::waitKey(0);
+        #endif
+
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"finish dichotomy and find two right angle peaks");
+
+    if(DistancePoints(center,arrowapproxcurve[RightAnglePeaks[0]])<DistancePoints(center,arrowapproxcurve[RightAnglePeaks[1]])){
+        std::swap(RightAnglePeaks[0],RightAnglePeaks[1]);
+    }
+    //确定第一个为外侧点，第二个为内侧点
+
+    RCLCPP_INFO(this->get_logger(),"find right angle !");
+
+    // cv::circle(OriginalImage,center,radius,cv::Scalar(0,225,225),1);
+    cv::circle(OriginalImage,arrowapproxcurve[RightAnglePeaks[0]],5,cv::Scalar(112,233,200),-1);
+    cv::circle(OriginalImage,arrowapproxcurve[RightAnglePeaks[1]],5,cv::Scalar(112,233,200),-1);
+
+    cv::imshow("lll",OriginalImage);
+    cv::waitKey(33);
+
+    // for(int i=0;i<=1;i++){
+    //     // if(CountPoint[HorizonLinePair[i].first.p2]==2) swap(HorizonLinePair[i].first);
+    // }
+
+    // RCLCPP_INFO(this->get_logger(),"OK!");
 
     return 1;
 }
@@ -213,11 +369,14 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
     cv::dilate(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
 
-    cv::imshow("Pre",BinaryImage);
+    // cv::imshow("Pre",BinaryImage);
     // cv::imshow("Ori",OriginalImage);
     // cv::imshow("Gre",GreyImage);
+    #ifdef DeBug
     cv::imshow("Dilated",DilatedImage);
     cv::waitKey(33);
+    #endif
+
     return DilatedImage;
 }
 
