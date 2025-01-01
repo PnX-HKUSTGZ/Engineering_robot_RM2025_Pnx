@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
-#define DeBug
+// #define DeBug
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -240,10 +240,14 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     for(int i=arrowapproxcurve.size()-1,siz=arrowapproxcurve.size();i>=0;i--){
         slopes.push_back(Slope{i,(i+1)%siz,GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz])});
+
+        #ifdef DeBug
         // cv::line(OriginalImage,arrowapproxcurve[i],arrowapproxcurve[e],cv::Scalar(225,225,225));
         std::stringstream ss;
         ss<<std::fixed<<std::setprecision(2)<<GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz]);
         cv::putText(OriginalImage,ss.str(),(arrowapproxcurve[i]+arrowapproxcurve[(i+1)%siz])/2,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(115,216,22));
+        #endif
+
         RCLCPP_INFO(this->get_logger(),"angle: %lf",GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz]));
     }
 
@@ -283,7 +287,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     std::vector<int> CountPoint(isarrow.size(),0);
     std::vector<int> RightAnglePeaks;
-    std::vector<int> SidePeaks;
+    
     for(int i=0;i<=1;i++){
         CountPoint[HorizonLinePair[i].first.p1]++;
         CountPoint[HorizonLinePair[i].first.p2]++;
@@ -318,18 +322,59 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     RCLCPP_INFO(this->get_logger(),"find right angle !");
 
+    #ifdef DeBug
+
     // cv::circle(OriginalImage,center,radius,cv::Scalar(0,225,225),1);
-    cv::circle(OriginalImage,arrowapproxcurve[RightAnglePeaks[0]],5,cv::Scalar(112,233,200),-1);
-    cv::circle(OriginalImage,arrowapproxcurve[RightAnglePeaks[1]],5,cv::Scalar(112,233,200),-1);
+    cv::circle(OriginalImage,arrowapproxcurve[RightAnglePeaks[0]],1,cv::Scalar(112,233,200),-1);
+    cv::circle(OriginalImage,arrowapproxcurve[RightAnglePeaks[1]],1,cv::Scalar(112,233,200),-1);
 
-    cv::imshow("lll",OriginalImage);
-    cv::waitKey(33);
-
-    // for(int i=0;i<=1;i++){
-    //     // if(CountPoint[HorizonLinePair[i].first.p2]==2) swap(HorizonLinePair[i].first);
-    // }
+    // cv::imshow("lll",OriginalImage);
+    // cv::waitKey(33);
+    #endif
 
     // RCLCPP_INFO(this->get_logger(),"OK!");
+
+    /*
+    储存规则：
+    最外侧直角顶点，最内侧直角顶点，外接圆顺时针方向第一个尾处的两顶点的中点，外接圆顺时针方向第二个尾处的两顶点的中点
+    */
+    std::vector<cv::Point> ArrowPeaks;
+
+    ArrowPeaks.push_back(arrowapproxcurve[RightAnglePeaks[0]]);
+    ArrowPeaks.push_back(arrowapproxcurve[RightAnglePeaks[1]]);
+    ArrowPeaks.push_back(cv::Point(0,0));
+    ArrowPeaks.push_back(cv::Point(0,0));
+
+
+    cv::Point Centerline=ArrowPeaks[0]-cv::Point(center.x,center.y);
+    for(int i=0;i<=1;i++){
+        std::pair<int,int> PointNumPair1=std::make_pair(HorizonLinePair[i].first.p1,HorizonLinePair[i].first.p2);
+        std::pair<int,int> PointNumPair2=std::make_pair(HorizonLinePair[i].second.p1,HorizonLinePair[i].second.p2);
+        if(PointNumPair1.first==RightAnglePeaks[0]||PointNumPair1.first==RightAnglePeaks[1]) std::swap(PointNumPair1.first,PointNumPair1.second);
+        if(PointNumPair2.first==RightAnglePeaks[0]||PointNumPair2.first==RightAnglePeaks[1]) std::swap(PointNumPair2.first,PointNumPair2.second);
+        cv::Point TargetLine=arrowapproxcurve[PointNumPair1.first]-cv::Point(center.x,center.y);
+        if(TargetLine.cross(Centerline)<=0) ArrowPeaks[2]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
+        else ArrowPeaks[3]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
+    }
+
+    if(ArrowPeaks[3]==cv::Point(0,0)||ArrowPeaks[2]==cv::Point(0,0)){
+        RCLCPP_ERROR(this->get_logger(),"Fail to find midpoint of other two sides");
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"find midpoint of other two sides successfully");
+
+    // #ifdef DeBug
+    int PeaksCnt=0;
+    for(auto i : ArrowPeaks){
+        cv::circle(OriginalImage,i,3,cv::Scalar(153,156,30),-1);
+        // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
+        // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+    }
+
+    cv::imshow("ArrowPeaks",OriginalImage);
+    cv::waitKey(22);
+
+    // #endif
 
     return 1;
 }
@@ -360,7 +405,7 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
     //控制二值化的参数
     double threshholdk=0.5;
     cv::minMaxLoc(GreyImage,&minval,&maxval);
-    minval=std::max(100.0,minval);
+    minval=std::max(150.0,minval);
     maxval=std::max(minval,maxval);
 
     RCLCPP_INFO(this->get_logger(),"maxval of greyimage : %lf ,minval of greyimage : %lf ",maxval,minval);
