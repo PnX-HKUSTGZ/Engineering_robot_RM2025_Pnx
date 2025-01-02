@@ -71,7 +71,13 @@ class Arrow_detector:public rclcpp::Node{
     bool MainDetectArrow(const cv::Mat & OriginalImage);
     bool TargetArrow(const cv::Mat & BinaryImage);
     cv::Mat OriginalImage;
+    std::vector<cv::Point> ArrowPeaks;
+    bool PnPsolver();
 };
+
+bool Arrow_detector::PnPsolver(){
+    
+}
 
 void Arrow_detector::CreatGetImageTimer(){
     using namespace std::placeholders;
@@ -363,7 +369,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     }
     else RCLCPP_INFO(this->get_logger(),"find midpoint of other two sides successfully");
 
-    // #ifdef DeBug
+    #ifdef DeBug
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
         cv::circle(OriginalImage,i,3,cv::Scalar(153,156,30),-1);
@@ -374,8 +380,9 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::imshow("ArrowPeaks",OriginalImage);
     cv::waitKey(22);
 
-    // #endif
+    #endif
 
+    this->ArrowPeaks=ArrowPeaks;
     return 1;
 }
 
@@ -383,6 +390,13 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
     cv::Mat Binary=PreProgress(OriginalImage);
 
     bool HaveArrow=TargetArrow(Binary);
+    if(!HaveArrow){
+        RCLCPP_INFO(this->get_logger(),"fail to target arrow.");
+        return 0;
+    }
+
+
+
     return 1;
 }
 
