@@ -13,6 +13,8 @@ using namespace std::chrono;
 
 std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> publisher_;
 std::shared_ptr<rclcpp::Node> node;
+int nRet = MV_OK;
+
 
 bool PrintDeviceInfo(MV_CC_DEVICE_INFO* pstMVDevInfo)
 {
@@ -93,11 +95,40 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
 }
 
 void GainAdjustment(void* handle){
+    //load in
+    int ExposureTimeLower=node->get_parameter("ExposureTimeLower").as_int();
+    int ExposureTimeUpper=node->get_parameter("ExposureTimeUpper").as_int();
+
+    MV_CC_SetGain(handle,node->get_parameter("Gain").as_int());
+
+    MVCC_FLOATVALUE exposurtime;
+    nRet=MV_CC_GetExposureTime(handle,&exposurtime);
+    if(nRet!=MV_OK){
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_GetExposureTime fail! nRet [%x]",nRet);
+    }
+    else{
+        RCLCPP_INFO(node->get_logger(),"FPS : %f",exposurtime.fCurValue);
+        RCLCPP_INFO(node->get_logger(),"Upper exposure time : %f",exposurtime.fMax);
+        RCLCPP_INFO(node->get_logger(),"Lower exposure time : %f",exposurtime.fMin);
+    }
+
+    nRet=MV_CC_SetAutoExposureTimeUpper(handle,ExposureTimeUpper);
+    if(nRet!=MV_OK){
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_SetAutoExposureTimeUpper fail! nRet [%x]",nRet);
+    }
+    else RCLCPP_INFO(node->get_logger(),"Set ExposureTimeUpper : %d",ExposureTimeUpper);
+
+    nRet=MV_CC_SetAutoExposureTimeLower(handle,ExposureTimeLower);
+    if(nRet!=MV_OK){
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_SetAutoExposureTimeLower fail! nRet [%x]",nRet);
+    }
+    else RCLCPP_INFO(node->get_logger(),"Set ExposureTimeLower : %d",ExposureTimeLower);
+
+
 }
 
 
 void publish_video(){
-    int nRet = MV_OK;
     void* handle = NULL;
     nRet = MV_CC_Initialize();
 do{
@@ -111,7 +142,7 @@ do{
     // enum device
     nRet = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE | MV_GENTL_CAMERALINK_DEVICE | MV_GENTL_CXP_DEVICE | MV_GENTL_XOF_DEVICE, &stDeviceList);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_EnumDevices fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_EnumDevices fail! nRet [%x]", nRet);
         break;
     }
     if (stDeviceList.nDeviceNum > 0){
@@ -125,7 +156,7 @@ do{
         }
     } 
     else{
-        RCLCPP_INFO(node->get_logger(),"Find No Devices!");
+        RCLCPP_ERROR(node->get_logger(),"Find No Devices!");
         break;
     }
 
@@ -134,7 +165,7 @@ do{
     // scanf("%d", &nIndex);
 
     if (nIndex >= stDeviceList.nDeviceNum){
-        RCLCPP_INFO(node->get_logger(),"Intput error!");
+        RCLCPP_ERROR(node->get_logger(),"Intput error!");
         break;
     }
 
@@ -142,7 +173,7 @@ do{
     // select device and create handle
     nRet = MV_CC_CreateHandle(&handle, stDeviceList.pDeviceInfo[nIndex]);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_CreateHandle fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_CreateHandle fail! nRet [%x]", nRet);
         break;
     }
     else RCLCPP_INFO(node->get_logger(),"MV_CC_CreateHandle correct");
@@ -151,7 +182,7 @@ do{
     // open device
     nRet = MV_CC_OpenDevice(handle);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_OpenDevice fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_OpenDevice fail! nRet [%x]", nRet);
         break;
     }
     else RCLCPP_INFO(node->get_logger(),"MV_CC_OpenDevice successfully");
@@ -160,7 +191,7 @@ do{
     // set trigger mode as off
     nRet = MV_CC_SetEnumValue(handle, "TriggerMode", 0);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_SetTriggerMode fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_SetTriggerMode fail! nRet [%x]", nRet);
         break;
     }
 
@@ -168,14 +199,14 @@ do{
     // register image callback
     nRet = MV_CC_RegisterImageCallBackEx(handle, ImageCallBackEx, handle);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_RegisterImageCallBackEx fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_RegisterImageCallBackEx fail! nRet [%x]", nRet);
         break; 
     }
     else RCLCPP_INFO(node->get_logger(),"MV_CC_RegisterImageCallBackEx correct");
 
     nRet = MV_CC_StartGrabbing(handle);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_StartGrabbing fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_StartGrabbing fail! nRet [%x]", nRet);
         break;
     }
     else RCLCPP_INFO(node->get_logger(),"MV_CC_StartGrabbing correct");
@@ -186,7 +217,7 @@ do{
     // 停止取流
     nRet = MV_CC_StopGrabbing(handle);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_StopGrabbing fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_StopGrabbing fail! nRet [%x]", nRet);
         break;
     }
     else{
@@ -198,7 +229,7 @@ do{
     nRet = MV_CC_CloseDevice(handle);
     if (MV_OK != nRet)
     {
-        RCLCPP_INFO(node->get_logger(),"MV_CC_CloseDevice fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_CloseDevice fail! nRet [%x]", nRet);
         break;
     }
 
@@ -206,7 +237,7 @@ do{
     // destroy handle
     nRet = MV_CC_DestroyHandle(handle);
     if (MV_OK != nRet){
-        RCLCPP_INFO(node->get_logger(),"MV_CC_DestroyHandle fail! nRet [%x]", nRet);
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_DestroyHandle fail! nRet [%x]", nRet);
         break;
     }
     handle = NULL;
@@ -223,6 +254,9 @@ int main (int argc,char ** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("CameraDriver");
     publisher_=node->create_publisher<sensor_msgs::msg::Image>("OriginalVideo",10);
+    node->declare_parameter<int>("ExposureTimeLower",70000);
+    node->declare_parameter<int>("ExposureTimeUpper",70000);
+    node->declare_parameter<int>("Gain",15);
     // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
     while(rclcpp::ok()) publish_video();
     rclcpp::spin(node);

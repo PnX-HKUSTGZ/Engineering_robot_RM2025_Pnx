@@ -10,11 +10,18 @@ def generate_launch_description():
             executable='camera_dirver',
             name='camera_dirver',
             namespace='ENGINEER_RM_25',
+            parameters=[
+                {"ExposureTimeLower":10000},
+                {"ExposureTimeUpper":10000},
+                {"Gain":10},
+                {"parampath","/home/lqx/code/Engineering_robot_RM2025_Pnx/cameraparam"}
+            ]
         ),
         Node(
             package='calibratecamera',
             executable='calibrate_camera',
             name='calibrate_camera',
             namespace='ENGINEER_RM_25',
+
         )
     ])

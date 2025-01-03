@@ -6,11 +6,34 @@
 #include <thread>
 #include <algorithm>
 #include <sstream>
+#include <Eigen/Dense>
 
 // #define DeBug
 
 using namespace std::chrono;
 using namespace std::placeholders;
+
+std::vector<double> cameraMatrix={2385.741827804018, 0, 693.002791664812,
+ 0, 2384.654946073267, 570.7864275908191,
+ 0, 0, 1};
+
+std::vector<double> distCoeffs={-0.06919930085453492, 0.1189282412086417, -0.0003444967306350213, -0.0003211241145470465, 1.246743834931904};
+
+std::vector<cv::Point3d> objpoints={cv::Point3d(0,0,0),cv::Point3d(10,10,0),cv::Point3d(131.42135623730950488016887242097,5,0),cv::Point3d(5,131.42135623730950488016887242097,0)};
+
+std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint={
+    cv::Point3d(-117.02617228637361528833974192835,52.679455198397790567862904976811,-24),
+    cv::Point3d(52.679455198397790567862904976811,-117.02617228637361528833974192835,-24),
+    cv::Point3d(-117.02617228637361528833974192835,52.679455198397790567862904976811,-264),
+    cv::Point3d(52.679455198397790567862904976811,-117.02617228637361528833974192835,-264)
+};
+
+std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen={
+    Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,-24,1),
+    Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,-24,1),
+    Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,-264,1),
+    Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,-264,1)
+};
 
 typedef std::vector<std::vector<cv::Point>> Counters;
 typedef std::vector<cv::Point> Counter;
@@ -71,12 +94,65 @@ class Arrow_detector:public rclcpp::Node{
     bool MainDetectArrow(const cv::Mat & OriginalImage);
     bool TargetArrow(const cv::Mat & BinaryImage);
     cv::Mat OriginalImage;
-    std::vector<cv::Point> ArrowPeaks;
+    std::vector<cv::Point2d> ArrowPeaks;
     bool PnPsolver();
+    std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
+    cv::Mat rvec,tvec;
 };
 
 bool Arrow_detector::PnPsolver(){
+    cv::Mat cameraMatrixCV=cv::Mat(3,3,CV_64F,const_cast<double *>(cameraMatrix.data())).clone();
+    cv::Mat distCoeffsCV=cv::Mat(1,5,CV_64F,const_cast<double *>(distCoeffs.data())).clone();
+    Eigen::Matrix<double,3,3> cameraMatrixEigen;
+    Eigen::Matrix<double,4,4> rtvecEigen;
+    Eigen::Matrix<double,3,4> signMat;
+
+    cv::solvePnP(objpoints,ArrowPeaks,cameraMatrixCV,distCoeffsCV,rvec,tvec,false,cv::SOLVEPNP_IPPE);
+
+    RCLCPP_INFO(this->get_logger(),"finish pnp");
+
+    for(int i=0;i<3;i++){
+        for(int e=0;e<3;e++){
+            cameraMatrixEigen(i,e)=cameraMatrix[i*3+e];
+        }
+    }
+
+    signMat<<1,0,0,0,
+        0,1,0,0,
+        0,0,1,0;
+
+    cv::Mat rmat;
+    cv::Rodrigues(rvec,rmat);
+
+    for(int i=0;i<3;i++){
+        for(int e=0;e<3;e++){
+            rtvecEigen(i,e)=rmat.at<float>(i,e);
+        }
+        rtvecEigen(i,3)=tvec.at<float>(i);
+    }
     
+    rtvecEigen(3, 0) = 0.0;
+    rtvecEigen(3, 1) = 0.0;
+    rtvecEigen(3, 2) = 0.0;
+    rtvecEigen(3, 3) = 1.0;
+
+    ImageRedemptionBoxCornerPoints.clear();
+    for(const auto & i : ObjRedemptionBoxCornerPointEigen){
+        auto coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
+        ImageRedemptionBoxCornerPoints.push_back(cv::Point2i(coordination(0),coordination(1)));
+        std::stringstream ss;
+        ss<<coordination<<"\nnext\n"<<i<<"\nrtvec\n"<<rtvecEigen;
+        RCLCPP_INFO(this->get_logger(),"Node : %s",ss.str().c_str());
+    }
+
+    cv::drawContours(OriginalImage,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),100);
+
+    cv::imshow("PnP",OriginalImage);
+    cv::waitKey(22);
+
+    RCLCPP_INFO(this->get_logger(),"PnPsolver finish");
+
+    return 1;
 }
 
 void Arrow_detector::CreatGetImageTimer(){
@@ -382,7 +458,17 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     #endif
 
-    this->ArrowPeaks=ArrowPeaks;
+    for(auto i : ArrowPeaks){
+        cv::circle(OriginalImage,i,3,cv::Scalar(153,156,30),-1);
+        // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
+        // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+    }
+
+    this->ArrowPeaks.clear();
+    for(int i=0;i<4;i++){
+        this->ArrowPeaks.push_back(cv::Point2d(ArrowPeaks[i].x,ArrowPeaks[i].y));
+    }
+    RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
     return 1;
 }
 
@@ -395,7 +481,7 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
         return 0;
     }
 
-
+    PnPsolver();
 
     return 1;
 }

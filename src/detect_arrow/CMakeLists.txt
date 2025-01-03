@@ -13,6 +13,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 add_executable(detect_arrow src/DetectArrow.cpp)
 
@@ -23,6 +24,7 @@ ament_target_dependencies(detect_arrow
   cv_bridge
   rclcpp_components
   interfaces
+  Eigen3
 )
 
 install(TARGETS
