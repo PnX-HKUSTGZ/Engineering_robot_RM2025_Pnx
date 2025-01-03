@@ -21,18 +21,25 @@ std::vector<double> distCoeffs={-0.06919930085453492, 0.1189282412086417, -0.000
 
 std::vector<cv::Point3d> objpoints={cv::Point3d(0,0,0),cv::Point3d(10,10,0),cv::Point3d(131.42135623730950488016887242097,5,0),cv::Point3d(5,131.42135623730950488016887242097,0)};
 
+std::vector<Eigen::Matrix<double,4,1>> objpointsEigen{
+    Eigen::Matrix<double,4,1>(0,0,0,1),
+    Eigen::Matrix<double,4,1>(10,10,0,1),
+    Eigen::Matrix<double,4,1>(131.42135623730950488016887242097,5,0,1),
+    Eigen::Matrix<double,4,1>(5,131.42135623730950488016887242097,0,1)
+};
+
 std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint={
-    cv::Point3d(-117.02617228637361528833974192835,52.679455198397790567862904976811,-24),
-    cv::Point3d(52.679455198397790567862904976811,-117.02617228637361528833974192835,-24),
-    cv::Point3d(-117.02617228637361528833974192835,52.679455198397790567862904976811,-264),
-    cv::Point3d(52.679455198397790567862904976811,-117.02617228637361528833974192835,-264)
+    cv::Point3d(-117.02617228637361528833974192835,52.679455198397790567862904976811,24),
+    cv::Point3d(52.679455198397790567862904976811,-117.02617228637361528833974192835,24),
+    cv::Point3d(-117.02617228637361528833974192835,52.679455198397790567862904976811,264),
+    cv::Point3d(52.679455198397790567862904976811,-117.02617228637361528833974192835,264)
 };
 
 std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen={
-    Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,-24,1),
-    Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,-24,1),
-    Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,-264,1),
-    Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,-264,1)
+    Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,24,1),
+    Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,24,1),
+    Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,264,1),
+    Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,264,1)
 };
 
 typedef std::vector<std::vector<cv::Point>> Counters;
@@ -98,6 +105,8 @@ class Arrow_detector:public rclcpp::Node{
     bool PnPsolver();
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     cv::Mat rvec,tvec;
+    // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
+    cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
 };
 
 bool Arrow_detector::PnPsolver(){
@@ -124,11 +133,12 @@ bool Arrow_detector::PnPsolver(){
     cv::Mat rmat;
     cv::Rodrigues(rvec,rmat);
 
+
     for(int i=0;i<3;i++){
         for(int e=0;e<3;e++){
-            rtvecEigen(i,e)=rmat.at<float>(i,e);
+            rtvecEigen(i,e)=rmat.at<double>(i,e);
         }
-        rtvecEigen(i,3)=tvec.at<float>(i);
+        rtvecEigen(i,3)=tvec.at<double>(i);
     }
     
     rtvecEigen(3, 0) = 0.0;
@@ -136,19 +146,39 @@ bool Arrow_detector::PnPsolver(){
     rtvecEigen(3, 2) = 0.0;
     rtvecEigen(3, 3) = 1.0;
 
+
+    std::stringstream sss;
+    sss<<rtvecEigen;
+    RCLCPP_INFO(this->get_logger(),"rtvecEigen: %s",sss.str().c_str());
+
     ImageRedemptionBoxCornerPoints.clear();
     for(const auto & i : ObjRedemptionBoxCornerPointEigen){
         auto coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
-        ImageRedemptionBoxCornerPoints.push_back(cv::Point2i(coordination(0),coordination(1)));
+        ImageRedemptionBoxCornerPoints.push_back(cv::Point2i(coordination(0)/coordination(2),coordination(1)/coordination(2)));
+        
         std::stringstream ss;
-        ss<<coordination<<"\nnext\n"<<i<<"\nrtvec\n"<<rtvecEigen;
+        ss<<cameraMatrixEigen<<"\n"<<signMat<<"\n"<<rtvecEigen<<"\n"<<i<<"\n"<<coordination;
         RCLCPP_INFO(this->get_logger(),"Node : %s",ss.str().c_str());
+
+
     }
 
-    cv::drawContours(OriginalImage,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),100);
+    cv::drawContours(OriginalImage,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),3);
 
     cv::imshow("PnP",OriginalImage);
     cv::waitKey(22);
+
+    static int CntVideo=0;
+    static bool close=0;
+    if(CntVideo<=20*30){
+        videowriter<<OriginalImage;
+        CntVideo++;
+        RCLCPP_INFO(this->get_logger(),"wirte video %d",CntVideo);
+    }
+    else if(!close){
+        videowriter.release();
+        close=1;
+    }
 
     RCLCPP_INFO(this->get_logger(),"PnPsolver finish");
 
@@ -449,8 +479,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
         cv::circle(OriginalImage,i,3,cv::Scalar(153,156,30),-1);
-        // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
-        // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+        std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
+        cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
 
     cv::imshow("ArrowPeaks",OriginalImage);
