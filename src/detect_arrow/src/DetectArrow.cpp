@@ -8,7 +8,7 @@
 #include <sstream>
 #include <Eigen/Dense>
 
-// #define DeBug
+#define DeBug
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -19,13 +19,13 @@ std::vector<double> cameraMatrix={2385.741827804018, 0, 693.002791664812,
 
 std::vector<double> distCoeffs={-0.06919930085453492, 0.1189282412086417, -0.0003444967306350213, -0.0003211241145470465, 1.246743834931904};
 
-std::vector<cv::Point3d> objpoints={cv::Point3d(0,0,0),cv::Point3d(10,10,0),cv::Point3d(131.42135623730950488016887242097,5,0),cv::Point3d(5,131.42135623730950488016887242097,0)};
+std::vector<cv::Point3d> objpoints={cv::Point3d(0,0,0),cv::Point3d(10,10,0),cv::Point3d(136.42135623730950488016887242097,5,0),cv::Point3d(5,136.42135623730950488016887242097,0)};
 
 std::vector<Eigen::Matrix<double,4,1>> objpointsEigen{
     Eigen::Matrix<double,4,1>(0,0,0,1),
     Eigen::Matrix<double,4,1>(10,10,0,1),
-    Eigen::Matrix<double,4,1>(131.42135623730950488016887242097,5,0,1),
-    Eigen::Matrix<double,4,1>(5,131.42135623730950488016887242097,0,1)
+    Eigen::Matrix<double,4,1>(136.42135623730950488016887242097,5,0,1),
+    Eigen::Matrix<double,4,1>(5,136.42135623730950488016887242097,0,1)
 };
 
 std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint={
@@ -88,12 +88,14 @@ class Arrow_detector:public rclcpp::Node{
     using Imagerequest=interfaces::srv::Imagerequest;
     Arrow_detector():Node("Arrow_detector"){
         this->client_=this->create_client<Imagerequest>("OriginalVideo");
+        this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("OriginalVideo",10,std::bind(&Arrow_detector::GetImage,this,_1));
         RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
     }
     void CreatGetImageTimer();
-    void GetImage();
+    void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
     private:
     rclcpp::Client<Imagerequest>::SharedPtr client_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
     rclcpp::Node::SharedPtr node_shred_ptr;
@@ -195,38 +197,38 @@ void Arrow_detector::CreatGetImageTimer(){
     // this->GetImage();
 }
 
-void Arrow_detector::GetImage(){
+void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     using namespace std::chrono;
-    mtxvideoget.lock();
-    while(!client_->wait_for_service(1s)){
-        if(!rclcpp::ok()){
-            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
-            rclcpp::shutdown();
-            return;
-        }
-        RCLCPP_INFO(this->get_logger(),"service not available, waiting again....");
-    }
+    // mtxvideoget.lock();
+    // while(!client_->wait_for_service(1s)){
+    //     if(!rclcpp::ok()){
+    //         RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
+    //         rclcpp::shutdown();
+    //         return;
+    //     }
+    //     RCLCPP_INFO(this->get_logger(),"service not available, waiting again....");
+    // }
 
-    auto request=std::make_shared<Imagerequest::Request>();
-    auto result=client_->async_send_request(request);
-    RCLCPP_INFO(this->get_logger(),"Send request.");
-    sensor_msgs::msg::Image msg;
+    // auto request=std::make_shared<Imagerequest::Request>();
+    // auto result=client_->async_send_request(request);
+    // RCLCPP_INFO(this->get_logger(),"Send request.");
+    // sensor_msgs::msg::Image msg;
 
-    if(rclcpp::spin_until_future_complete(node_shred_ptr,result)==rclcpp::FutureReturnCode::SUCCESS){
-    // if(result.wait_for(1s)!=std::future_status::timeout){
-        RCLCPP_INFO(this->get_logger(),"!!!!!");
-        auto result_=result.get();
-        if(result_->end){
-            RCLCPP_INFO(this->get_logger(),"Video comes to end.");
-            return;
-        }
-        msg=result_->image;
-        RCLCPP_INFO(this->get_logger(),"Get frame with size [%d,%d]",msg.height,msg.width);
-    }
-    else {
-        RCLCPP_ERROR(this->get_logger(), "Wait too long");
-        return;
-    }
+    // if(rclcpp::spin_until_future_complete(node_shred_ptr,result)==rclcpp::FutureReturnCode::SUCCESS){
+    // // if(result.wait_for(1s)!=std::future_status::timeout){
+    //     RCLCPP_INFO(this->get_logger(),"!!!!!");
+    //     auto result_=result.get();
+    //     if(result_->end){
+    //         RCLCPP_INFO(this->get_logger(),"Video comes to end.");
+    //         return;
+    //     }
+    //     msg=result_->image;
+    //     RCLCPP_INFO(this->get_logger(),"Get frame with size [%d,%d]",msg.height,msg.width);
+    // }
+    // else {
+    //     RCLCPP_ERROR(this->get_logger(), "Wait too long");
+    //     return;
+    // }
 
     cv_bridge::CvImagePtr cv_ptr;
     try{
@@ -243,7 +245,7 @@ void Arrow_detector::GetImage(){
     // cv::waitKey(33);
     MainDetectArrow(originalframe);
 
-    mtxvideoget.unlock();
+    // mtxvideoget.unlock();
 }
 
 bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
@@ -412,15 +414,15 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     }
 
     if(RightAnglePeaks.size()!=2){
-        RCLCPP_ERROR(this->get_logger(),"RightAnglePeaks.size != 2");
+        RCLCPP_WARN(this->get_logger(),"RightAnglePeaks.size != 2");
 
         #ifdef DeBug
-        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[0].first.p1],arrowapproxcurve[HorizonLinePair[0].first.p2],cv::Scalar(100,200,150),5);
-        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[0].second.p1],arrowapproxcurve[HorizonLinePair[0].second.p2],cv::Scalar(100,200,150),5);
-        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[1].first.p1],arrowapproxcurve[HorizonLinePair[1].first.p2],cv::Scalar(50,220,225),5);
-        cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[1].second.p1],arrowapproxcurve[HorizonLinePair[1].second.p2],cv::Scalar(50,220,225),5);
-        cv::imshow("Fail",OriginalImage);
-        cv::waitKey(0);
+        // cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[0].first.p1],arrowapproxcurve[HorizonLinePair[0].first.p2],cv::Scalar(100,200,150),5);
+        // cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[0].second.p1],arrowapproxcurve[HorizonLinePair[0].second.p2],cv::Scalar(100,200,150),5);
+        // cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[1].first.p1],arrowapproxcurve[HorizonLinePair[1].first.p2],cv::Scalar(50,220,225),5);
+        // cv::line(OriginalImage,arrowapproxcurve[HorizonLinePair[1].second.p1],arrowapproxcurve[HorizonLinePair[1].second.p2],cv::Scalar(50,220,225),5);
+        // cv::imshow("Fail",OriginalImage);
+        // cv::waitKey(0);
         #endif
 
         return 0;
@@ -561,10 +563,10 @@ int main (int argc,char* argv[]){
     node->CreatGetImageTimer();
     // rclcpp::TimerBase::SharedPtr timer_=node->create_wall_timer(33ms,std::bind(&Arrow_detector::GetImage,node));
 
-    while(1){
-        // std::this_thread::sleep_for(33ms);
-        node->GetImage();
-    }
+    // while(1){
+    //     // std::this_thread::sleep_for(33ms);
+    //     node->GetImage();
+    // }
 
     rclcpp::spin(node);
     rclcpp::shutdown();

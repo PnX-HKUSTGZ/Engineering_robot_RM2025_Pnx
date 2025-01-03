@@ -13,6 +13,7 @@ using namespace std::chrono;
 
 std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> publisher_;
 std::shared_ptr<rclcpp::Node> node;
+std::shared_ptr<rclcpp::Service<interfaces::srv::Imagerequest>> service_;
 int nRet = MV_OK;
 
 
@@ -253,11 +254,14 @@ do{
 int main (int argc,char ** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("CameraDriver");
-    publisher_=node->create_publisher<sensor_msgs::msg::Image>("OriginalVideo",10);
     node->declare_parameter<int>("ExposureTimeLower",70000);
     node->declare_parameter<int>("ExposureTimeUpper",70000);
     node->declare_parameter<int>("Gain",15);
+    node->declare_parameter<int>("VideoDriverModle",1);
     // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
-    while(rclcpp::ok()) publish_video();
+    if(node->get_parameter("VideoDriverModle").as_int()==1){
+        publisher_=node->create_publisher<sensor_msgs::msg::Image>("OriginalVideo",10);
+        while(rclcpp::ok()) publish_video();
+    }
     rclcpp::spin(node);
 }
