@@ -6,10 +6,32 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # find dependencies
-find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(interfaces REQUIRED)
+
+add_executable(calibrate_camera src/CalibrateCamera.cpp)
+
+ament_target_dependencies(calibrate_camera
+  ament_cmake
+  rclcpp
+  OpenCV
+  sensor_msgs
+  cv_bridge
+)
+
+install(TARGETS
+  calibrate_camera
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
