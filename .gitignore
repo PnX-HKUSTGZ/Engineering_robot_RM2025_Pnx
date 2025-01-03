@@ -4,3 +4,5 @@ video/
 build/
 install/
 log/
+*.mp4
+*.avi
