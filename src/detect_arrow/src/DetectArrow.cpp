@@ -13,11 +13,11 @@
 using namespace std::chrono;
 using namespace std::placeholders;
 
-std::vector<double> cameraMatrix={2385.741827804018, 0, 693.002791664812,
- 0, 2384.654946073267, 570.7864275908191,
+std::vector<double> cameraMatrix={2401.443043387016, 0, 691.4720278343028,
+ 0, 2399.726409084835, 591.4878016293483,
  0, 0, 1};
 
-std::vector<double> distCoeffs={-0.06919930085453492, 0.1189282412086417, -0.0003444967306350213, -0.0003211241145470465, 1.246743834931904};
+std::vector<double> distCoeffs={-0.07276183962064491, 0.5306922137557746, 0.003438412696299282, -0.0003464785830702939, -1.112116894211063};
 
 std::vector<cv::Point3d> objpoints={cv::Point3d(0,0,0),cv::Point3d(10,10,0),cv::Point3d(136.42135623730950488016887242097,5,0),cv::Point3d(5,136.42135623730950488016887242097,0)};
 
@@ -40,6 +40,11 @@ std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen={
     Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,24,1),
     Eigen::Matrix<double,4,1>(52.679455198397790567862904976811,-117.02617228637361528833974192835,264,1),
     Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,264,1)
+};
+
+std::vector<Eigen::Matrix<double,4,1>> Object2cornersEigen={
+    Eigen::Matrix<double,4,1>(-133.99673503485076,69.65001794687493,0,1),
+    Eigen::Matrix<double,4,1>(69.65001794687493,-133.99673503485076,0,1),
 };
 
 typedef std::vector<std::vector<cv::Point>> Counters;
@@ -120,6 +125,10 @@ bool Arrow_detector::PnPsolver(){
 
     cv::solvePnP(objpoints,ArrowPeaks,cameraMatrixCV,distCoeffsCV,rvec,tvec,false,cv::SOLVEPNP_IPPE);
 
+    std::stringstream ss;
+    ss<<"rvec:\n"<<rvec<<std::endl;
+    ss<<"tvec:\n"<<tvec<<std::endl;
+    RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
     RCLCPP_INFO(this->get_logger(),"finish pnp");
 
     for(int i=0;i<3;i++){
@@ -132,7 +141,7 @@ bool Arrow_detector::PnPsolver(){
         0,1,0,0,
         0,0,1,0;
 
-    cv::Mat rmat;
+    cv::Mat rmat(rvec.size(),rvec.type());
     cv::Rodrigues(rvec,rmat);
 
 
@@ -165,14 +174,30 @@ bool Arrow_detector::PnPsolver(){
 
     }
 
+#ifdef DeBug
+
+    Counter corners;
+    for(const auto & i : Object2cornersEigen){
+        auto coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
+        corners.push_back(cv::Point2i(coordination(0)/coordination(2),coordination(1)/coordination(2)));
+        
+        std::stringstream ss;
+        ss<<cameraMatrixEigen<<"\n"<<signMat<<"\n"<<rtvecEigen<<"\n"<<i<<"\n"<<coordination;
+        RCLCPP_INFO(this->get_logger(),"Node : %s",ss.str().c_str());
+
+    }
+    cv::drawContours(OriginalImage,Counters{corners},-1,cv::Scalar(225,0,0),5);
+
     cv::drawContours(OriginalImage,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),3);
+
+#endif
 
     cv::imshow("PnP",OriginalImage);
     cv::waitKey(22);
 
     static int CntVideo=0;
     static bool close=0;
-    if(CntVideo<=20*30){
+    if(CntVideo<=60*30){
         videowriter<<OriginalImage;
         CntVideo++;
         RCLCPP_INFO(this->get_logger(),"wirte video %d",CntVideo);
@@ -191,6 +216,9 @@ void Arrow_detector::CreatGetImageTimer(){
     using namespace std::placeholders;
     using namespace std::chrono;
     node_shred_ptr=this->shared_from_this();
+    cv::namedWindow("ArrowPeaks");
+    cv::namedWindow("Dilated");
+    cv::namedWindow("PnP");
     // RCLCPP_INFO(this->get_logger(),"Start Creat Get Image Timer.");
     // timer_=this->create_wall_timer(33ms,std::bind(&Arrow_detector::GetImage,this));
     // RCLCPP_INFO(this->get_logger(),"Creat Get Image Timer.");
@@ -229,6 +257,10 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     //     RCLCPP_ERROR(this->get_logger(), "Wait too long");
     //     return;
     // }
+
+    if(!rclcpp::ok()){
+        rclcpp::shutdown();
+    }
 
     cv_bridge::CvImagePtr cv_ptr;
     try{
@@ -280,7 +312,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
         RCLCPP_INFO(this->get_logger(),"approxcurve size : %ld",approxcurve.size());
 
-        bool pixel_in=(pixel_num>=20000&&pixel_num<=80000);
+        bool pixel_in=(pixel_num>=15000&&pixel_num<=80000);
         bool lwratio=1.1<=LengthWidthRatio&&LengthWidthRatio<=(4/sqrt(2));
         bool approxsize=(6<=approxcurve.size()&&approxcurve.size()<=10);
 
