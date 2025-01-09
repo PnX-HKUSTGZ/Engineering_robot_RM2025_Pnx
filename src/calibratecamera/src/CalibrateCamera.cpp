@@ -18,11 +18,12 @@ std::vector<cv::Point3f> objp;
 std::mutex mtx;
 
 void InitCalibrationParam(){
-    CHECKERBOARD[0]=7;
-    CHECKERBOARD[1]=7;
-    for(int i=0;i<CHECKERBOARD[0];i++) for(int j=0;j<CHECKERBOARD[1];j++){
+    CHECKERBOARD[0]=10;//宽度
+    CHECKERBOARD[1]=7;//高度
+    for(int i=0;i<CHECKERBOARD[1];i++) for(int j=0;j<CHECKERBOARD[0];j++){
         objp.push_back(cv::Point3f(j,i,0));
     }
+    node->declare_parameter<std::string>("PicturePath",std::string("/home/lqx/code/Engineering_robot_RM2025_Pnx/Pictures"));
 }
 
 void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
@@ -37,24 +38,27 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
         RCLCPP_ERROR(node->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
-    cv::Mat originalimage=cv_ptr->image;
+    cv::Mat msgg=cv_ptr->image;
+    cv::Mat originalimage;
+    cv::cvtColor(msgg,originalimage,cv::COLOR_BGR2GRAY);
     RCLCPP_INFO(node->get_logger(),"Get Image");
     
     std::vector<cv::Point2f> corner_pts;
     bool success=0;
-    success=cv::findCirclesGrid(originalimage,cv::Size(CHECKERBOARD[0],CHECKERBOARD[1]),corner_pts);
+    success=cv::findChessboardCorners(originalimage,cv::Size(CHECKERBOARD[0],CHECKERBOARD[1]),corner_pts);
 
     if(!success){
         RCLCPP_WARN(node->get_logger(),"fail to find circls grid");
         return;
     }
-    else RCLCPP_INFO(node->get_logger(),"find circls grid successfully");
+    else{
+        RCLCPP_INFO(node->get_logger(),"find circls grid successfully");
+        cv::cornerSubPix(originalimage,corner_pts,cv::Size(11,11),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.1));
+    }
 
     //
-    cv::TermCriteria criteria(cv::TermCriteria::EPS | cv::TermCriteria::Type::MAX_ITER, 30, 0.001);
 
-    cv::drawChessboardCorners(originalimage, cv::Size(CHECKERBOARD[0], CHECKERBOARD[1]), corner_pts, success);
-
+    cv::drawChessboardCorners(msgg, cv::Size(CHECKERBOARD[0], CHECKERBOARD[1]), corner_pts, success);
 
     // mtx.lock();
     objpoints.push_back(objp);
@@ -62,7 +66,7 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
 
     cv::Mat cameraMatrix, distCoeffs, R, T;
 
-    if(objpoints.size()>=30){
+    if(objpoints.size()>=20){
         // std::ofstream OUT;
         std::stringstream ss;
         // OUT.open(node->get_parameter("parampath").as_string());
@@ -88,13 +92,14 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
     }
     else{
         RCLCPP_INFO(node->get_logger(),"get %ld frames",objpoints.size());
-        std::this_thread::sleep_for(1s);
+        cv::imshow("get",msgg);
+        cv::imwrite(node->get_parameter("PicturePath").as_string()+"/"+std::to_string(objpoints.size())+".jpg",originalimage);
+        // cv::waitKey(1500);
+        // std::this_thread::sleep_for(500ms);
     }
 
     // mtx.unlock();
 
-    cv::imshow("get",originalimage);
-    cv::waitKey(22);
 }
 
 int main (int argc,char** argv){

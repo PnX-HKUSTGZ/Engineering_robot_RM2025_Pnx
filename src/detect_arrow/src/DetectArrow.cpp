@@ -13,11 +13,11 @@
 using namespace std::chrono;
 using namespace std::placeholders;
 
-std::vector<double> cameraMatrix={2401.443043387016, 0, 691.4720278343028,
- 0, 2399.726409084835, 591.4878016293483,
+std::vector<double> cameraMatrix={2375.787121776882, 0, 740.0689192411256,
+ 0, 2379.743671056914, 590.1717549829305,
  0, 0, 1};
 
-std::vector<double> distCoeffs={-0.07276183962064491, 0.5306922137557746, 0.003438412696299282, -0.0003464785830702939, -1.112116894211063};
+std::vector<double> distCoeffs={-0.07093428455159315, 0.1865900206019591, 0.003095286426499801, 0.004747807496693957, 0.8787773017757813};
 
 std::vector<cv::Point3d> objpoints={cv::Point3d(0,0,0),cv::Point3d(10,10,0),cv::Point3d(136.42135623730950488016887242097,5,0),cv::Point3d(5,136.42135623730950488016887242097,0)};
 
@@ -34,6 +34,59 @@ std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint={
     cv::Point3d(-117.02617228637361528833974192835,52.679455198397790567862904976811,264),
     cv::Point3d(52.679455198397790567862904976811,-117.02617228637361528833974192835,264)
 };
+
+/*
+[INFO] [1736395125.791977894] [calibrate_camera]: cameraMatrix : [2585.088699294729, 0, 525.0062538082545;
+ 0, 2643.218336464573, 633.0861170979923;
+ 0, 0, 1]
+distCoeffs : [-0.0556364495907907, -0.2212500754240332, 0.007170186529455457, 0.00956399082050834, 1.912809759877645]
+
+[INFO] [1736395298.474409751] [calibrate_camera]: cameraMatrix : [2381.944332254315, 0, 709.3373659842438;
+ 0, 2387.166170211481, 594.0678751202787;
+ 0, 0, 1]
+distCoeffs : [-0.07414935707790817, 0.3823790114920249, 0.003279745743046585, 0.001628738510793524, -0.9057026792700137]
+
+[INFO] [1736395505.051047581] [calibrate_camera]: cameraMatrix : [2382.895292065366, 0, 710.5726099864352;
+ 0, 2390.181509542392, 596.0300870268205;
+ 0, 0, 1]
+distCoeffs : [-0.07221877942119345, 0.2013289769688859, 0.003024436349887122, 0.002969241447513818, 0.4220593044244383]
+
+[INFO] [1736395698.023824032] [calibrate_camera]: cameraMatrix : [2387.558408527406, 0, 715.0159139648023;
+ 0, 2393.04251032088, 594.0275525380879;
+ 0, 0, 1]
+distCoeffs : [-0.06833047900817182, 0.2942394128667126, 0.002870541026948472, 0.002410173251176433, 0.1036437823223326]
+
+[INFO] [1736395761.683406313] [calibrate_camera]: cameraMatrix : [2375.260793164691, 0, 723.0037072901363;
+ 0, 2380.732591475137, 605.9553853268534;
+ 0, 0, 1]
+distCoeffs : [-0.06950109379156319, 0.2968388146211183, 0.004616267963532699, 0.003975553594638102, -0.5707120681301413]
+
+[INFO] [1736395843.989932800] [calibrate_camera]: cameraMatrix : [2366.778471623255, 0, 748.0916761127738;
+ 0, 2369.630431231162, 603.8068306938617;
+ 0, 0, 1]
+distCoeffs : [-0.08923122531565172, 0.5371551780954817, 0.003580395486770035, 0.004370536786784852, -1.844051438880483]
+
+[INFO] [1736397778.916076636] [calibrate_camera]: cameraMatrix : [2360.008613990164, 0, 761.9832997464299;
+ 0, 2362.751874116515, 596.5809202479236;
+ 0, 0, 1]
+distCoeffs : [-0.07265408826672405, 0.1511829681751362, 0.003579730882815966, 0.00652837881894829, 0.7284753107946278]
+
+[INFO] [1736397822.324780480] [calibrate_camera]: cameraMatrix : [2369.24973891433, 0, 745.0359718145587;
+ 0, 2373.023758080285, 592.3692178752259;
+ 0, 0, 1]
+distCoeffs : [-0.0791587761424231, 0.3446287126868074, 0.003336949690923318, 0.005161324417881087, -0.2043942064847434]
+
+[INFO] [1736397847.257374538] [calibrate_camera]: cameraMatrix : [2365.58446740118, 0, 735.3589551516543;
+ 0, 2369.87147521186, 597.3784330607212;
+ 0, 0, 1]
+distCoeffs : [-0.08304354728867848, 0.4740520671349235, 0.003425146248158939, 0.003879155461288919, -1.4157542645932]
+
+[INFO] [1736397877.122511162] [calibrate_camera]: cameraMatrix : [2375.787121776882, 0, 740.0689192411256;
+ 0, 2379.743671056914, 590.1717549829305;
+ 0, 0, 1]
+distCoeffs : [-0.07093428455159315, 0.1865900206019591, 0.003095286426499801, 0.004747807496693957, 0.8787773017757813]
+
+*/
 
 std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen={
     Eigen::Matrix<double,4,1>(-117.02617228637361528833974192835,52.679455198397790567862904976811,24,1),
@@ -123,7 +176,12 @@ bool Arrow_detector::PnPsolver(){
     Eigen::Matrix<double,4,4> rtvecEigen;
     Eigen::Matrix<double,3,4> signMat;
 
-    cv::solvePnP(objpoints,ArrowPeaks,cameraMatrixCV,distCoeffsCV,rvec,tvec,false,cv::SOLVEPNP_IPPE);
+    bool PnPsuccess=cv::solvePnP(objpoints,ArrowPeaks,cameraMatrixCV,distCoeffsCV,rvec,tvec,false,cv::SOLVEPNP_IPPE);
+
+    if(!PnPsuccess){
+        RCLCPP_WARN(this->get_logger(),"PnP fail");
+        return 0;
+    }
 
     std::stringstream ss;
     ss<<"rvec:\n"<<rvec<<std::endl;
@@ -174,7 +232,8 @@ bool Arrow_detector::PnPsolver(){
 
     }
 
-#ifdef DeBug
+
+// #ifdef DeBug
 
     Counter corners;
     for(const auto & i : Object2cornersEigen){
@@ -190,10 +249,12 @@ bool Arrow_detector::PnPsolver(){
 
     cv::drawContours(OriginalImage,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),3);
 
-#endif
+    // cv::putText(OriginalImage,ss.str().c_str(),cv::Point(0,0),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,0,0));
+
+// #endif
 
     cv::imshow("PnP",OriginalImage);
-    cv::waitKey(22);
+    cv::waitKey(0);
 
     static int CntVideo=0;
     static bool close=0;
@@ -512,7 +573,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     #ifdef DeBug
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
-        cv::circle(OriginalImage,i,3,cv::Scalar(153,156,30),-1);
+        cv::circle(OriginalImage,i,1,cv::Scalar(153,156,30),-1);
         std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
         cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
@@ -523,7 +584,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     #endif
 
     for(auto i : ArrowPeaks){
-        cv::circle(OriginalImage,i,3,cv::Scalar(153,156,30),-1);
+        cv::circle(OriginalImage,i,1,cv::Scalar(153,156,30),-1);
         // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
         // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
@@ -574,7 +635,7 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
     RCLCPP_INFO(this->get_logger(),"maxval of greyimage : %lf ,minval of greyimage : %lf ",maxval,minval);
 
-    cv::threshold(GreyImage,BinaryImage,maxval*threshholdk,300,cv::THRESH_BINARY);
+    cv::threshold(GreyImage,BinaryImage,100,300,cv::THRESH_BINARY);
 
     cv::dilate(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
 

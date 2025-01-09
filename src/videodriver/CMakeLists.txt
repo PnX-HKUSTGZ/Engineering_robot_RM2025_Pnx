@@ -22,6 +22,7 @@ find_package(interfaces REQUIRED)
 
 add_executable(video_driver src/VideoDriver.cpp)
 add_executable(camera_dirver src/CameraDriver.cpp)
+add_executable(picture_driver src/PictureDriver.cpp)
 
 ament_target_dependencies(video_driver
   rclcpp
@@ -45,12 +46,23 @@ ament_target_dependencies(camera_dirver
   interfaces
 )
 
+ament_target_dependencies(picture_driver
+  rclcpp
+  OpenCV
+  sensor_msgs
+  cv_bridge
+  rclcpp_components
+  interfaces
+)
+
 install(TARGETS video_driver
   DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS camera_dirver
   DESTINATION lib/${PROJECT_NAME})
 
+install(TARGETS picture_driver
+  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}/
