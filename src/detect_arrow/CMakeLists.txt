@@ -15,6 +15,8 @@ find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
+include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
+
 add_executable(detect_arrow src/DetectArrow.cpp)
 
 ament_target_dependencies(detect_arrow
