@@ -84,10 +84,10 @@ void DrawLines(cv::Mat & img,const Lines & lines, const cv::Scalar& color,
 
 double DistanceBetweenPointAndLine(const cv::Point2f & p,const Line & l){
     double r=l.val[0],theta=l.val[1];
-    double t1=(p.y/std::cos(theta)-p.x/std::sin(theta))/2;
-    double t0=(2*r-p.y/std::cos(theta)-p.x/std::sin(theta))/2;
-    cv::Point2f p1(r*std::cos(theta)-t1*cos(theta),r*std::sin(theta)+t1*sin(theta));
-    cv::Point2f p2(r*std::cos(theta)+t0*cos(theta),r*std::sin(theta)+t0*sin(theta));
+    double t1=(p.y*std::cos(theta)-p.x*std::sin(theta));
+    double t0=(r-p.x*std::cos(theta)-p.y*std::sin(theta));
+    cv::Point2f p1(r*std::cos(theta)-t1*sin(theta),r*std::sin(theta)+t1*cos(theta));
+    cv::Point2f p2(p.x+t0*cos(theta),p.y+t0*sin(theta));
     if(p1!=p2){
         RCLCPP_ERROR(rclcpp::get_logger("DistanceBetweenPointAndLine"),"p1 : [%lf,%lf],p2 : [%lf,%lf],p : [%lf,%lf]",p1.x,p1.y,p2.x,p2.y,p.x,p.y);
         rclcpp::shutdown();
@@ -98,9 +98,9 @@ double DistanceBetweenPointAndLine(const cv::Point2f & p,const Line & l){
 
 double DistanceBetweenPointAndLine(const cv::Point & p,const Line & l){
     double r=l.val[0],theta=l.val[1];
-    double t1=(p.y/std::sin(theta)-p.x/std::cos(theta))/2;
-    double t0=(2*r-p.x/std::cos(theta)-p.y/std::sin(theta))/2;
-    cv::Point2f p1(r*std::cos(theta)-t1*cos(theta),r*std::sin(theta)+t1*sin(theta));
+    double t1=(p.y*std::cos(theta)-p.x*std::sin(theta));
+    double t0=(r-p.x*std::cos(theta)-p.y*std::sin(theta));
+    cv::Point2f p1(r*std::cos(theta)-t1*sin(theta),r*std::sin(theta)+t1*cos(theta));
     cv::Point2f p2(p.x+t0*cos(theta),p.y+t0*sin(theta));
     if(p1!=p2){
         RCLCPP_ERROR(rclcpp::get_logger("DistanceBetweenPointAndLine"),"p1 : [%lf,%lf],p2 : [%lf,%lf],p : [%d,%d]",p1.x,p1.y,p2.x,p2.y,p.x,p.y);

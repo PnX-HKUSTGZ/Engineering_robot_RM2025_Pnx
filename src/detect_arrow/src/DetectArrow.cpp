@@ -335,7 +335,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::minEnclosingCircle(isarrow,center,radius);
     cv::minEnclosingTriangle(isarrow,TrianglePeaks);
 
-    cv::circle(Mask,center,radius,cv::Scalar(255),-1);
+    cv::drawContours(Mask,Counters{isarrow},-1,cv::Scalar(255),-1);
 
     cv::copyTo(BinaryImage,MaskedImage,Mask);
 
@@ -529,7 +529,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::Mat CannyImage;
     cv::Canny(MaskedImage,CannyImage,100,200);
 
-    cv::HoughLines(CannyImage,ArrowLines,1,CV_PI/360,200);
+    cv::HoughLines(CannyImage,ArrowLines,1,CV_PI/360,150);
 
     std::vector<std::pair<int,double>> DistanceBTOutCornerLines;
     std::vector<std::pair<int,double>> DistanceBTInCornerLines;
@@ -583,7 +583,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     #ifdef DeBugHough
 
-    DrawLines(OriginalImage,ArrowLines,cv::Scalar(225,225,225));
+    // DrawLines(OriginalImage,ArrowLines,cv::Scalar(225,225,225));
 
     for(auto i : ArrowPeaks){
         cv::circle(OriginalImage,i,1,cv::Scalar(153,156,30),-1);

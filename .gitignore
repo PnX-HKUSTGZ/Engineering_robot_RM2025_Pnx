@@ -8,3 +8,6 @@ log/
 *.avi
 video.avi
 Pictures/
+Camera.png
+HoughLines.png
+PnP.png
