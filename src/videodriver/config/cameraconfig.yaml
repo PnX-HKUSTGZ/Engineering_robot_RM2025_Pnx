@@ -1,0 +1,11 @@
+camera_driver:
+  ros__parameters:
+    ExposureTimeLower:
+      type: int
+      value: 1000
+    ExposureTimeUpper:
+      type: int
+      value: 1000
+    GainLower:
+      type: int
+      value: 10

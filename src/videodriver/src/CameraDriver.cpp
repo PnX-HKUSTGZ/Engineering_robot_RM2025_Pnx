@@ -254,9 +254,9 @@ do{
 int main (int argc,char ** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("CameraDriver");
-    node->declare_parameter<int>("ExposureTimeLower",70000);
-    node->declare_parameter<int>("ExposureTimeUpper",70000);
-    node->declare_parameter<int>("Gain",15);
+    node->declare_parameter<int>("ExposureTimeLower",10000);
+    node->declare_parameter<int>("ExposureTimeUpper",10000);
+    node->declare_parameter<int>("Gain",5);
     node->declare_parameter<int>("VideoDriverModle",1);
     // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
     if(node->get_parameter("VideoDriverModle").as_int()==1){

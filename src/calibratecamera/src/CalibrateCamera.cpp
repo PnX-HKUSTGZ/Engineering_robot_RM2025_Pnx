@@ -18,7 +18,7 @@ std::vector<cv::Point3f> objp;
 std::mutex mtx;
 
 void InitCalibrationParam(){
-    CHECKERBOARD[0]=10;//宽度
+    CHECKERBOARD[0]=7;//宽度
     CHECKERBOARD[1]=7;//高度
     for(int i=0;i<CHECKERBOARD[1];i++) for(int j=0;j<CHECKERBOARD[0];j++){
         objp.push_back(cv::Point3f(j,i,0));
@@ -53,7 +53,7 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
     }
     else{
         RCLCPP_INFO(node->get_logger(),"find circls grid successfully");
-        cv::cornerSubPix(originalimage,corner_pts,cv::Size(11,11),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.1));
+        // cv::cornerSubPix(originalimage,corner_pts,cv::Size(11,11),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.1));
     }
 
     //
