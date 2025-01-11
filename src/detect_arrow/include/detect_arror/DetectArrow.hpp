@@ -38,8 +38,11 @@ class Arrow_detector:public rclcpp::Node{
     bool MainDetectArrow(const cv::Mat & OriginalImage);
     bool TargetArrow(const cv::Mat & BinaryImage);
     cv::Mat OriginalImage;
-    std::vector<cv::Point2d> ArrowPeaks;
-    bool PnPsolver();
+    std::vector<cv::Point2f> ArrowPeaks;
+
+    bool PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
+        cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
+    
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     cv::Mat rvec,tvec;
     // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
@@ -89,14 +92,22 @@ typedef std::vector<cv::Point> Counter;
 double GetAngleAccordingToHorizon(cv::Point p1,cv::Point p2);
 
 double GetAngle(cv::Point2f p1,cv::Point2f p2,cv::Point2f p3);
-double DistancePoints(const cv::Point & p1,const cv::Point & p2);
-double DistancePoints(const cv::Point2f & p1,const cv::Point & p2);
-double DistancePoints(const cv::Point & p1,const cv::Point2f & p2);
+
+template<typename T,typename G>
+double DistancePoints(const cv::Point_<T> & p1,const cv::Point_<G> & p2);
 
 // 发现不在给定的多边形上,就返回0
-bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point2f> & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold=5);
-void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,std::vector<cv::Point2f> & Peaks,std::map<cv::Point,bool> &vis,const double ContinueThreshold,const double PeaksThreshold=5);
-void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point2f> & Peaks,const double PeaksThreshold=5);
+template<typename T>
+bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<T> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold=5);
+
+template<typename T>
+bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,std::vector<cv::Point_<T> > & Peaks,std::map<cv::Point,bool> &vis,const double ContinueThreshold,const double PeaksThreshold=5);
+
+template<typename T>
+void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<T> > & Peaks,const double PeaksThreshold=5);
+
+template<typename T>
+void GetLinesIntersections(const std::vector<LineVP> & lines,std::vector<cv::Point_<T> > & Intersections);
 
 bool operator < (const cv::Point & a,const cv::Point & b);
 

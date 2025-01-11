@@ -65,30 +65,36 @@ double GetAngle(cv::Point2f p1,cv::Point2f p2,cv::Point2f p3){
     return angle;
 }
 
-double DistancePoints(const cv::Point & p1,const cv::Point & p2){
+template<typename T,typename G>
+double DistancePoints(const cv::Point_<T> & p1,const cv::Point_<G> & p2){
     return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
 }
 
-double DistancePoints(const cv::Point2f & p1,const cv::Point & p2){
-    return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
-}
+template double DistancePoints<int,int> (const cv::Point_<int> & p1,const cv::Point_<int> & p2);
+template double DistancePoints<float,float> (const cv::Point_<float> & p1,const cv::Point_<float> & p2);
+template double DistancePoints<double,double> (const cv::Point_<double> & p1,const cv::Point_<double> & p2);
+template double DistancePoints<int,double> (const cv::Point_<int> & p1,const cv::Point_<double> & p2);
+template double DistancePoints<double,int> (const cv::Point_<double> & p1,const cv::Point_<int> & p2);
+template double DistancePoints<float,int> (const cv::Point_<float> & p1,const cv::Point_<int> & p2);
+template double DistancePoints<int,float> (const cv::Point_<int> & p1,const cv::Point_<float> & p2);
+template double DistancePoints<float,double> (const cv::Point_<float> & p1,const cv::Point_<double> & p2);
+template double DistancePoints<double,float> (const cv::Point_<double> & p1,const cv::Point_<float> & p2);
 
-double DistancePoints(const cv::Point & p1,const cv::Point2f & p2){
-    return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
-}
-
-bool InPeaksThreshold(const cv::Point & p,const std::vector<cv::Point2f> & Peaks,const double PeaksThreshold){
+template<typename T>
+bool InPeaksThreshold(const cv::Point & p,const std::vector<cv::Point_<T> > & Peaks,const double PeaksThreshold){
     for(const auto & i : Peaks){
         if(DistancePoints(p,i)<=PeaksThreshold) return 1;
     }
     return 0;
 }
 
-pii PointToPii(const cv::Point & p){
+template<typename T>
+std::pair<T,T> PointToPii(const cv::Point_<T> & p){
     return std::make_pair(p.x,p.y);
 }
 
-bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point2f> & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold){
+template<typename T>
+bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<T> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold){
     static int dx[8]={0,0,1,-1,1,-1,1,-1};
     static int dy[8]={1,-1,0,0,1,1,-1,-1};
 
@@ -152,8 +158,12 @@ bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
     return 1;
 
 }
+template bool FindContinuePart<int>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<int> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold);
+template bool FindContinuePart<double>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<double> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold);
 
-void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point2f> & Peaks,const double PeaksThreshold){
+
+template<typename T> 
+void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<T>> & Peaks,const double PeaksThreshold){
 
     std::map<std::pair<int,int>,bool> vis;
 
@@ -177,6 +187,8 @@ void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::v
         }
     }
 }
+template void FindPolygonCounterPointsSets<int>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<int> > & Peaks,const double PeaksThreshold);
+template void FindPolygonCounterPointsSets<double>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<double> > & Peaks,const double PeaksThreshold);
 
 LineABC GetLineABC(const Line & l){
     double r=l.val[0],theta=l.val[1];
@@ -220,3 +232,29 @@ LineABC ClassicalLeastSquares(const std::vector<cv::Point> & Pointset){
     double B=y_-A*x_;
     return LineABC{A,-1,B};
 }
+
+template<typename T>
+void GetLinesIntersections(const std::vector<LineVP> & lines,std::vector<cv::Point_<T> > & Intersections){
+    int siz=lines.size();
+    for(int i=0;i<siz;i++){
+        for(int e=i+1;e<siz;e++){
+            double a1=lines[i][0],b1=lines[i][1],x1=lines[i][2],y1=lines[i][3];
+            double a2=lines[e][0],b2=lines[e][1],x2=lines[e][2],y2=lines[e][3];
+
+            double t1=(b1*(x2-x1)-a1*(y2-y1))/(b2*a1-a2*b1);
+            double t2=(b2*(x1-x2)-a2*(y1-y2))/(b1*a2-a1*b2);
+            double x=x2+t1*a2,y=y2+t1*b2;
+            double x_=x1+t2*a1,y_=y1+t2*b1;
+
+            if(abs(x-x_)>eps||abs(y-y_)>eps){
+                RCLCPP_ERROR(rclcpp::get_logger("GetLinesIntersections"),"x : [%lf],y : [%lf],x_ : [%lf],y_ : [%lf]",x,y,x_,y_);
+                // rclcpp::shutdown();
+            }
+            Intersections.push_back(cv::Point2f(x,y));
+        }
+    }
+}
+
+template void GetLinesIntersections<int>(const std::vector<LineVP> & lines,std::vector<cv::Point_<int> > & Intersections);
+template void GetLinesIntersections<double>(const std::vector<LineVP> & lines,std::vector<cv::Point_<double> > & Intersections);
+template void GetLinesIntersections<float>(const std::vector<LineVP> & lines,std::vector<cv::Point_<float> > & Intersections);

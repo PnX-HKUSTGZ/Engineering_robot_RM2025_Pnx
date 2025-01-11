@@ -8,13 +8,26 @@ std::vector<double> cameraMatrix={2375.787121776882, 0, 740.0689192411256,
 
 std::vector<double> distCoeffs={-0.07093428455159315, 0.1865900206019591, 0.003095286426499801, 0.004747807496693957, 0.8787773017757813};
 
-std::vector<cv::Point3d> objpoints={cv::Point3d(0,0,0),cv::Point3d(10,10,0),cv::Point3d(136.42135623730950488016887242097,5,0),cv::Point3d(5,136.42135623730950488016887242097,0)};
+std::vector<cv::Point3d> objpoints={
+    cv::Point3d(0,0,0),
+    cv::Point3d(10,10,0),
+    cv::Point3d(141.42135623730950488016887242097,0,0),
+    cv::Point3d(123.13708498984760390413509793678,10,0),
+    cv::Point3d(0,141.42135623730950488016887242097,0),
+    cv::Point3d(10,123.13708498984760390413509793678,0),
+    cv::Point3d(10,0,0),
+    cv::Point3d(0,10,0)
+};
 
 std::vector<Eigen::Matrix<double,4,1>> objpointsEigen{
     Eigen::Matrix<double,4,1>(0,0,0,1),
     Eigen::Matrix<double,4,1>(10,10,0,1),
-    Eigen::Matrix<double,4,1>(136.42135623730950488016887242097,5,0,1),
-    Eigen::Matrix<double,4,1>(5,136.42135623730950488016887242097,0,1)
+    Eigen::Matrix<double,4,1>(141.42135623730950488016887242097,0,0,1),
+    Eigen::Matrix<double,4,1>(123.13708498984760390413509793678,10,0,1),
+    Eigen::Matrix<double,4,1>(0,141.42135623730950488016887242097,0,1),
+    Eigen::Matrix<double,4,1>(10,123.13708498984760390413509793678,0,1),
+    Eigen::Matrix<double,4,1>(10,0,0,1),
+    Eigen::Matrix<double,4,1>(0,10,0,1)
 };
 
 std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint={
@@ -52,15 +65,16 @@ double ArrowDetectorThresholdThresh;
 double ArrowDetectorThresholdMaxval;
 double ArrowDetectorThresholdThreshold;
 
-
-bool Arrow_detector::PnPsolver(){
+// template<typename T,typename G>
+bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
+    cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags){
     cv::Mat cameraMatrixCV=cv::Mat(3,3,CV_64F,const_cast<double *>(cameraMatrix.data())).clone();
     cv::Mat distCoeffsCV=cv::Mat(1,5,CV_64F,const_cast<double *>(distCoeffs.data())).clone();
     Eigen::Matrix<double,3,3> cameraMatrixEigen;
     Eigen::Matrix<double,4,4> rtvecEigen;
     Eigen::Matrix<double,3,4> signMat;
 
-    bool PnPsuccess=cv::solvePnP(objpoints,ArrowPeaks,cameraMatrixCV,distCoeffsCV,rvec,tvec,false,cv::SOLVEPNP_IPPE);
+    bool PnPsuccess=cv::solvePnP(ObjectPoints3D,ImagePoints2D,cameraMatrixCV,distCoeffsCV,rvec,tvec,useExtrinsicGuess,flags);
 
     if(!PnPsuccess){
         RCLCPP_WARN(this->get_logger(),"PnP fail");
@@ -124,7 +138,7 @@ bool Arrow_detector::PnPsolver(){
         corners.push_back(cv::Point2i(coordination(0)/coordination(2),coordination(1)/coordination(2)));
     }
 
-    #ifdef DeBug
+    // #ifdef DeBug
     
     cv::drawContours(OriginalImage,Counters{corners},-1,cv::Scalar(225,0,0),5);
 
@@ -132,7 +146,7 @@ bool Arrow_detector::PnPsolver(){
 
     // cv::putText(OriginalImage,ss.str().c_str(),cv::Point(0,0),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,0,0));
 
-    #endif
+    // #endif
 
     cv::imshow("PnP",OriginalImage);
     cv::waitKey(33);
@@ -434,14 +448,16 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     // RCLCPP_INFO(this->get_logger(),"OK!");
 
     /*
+    第一次迭代顶点储存
     储存规则：
-    最外侧直角顶点，最内侧直角顶点，从中心线外接圆顺时针方向第一个尾处的两顶点的中点，外接圆顺时针方向第二个尾处的两顶点的中点
-    最后四个点是角落的四个点，不准确
+    最外侧直角顶点，最内侧直角顶点，从中心线外接圆顺时针方向第一个尾处的两顶点，从中心线外接圆顺时针方向第二尾处的两顶点()
     */
     std::vector<cv::Point> ArrowPeaks;
 
     ArrowPeaks.push_back(arrowapproxcurve[RightAnglePeaks[0]]);
     ArrowPeaks.push_back(arrowapproxcurve[RightAnglePeaks[1]]);
+    ArrowPeaks.push_back(cv::Point(0,0));
+    ArrowPeaks.push_back(cv::Point(0,0));
     ArrowPeaks.push_back(cv::Point(0,0));
     ArrowPeaks.push_back(cv::Point(0,0));
 
@@ -453,14 +469,24 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         if(PointNumPair2.first==RightAnglePeaks[0]||PointNumPair2.first==RightAnglePeaks[1]) std::swap(PointNumPair2.first,PointNumPair2.second);
         cv::Point TargetLine=arrowapproxcurve[PointNumPair1.first]-cv::Point(center.x,center.y);
         if(TargetLine.cross(Centerline)<=0){
-            ArrowPeaks[2]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
-            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair1.first]);
-            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair2.first]);
+            if(DistancePoints(arrowapproxcurve[PointNumPair1.first],center)>DistancePoints(arrowapproxcurve[PointNumPair2.first],center)){
+                ArrowPeaks[2]=(arrowapproxcurve[PointNumPair1.first]);
+                ArrowPeaks[3]=(arrowapproxcurve[PointNumPair2.first]);
+            }
+            else{
+                ArrowPeaks[2]=(arrowapproxcurve[PointNumPair2.first]);
+                ArrowPeaks[3]=(arrowapproxcurve[PointNumPair1.first]);
+            }
         }
         else{
-            ArrowPeaks[3]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
-            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair1.first]);
-            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair2.first]);
+            if(DistancePoints(arrowapproxcurve[PointNumPair1.first],center)>DistancePoints(arrowapproxcurve[PointNumPair2.first],center)){
+                ArrowPeaks[4]=(arrowapproxcurve[PointNumPair1.first]);
+                ArrowPeaks[5]=(arrowapproxcurve[PointNumPair2.first]);
+            }
+            else{
+                ArrowPeaks[4]=(arrowapproxcurve[PointNumPair2.first]);
+                ArrowPeaks[5]=(arrowapproxcurve[PointNumPair1.first]);
+            }
         }
     }
 
@@ -470,7 +496,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     }
     else RCLCPP_INFO(this->get_logger(),"find midpoint of other two sides successfully");
 
-    #ifdef DeBug
+    // #ifdef DeBug
 
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
@@ -489,7 +515,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
 
-    #endif
+    // #endif
 
     cv::Mat CannyImage;
     cv::Canny(MaskedImage,CannyImage,ArrowDetectorCannyThreshold1,ArrowDetectorCannyThreshold2);
@@ -505,7 +531,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     #endif
 
     FindPolygonCounterPointsSets(CannyImage,LinesPoints,
-        std::vector<cv::Point2f>{ArrowPeaks[0],ArrowPeaks[1],ArrowPeaks[4],ArrowPeaks[5],ArrowPeaks[6],ArrowPeaks[7]},
+        ArrowPeaks,
         ArrowDetectorThresholdThreshold);
 
     for(std::size_t i=0;i<LinesPoints.size();i++){
@@ -518,6 +544,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
     RCLCPP_INFO(this->get_logger(),"finish find lines");
 
+    #ifdef DeBugHough
+
     DrawLines(OriginalImage,FittedLines,cv::Scalar(225,225,225),1);
     DrawLines(CannyImage,FittedLines,cv::Scalar(225),1);
 
@@ -525,10 +553,47 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::imshow("CannyImageDD",CannyImage);
     cv::waitKey(0);
 
-    this->ArrowPeaks.clear();
-    for(int i=0;i<4;i++){
-        this->ArrowPeaks.push_back(cv::Point2d(ArrowPeaks[i].x,ArrowPeaks[i].y));
+    #endif
+
+    //第二次迭代顶点储存
+    std::vector<cv::Point2f> ArrowPeaks_;
+    std::vector<cv::Point2f> AllItersections;
+
+    GetLinesIntersections(FittedLines,AllItersections);
+
+    for(int i=0;i<6;i++){
+        double distance=1e9;
+        int cnt=-1;
+        for(int e=AllItersections.size()-1;e>=0;e--){
+            if(DistancePoints(ArrowPeaks[i],AllItersections[e])<distance){
+                distance=DistancePoints(ArrowPeaks[i],AllItersections[e]);
+                cnt=e;
+            }
+        }
+        ArrowPeaks_.push_back(AllItersections[cnt]);
     }
+
+    std::sort(AllItersections.begin(),AllItersections.end(),[&ArrowPeaks_](const cv::Point2d & a,const cv::Point2d & b){
+        return DistancePoints(a,ArrowPeaks_[0])<DistancePoints(b,ArrowPeaks_[0]);
+    });
+
+    for(int i=0;i<4;i++){
+        if(AllItersections[i]==ArrowPeaks_[0]||AllItersections[i]==ArrowPeaks_[1]) continue;
+        ArrowPeaks_.push_back(AllItersections[i]);
+    }
+
+    if(ArrowPeaks_.size()!=8){
+        RCLCPP_ERROR(this->get_logger(),"Fail to find all peaks, size of ArrowPeaks_ : %ld",ArrowPeaks_.size());
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"find all peaks successfully");
+
+    if((ArrowPeaks_[7]-center).cross(Centerline)<eps) std::swap(ArrowPeaks_[6],ArrowPeaks_[7]);
+
+    RCLCPP_INFO(this->get_logger(),"finish find all peaks");
+
+
+    this->ArrowPeaks=ArrowPeaks_;
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
     return 1;
 }
@@ -542,7 +607,7 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
         return 0;
     }
 
-    PnPsolver();
+    PnPsolver(ArrowPeaks,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,0);
 
     return 1;
 }
