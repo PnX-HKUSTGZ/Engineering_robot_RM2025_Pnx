@@ -58,16 +58,19 @@ struct LineABC{
     double a,b,c;
 };
 
-//two points on line
-typedef cv::Vec4d Line4P;
+//normalize vector with a point on the line
+typedef cv::Vec4d LineVP;
 
-LineAL GetLineAL(const Line4P & l);
+LineAL GetLineAL(const LineVP & l);
 LineAL GetLineAL(const LineABC & l);
 
 LineABC GetLineABC(const Line & l);
-LineABC GetLineABC(const Line4P & l);
+LineABC GetLineABC(const LineVP & l);
 
 void DrawLines(cv::Mat & img,const Lines & lines, const cv::Scalar& color,
+    int thickness = 1, int lineType = cv::LINE_8, int shift = 0);
+
+void DrawLines(cv::Mat & img,const std::vector<LineVP> & lines, const cv::Scalar& color,
     int thickness = 1, int lineType = cv::LINE_8, int shift = 0);
 
 double DistanceBetweenPointAndLine(const cv::Point2f & p,const Line & l);

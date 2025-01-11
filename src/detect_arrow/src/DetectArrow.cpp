@@ -290,7 +290,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::minEnclosingCircle(isarrow,center,radius);
     cv::minEnclosingTriangle(isarrow,TrianglePeaks);
 
-    cv::drawContours(Mask,Counters{isarrow},-1,cv::Scalar(255),-1);
+    cv::circle(Mask,center,radius,cv::Scalar(255),-1);
 
     cv::copyTo(BinaryImage,MaskedImage,Mask);
 
@@ -495,7 +495,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::Canny(MaskedImage,CannyImage,ArrowDetectorCannyThreshold1,ArrowDetectorCannyThreshold2);
 
     std::vector<std::vector<cv::Point>> LinesPoints;
-    std::vector<LineAL> FittedLines;
+    std::vector<LineVP> FittedLines;
 
     #ifdef DeBugHough
 
@@ -508,95 +508,22 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         std::vector<cv::Point2f>{ArrowPeaks[0],ArrowPeaks[1],ArrowPeaks[4],ArrowPeaks[5],ArrowPeaks[6],ArrowPeaks[7]},
         ArrowDetectorThresholdThreshold);
 
-    RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
-
-
     for(std::size_t i=0;i<LinesPoints.size();i++){
         cv::Vec4d line;
         cv::fitLine(LinesPoints[i],line,cv::DIST_L2,0,0.01,0.01);
-        FittedLines.push_back(GetLineAL(line));
+        FittedLines.push_back(line);
+        RCLCPP_INFO(this->get_logger(),"Line Info : %lf %lf %lf %lf",line[0],line[1],line[2],line[3]);
     }
 
     RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
     RCLCPP_INFO(this->get_logger(),"finish find lines");
 
-    DrawLines(OriginalImage,FittedLines,cv::Scalar(225,225,225),4);
+    DrawLines(OriginalImage,FittedLines,cv::Scalar(225,225,225),1);
+    DrawLines(CannyImage,FittedLines,cv::Scalar(225),1);
 
     cv::imshow("FittedLines",OriginalImage);
-
+    cv::imshow("CannyImageDD",CannyImage);
     cv::waitKey(0);
-
-    // Lines ArrowLines;
-
-    // cv::HoughLines(CannyImage,ArrowLines,ArrowDetectorHoughRho,
-    //     ArrowDetectorHoughTheta,ArrowDetectorHoughThreshold);
-
-    // std::vector<std::pair<int,double>> DistanceBTOutCornerLines;
-    // std::vector<std::pair<int,double>> DistanceBTInCornerLines;
-
-    // for(int i=ArrowLines.size()-1;i>=0;i--){
-    //     DistanceBTOutCornerLines.push_back(std::make_pair(i,DistanceBetweenPointAndLine(ArrowPeaks[0],ArrowLines[i])));
-    //     DistanceBTInCornerLines.push_back(std::make_pair(i,DistanceBetweenPointAndLine(ArrowPeaks[1],ArrowLines[i])));
-    // }
-
-    // std::sort(DistanceBTOutCornerLines.begin(),DistanceBTOutCornerLines.end(),[](const std::pair<int,double> & a,const std::pair<int,double> & b){
-    //     return a.second<b.second;
-    // });
-
-    // std::sort(DistanceBTInCornerLines.begin(),DistanceBTInCornerLines.end(),[](const std::pair<int,double> & a,const std::pair<int,double> & b){
-    //     return a.second<b.second;
-    // });
-
-    // const int SizeofLines=ArrowLines.size();
-
-    // if(SizeofLines<2){
-    //     RCLCPP_WARN(this->get_logger(),"ArrowLines need at least 2 lines");
-    //     return 0;
-    // }
-    // else RCLCPP_INFO(this->get_logger(),"ArrowLines has %d lines",SizeofLines);
-
-    // for(int i=1;i<SizeofLines;i++){
-    //     RCLCPP_INFO(this->get_logger(),"angle 0 : [%lf], angle %d : [%lf]",ArrowLines[DistanceBTOutCornerLines[0].first].val[1],i,ArrowLines[DistanceBTOutCornerLines[i].first].val[1]);
-    //     if(std::abs(ArrowLines[DistanceBTOutCornerLines[0].first].val[1]-ArrowLines[DistanceBTOutCornerLines[i].first].val[1])<ArrowDetectParallelThreshold) continue;
-    //     RCLCPP_INFO(this->get_logger(),"change two lines");
-    //     if(1!=i) std::swap(DistanceBTOutCornerLines[1],DistanceBTOutCornerLines[i]);
-    //     break;
-    // }
-
-    // for(int i=1;i<SizeofLines;i++){
-    //     RCLCPP_INFO(this->get_logger(),"angle 0 : [%lf], angle %d : [%lf]",ArrowLines[DistanceBTInCornerLines[0].first].val[1],i,ArrowLines[DistanceBTInCornerLines[i].first].val[1]);
-    //     if(std::abs(ArrowLines[DistanceBTInCornerLines[0].first].val[1]-ArrowLines[DistanceBTInCornerLines[i].first].val[1])<ArrowDetectParallelThreshold) continue;
-    //     RCLCPP_INFO(this->get_logger(),"change two lines");
-    //     if(1!=i) std::swap(DistanceBTInCornerLines[1],DistanceBTInCornerLines[i]);
-    //     break;
-    // }
-
-    // if(std::abs(ArrowLines[DistanceBTInCornerLines[0].first].val[1]-ArrowLines[DistanceBTInCornerLines[1].first].val[1])<ArrowDetectParallelThreshold||
-    //     std::abs(ArrowLines[DistanceBTOutCornerLines[0].first].val[1]-ArrowLines[DistanceBTOutCornerLines[1].first].val[1])<ArrowDetectParallelThreshold){
-    //     RCLCPP_WARN(this->get_logger(),"fail to find two lines");
-    //     return 0;
-    // }
-    // else RCLCPP_INFO(this->get_logger(),"find two lines");
-
-    // //End part
-
-    // #ifdef DeBugHough
-
-    // DrawLines(OriginalImage,ArrowLines,cv::Scalar(225,225,225));
-
-    // for(auto i : ArrowPeaks){
-    //     cv::circle(OriginalImage,i,1,cv::Scalar(153,156,30),-1);
-    //     // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
-    //     // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
-    // }
-
-    // DrawLines(MaskedImage,Lines{ArrowLines[DistanceBTOutCornerLines[0].first],ArrowLines[DistanceBTOutCornerLines[1].first]},cv::Scalar(66,66,225));
-    // DrawLines(MaskedImage,Lines{ArrowLines[DistanceBTInCornerLines[0].first],ArrowLines[DistanceBTInCornerLines[1].first]},cv::Scalar(225,66,66));
-
-    // cv::imshow("HoughLines",MaskedImage);
-    // cv::waitKey(33);
-
-    // #endif
 
     this->ArrowPeaks.clear();
     for(int i=0;i<4;i++){
@@ -646,14 +573,18 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
     cv::threshold(GreyImage,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
-    cv::dilate(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
+    // cv::dilate(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
+
+    cv::erode(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)),cv::Point(-1,-1),10);
+
+    cv::imshow("GreyImage",GreyImage);
 
     #ifdef DeBug
     cv::imshow("Dilated",DilatedImage);
     cv::waitKey(33);
     #endif
 
-    return DilatedImage;
+    return BinaryImage;
 }
 
 int main (int argc,char* argv[]){

@@ -41,6 +41,13 @@ void DrawLines(cv::Mat & img,const Lines & lines, const cv::Scalar& color,
     }
 }
 
+void DrawLines(cv::Mat & img,const std::vector<LineVP> & lines, const cv::Scalar& color,
+    int thickness, int lineType, int shift){
+    for(const auto & i : lines){
+        cv::line(img,cv::Point2d(i[2],i[3])+10000*cv::Point2d(i[0],i[1]),cv::Point2d(i[2],i[3])-10000*cv::Point2d(i[0],i[1]),color,thickness,lineType,shift);
+    }
+}
+
 double GetAngleAccordingToHorizon(cv::Point p1,cv::Point p2){
     cv::Point horison(1,0),tar=p1-p2;
     if(tar.y>=eps) tar=-tar;
@@ -100,22 +107,37 @@ void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
 
     std::queue<cv::Point> NowPoints;
     NowPoints.push(StartPoint);
-
+    RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"StartPoint : [%d,%d]",StartPoint.x,StartPoint.y);
     while(!NowPoints.empty()){
         cv::Point NowPoint=NowPoints.front();
         NowPoints.pop();
         for(int i=0;i<8;i++){
-            for(int e=0;e<8;e++){
-                int nx=NowPoint.x+dx[i],ny=NowPoint.y+dy[i];
-                if(nx<0||nx>=maxx||ny<0||ny>=maxy) continue;
-                if(BinaryImage.at<uchar>(ny,nx)==0) continue;
-                cv::Point NextPoint(nx,ny);
-                if(vis[PointToPii(NextPoint)]) continue;
-                if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)) continue;
-                cv::circle(Arrow_detector::OOriginalImage,NextPoint,1,cv::Scalar(77,55,100),-1);
-                Pointset.push_back(NextPoint);
-                vis[PointToPii(NextPoint)]=1;
-            }
+            int nx=NowPoint.x+dx[i],ny=NowPoint.y+dy[i];
+            cv::Point NextPoint(nx,ny);
+
+            // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"Start NextPoint : [%d,%d]",NextPoint.x,NextPoint.y);
+
+            if(nx<0||nx>=maxx||ny<0||ny>=maxy) continue;
+            
+            // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"nx<0||nx>=maxx||ny<0||ny>=maxy pass");
+
+            if(BinaryImage.at<uchar>(ny,nx)==0) continue;
+
+            // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"BinaryImage.at<uchar>(ny,nx)==0 pass");
+
+            if(vis[PointToPii(NextPoint)]) continue;
+
+            // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"vis[PointToPii(NextPoint)] pass");
+
+            if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)) continue;
+
+            // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"InPeaksThreshold pass");
+
+            // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"NowPoint : [%d,%d] %d",NextPoint.x,NextPoint.y,(int)BinaryImage.at<uchar>(ny,nx));
+            // Arrow_detector::OOriginalImage.at<cv::Vec3b>(ny,nx)=cv::Vec3b(77,55,100);
+            Pointset.push_back(NextPoint);
+            NowPoints.push(NextPoint);
+            vis[PointToPii(NextPoint)]=1;
         }
     }
 
@@ -132,12 +154,15 @@ void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::v
             if(vis[PointToPii(NowPoint)]) continue;
             if(BinaryImage.at<uchar>(e,i)==0) continue;
             if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)) continue;
+
             Pointssets.push_back(std::vector<cv::Point>());
             std::vector<cv::Point> & Pointset=Pointssets.back();
-            cv::circle(Arrow_detector::OOriginalImage,NowPoint,1,cv::Scalar(22,33,225),-1);
+
             FindContinuePart(BinaryImage,Pointset,NowPoint,Peaks,vis,PeaksThreshold);
-            cv::imshow("ArrowPeaks",Arrow_detector::OOriginalImage);
-            cv::waitKey(0);
+
+            // Arrow_detector::OOriginalImage.at<cv::Vec3b>(e,i)=cv::Vec3b(22,33,225);
+            // cv::imshow("QWQWQWQW",Arrow_detector::OOriginalImage);
+            // cv::waitKey(0);
             Pointssets.push_back(Pointset);
         }
     }
@@ -153,13 +178,13 @@ LineABC GetLineABC(const Line & l){
     return LineABC{A,B,C};
 }
 
-LineABC GetLineABC(const Line4P & l){
-    double x1=l[0],y1=l[1],x2=l[2],y2=l[3];
+LineABC GetLineABC(const LineVP & l){
+    double x1=l[2],y1=l[3],x2=l[2]+l[0]*5,y2=l[3]+l[1]*5;
     double A=y2-y1,B=x1-x2,C=x2*y1-x1*y2;
     return LineABC{A,B,C};
 }
 
-LineAL GetLineAL(const Line4P & l){
+LineAL GetLineAL(const LineVP & l){
     return GetLineAL(GetLineABC(l));
 }
 
