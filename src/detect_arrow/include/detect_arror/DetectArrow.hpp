@@ -1,3 +1,6 @@
+#ifndef __DetectArrowS__
+#define __DetectArrow__
+
 #include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -7,9 +10,6 @@
 #include <algorithm>
 #include <sstream>
 #include <Eigen/Dense>
-
-// #ifdef __DetectArrow__
-// #define __DetectArrow__
 
 // #define DeBug
 #define DeBugHough
@@ -27,6 +27,7 @@ class Arrow_detector:public rclcpp::Node{
     }
     void InitialArrowDetector();
     void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
+    static cv::Mat OOriginalImage;
     private:
     rclcpp::Client<Imagerequest>::SharedPtr client_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
@@ -45,8 +46,26 @@ class Arrow_detector:public rclcpp::Node{
     cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
 };
 
-typedef cv::Vec2f Line;
-typedef std::vector<Line> Lines;
+typedef std::pair<int,int> pii;
+
+typedef cv::Vec2f LineAL;
+typedef std::vector<LineAL> LineALs;
+typedef LineAL Line;
+typedef LineALs Lines;
+
+//Ax+By+C=0
+struct LineABC{
+    double a,b,c;
+};
+
+//two points on line
+typedef cv::Vec4d Line4P;
+
+LineAL GetLineAL(const Line4P & l);
+LineAL GetLineAL(const LineABC & l);
+
+LineABC GetLineABC(const Line & l);
+LineABC GetLineABC(const Line4P & l);
 
 void DrawLines(cv::Mat & img,const Lines & lines, const cv::Scalar& color,
     int thickness = 1, int lineType = cv::LINE_8, int shift = 0);
@@ -71,4 +90,10 @@ double DistancePoints(const cv::Point & p1,const cv::Point & p2);
 double DistancePoints(const cv::Point2f & p1,const cv::Point & p2);
 double DistancePoints(const cv::Point & p1,const cv::Point2f & p2);
 
-// #endif
+void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point2f> & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold=5);
+void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,std::vector<cv::Point2f> & Peaks,std::map<cv::Point,bool> &vis,const double ContinueThreshold,const double PeaksThreshold=5);
+void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point2f> & Peaks,const double PeaksThreshold=5);
+
+bool operator < (const cv::Point & a,const cv::Point & b);
+
+#endif

@@ -1,5 +1,7 @@
 #include "DetectArrow.hpp"
 
+cv::Mat Arrow_detector::OOriginalImage(1440,1080,CV_8UC3,cv::Scalar(0,0,0));
+
 std::vector<double> cameraMatrix={2375.787121776882, 0, 740.0689192411256,
  0, 2379.743671056914, 590.1717549829305,
  0, 0, 1};
@@ -48,6 +50,7 @@ int ArrowDetectorHoughThreshold;
 double ArrowDetectParallelThreshold;
 double ArrowDetectorThresholdThresh;
 double ArrowDetectorThresholdMaxval;
+double ArrowDetectorThresholdThreshold;
 
 
 bool Arrow_detector::PnPsolver(){
@@ -114,28 +117,25 @@ bool Arrow_detector::PnPsolver(){
     }
 
 
-// #ifdef DeBug
 
     Counter corners;
     for(const auto & i : Object2cornersEigen){
         auto coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
         corners.push_back(cv::Point2i(coordination(0)/coordination(2),coordination(1)/coordination(2)));
-        
-        std::stringstream ss;
-        ss<<cameraMatrixEigen<<"\n"<<signMat<<"\n"<<rtvecEigen<<"\n"<<i<<"\n"<<coordination;
-        RCLCPP_INFO(this->get_logger(),"Node : %s",ss.str().c_str());
-
     }
+
+    #ifdef DeBug
+    
     cv::drawContours(OriginalImage,Counters{corners},-1,cv::Scalar(225,0,0),5);
 
     cv::drawContours(OriginalImage,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),3);
 
     // cv::putText(OriginalImage,ss.str().c_str(),cv::Point(0,0),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,0,0));
 
-// #endif
+    #endif
 
     cv::imshow("PnP",OriginalImage);
-    cv::waitKey(0);
+    cv::waitKey(33);
 
     static int CntVideo=0;
     static bool close=0;
@@ -176,6 +176,8 @@ void Arrow_detector::InitialArrowDetector(){
     this->declare_parameter<double>("ArrowDetectorThresholdThresh",120);
     this->declare_parameter<double>("ArrowDetectorThresholdMaxval",300);
 
+    this->declare_parameter<double>("ArrowDetectorThresholdThreshold",5);
+
     ArrowDetectorPixelNumMax=this->get_parameter("ArrowDetectorPixelNumMax").as_int();
     ArrowDetectorPixelNumMin=this->get_parameter("ArrowDetectorPixelNumMin").as_int();
     ArrowDetectorLengthWidthRatioMax=this->get_parameter("ArrowDetectorLengthWidthRatioMax").as_double();
@@ -192,6 +194,8 @@ void Arrow_detector::InitialArrowDetector(){
 
     ArrowDetectorThresholdThresh=this->get_parameter("ArrowDetectorThresholdThresh").as_double();
     ArrowDetectorThresholdMaxval=this->get_parameter("ArrowDetectorThresholdMaxval").as_double();
+
+    ArrowDetectorThresholdThreshold=this->get_parameter("ArrowDetectorThresholdThreshold").as_double();
 
 
     #ifdef DeBug
@@ -230,6 +234,7 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     }
     cv::Mat originalframe=cv_ptr->image;
     originalframe.copyTo(OriginalImage);
+    originalframe.copyTo(Arrow_detector::OOriginalImage);
     RCLCPP_INFO(this->get_logger(), "Get frame");
     MainDetectArrow(originalframe);
 
@@ -289,14 +294,14 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     cv::copyTo(BinaryImage,MaskedImage,Mask);
 
-    // #ifdef DeBugHough
+    #ifdef DeBugHough
 
-    // cv::imshow("MaskedImage",MaskedImage);
-    // cv::imshow("BinaryImage",BinaryImage);
-    // cv::imshow("Mask",Mask);
-    // cv::waitKey(33);
+    cv::imshow("MaskedImage",MaskedImage);
+    cv::imshow("BinaryImage",BinaryImage);
+    cv::imshow("Mask",Mask);
+    cv::waitKey(33);
 
-    // #endif
+    #endif
 
     #ifdef DeBug
 
@@ -330,7 +335,10 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     std::vector<std::pair<Slope,Slope>> HorizonLinePair;
 
     for(int i=arrowapproxcurve.size()-1,siz=arrowapproxcurve.size();i>=0;i--){
-        slopes.push_back(Slope{i,(i+1)%siz,GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz])});
+        slopes.push_back(Slope{i,(i+1)%siz,[](cv::Point p1,cv::Point p2){
+            double angle=GetAngleAccordingToHorizon(p1,p2);
+            return abs(angle-180)<5 ? 5 : angle;
+        }(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz])});
 
         #ifdef DeBug
         // cv::line(OriginalImage,arrowapproxcurve[i],arrowapproxcurve[e],cv::Scalar(225,225,225));
@@ -339,7 +347,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         cv::putText(OriginalImage,ss.str(),(arrowapproxcurve[i]+arrowapproxcurve[(i+1)%siz])/2,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(115,216,22));
         #endif
 
-        RCLCPP_INFO(this->get_logger(),"angle: %lf",GetAngleAccordingToHorizon(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz]));
+        RCLCPP_INFO(this->get_logger(),"angle: %lf",slopes.back().slope);
     }
 
     std::sort(slopes.begin(),slopes.end(),[](const Slope & a,const Slope & b){
@@ -427,7 +435,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     /*
     储存规则：
-    最外侧直角顶点，最内侧直角顶点，外接圆顺时针方向第一个尾处的两顶点的中点，外接圆顺时针方向第二个尾处的两顶点的中点
+    最外侧直角顶点，最内侧直角顶点，从中心线外接圆顺时针方向第一个尾处的两顶点的中点，外接圆顺时针方向第二个尾处的两顶点的中点
+    最后四个点是角落的四个点，不准确
     */
     std::vector<cv::Point> ArrowPeaks;
 
@@ -436,7 +445,6 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     ArrowPeaks.push_back(cv::Point(0,0));
     ArrowPeaks.push_back(cv::Point(0,0));
 
-
     cv::Point Centerline=ArrowPeaks[0]-cv::Point(center.x,center.y);
     for(int i=0;i<=1;i++){
         std::pair<int,int> PointNumPair1=std::make_pair(HorizonLinePair[i].first.p1,HorizonLinePair[i].first.p2);
@@ -444,8 +452,16 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         if(PointNumPair1.first==RightAnglePeaks[0]||PointNumPair1.first==RightAnglePeaks[1]) std::swap(PointNumPair1.first,PointNumPair1.second);
         if(PointNumPair2.first==RightAnglePeaks[0]||PointNumPair2.first==RightAnglePeaks[1]) std::swap(PointNumPair2.first,PointNumPair2.second);
         cv::Point TargetLine=arrowapproxcurve[PointNumPair1.first]-cv::Point(center.x,center.y);
-        if(TargetLine.cross(Centerline)<=0) ArrowPeaks[2]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
-        else ArrowPeaks[3]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
+        if(TargetLine.cross(Centerline)<=0){
+            ArrowPeaks[2]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
+            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair1.first]);
+            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair2.first]);
+        }
+        else{
+            ArrowPeaks[3]=(arrowapproxcurve[PointNumPair1.first]+arrowapproxcurve[PointNumPair2.first])/2;
+            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair1.first]);
+            ArrowPeaks.push_back(arrowapproxcurve[PointNumPair2.first]);
+        }
     }
 
     if(ArrowPeaks[3]==cv::Point(0,0)||ArrowPeaks[2]==cv::Point(0,0)){
@@ -475,79 +491,112 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     #endif
 
-    Lines ArrowLines;
     cv::Mat CannyImage;
     cv::Canny(MaskedImage,CannyImage,ArrowDetectorCannyThreshold1,ArrowDetectorCannyThreshold2);
 
-    cv::HoughLines(CannyImage,ArrowLines,ArrowDetectorHoughRho,
-        ArrowDetectorHoughTheta,ArrowDetectorHoughThreshold);
-
-    std::vector<std::pair<int,double>> DistanceBTOutCornerLines;
-    std::vector<std::pair<int,double>> DistanceBTInCornerLines;
-
-    for(int i=ArrowLines.size()-1;i>=0;i--){
-        DistanceBTOutCornerLines.push_back(std::make_pair(i,DistanceBetweenPointAndLine(ArrowPeaks[0],ArrowLines[i])));
-        DistanceBTInCornerLines.push_back(std::make_pair(i,DistanceBetweenPointAndLine(ArrowPeaks[1],ArrowLines[i])));
-    }
-
-    std::sort(DistanceBTOutCornerLines.begin(),DistanceBTOutCornerLines.end(),[](const std::pair<int,double> & a,const std::pair<int,double> & b){
-        return a.second<b.second;
-    });
-
-    std::sort(DistanceBTInCornerLines.begin(),DistanceBTInCornerLines.end(),[](const std::pair<int,double> & a,const std::pair<int,double> & b){
-        return a.second<b.second;
-    });
-
-    const int SizeofLines=ArrowLines.size();
-
-    if(SizeofLines<2){
-        RCLCPP_WARN(this->get_logger(),"ArrowLines need at least 2 lines");
-        return 0;
-    }
-    else RCLCPP_INFO(this->get_logger(),"ArrowLines has %d lines",SizeofLines);
-
-    for(int i=1;i<SizeofLines;i++){
-        RCLCPP_INFO(this->get_logger(),"angle 0 : [%lf], angle %d : [%lf]",ArrowLines[DistanceBTOutCornerLines[0].first].val[1],i,ArrowLines[DistanceBTOutCornerLines[i].first].val[1]);
-        if(std::abs(ArrowLines[DistanceBTOutCornerLines[0].first].val[1]-ArrowLines[DistanceBTOutCornerLines[i].first].val[1])<ArrowDetectParallelThreshold) continue;
-        RCLCPP_INFO(this->get_logger(),"change two lines");
-        if(1!=i) std::swap(DistanceBTOutCornerLines[1],DistanceBTOutCornerLines[i]);
-        break;
-    }
-
-    for(int i=1;i<SizeofLines;i++){
-        RCLCPP_INFO(this->get_logger(),"angle 0 : [%lf], angle %d : [%lf]",ArrowLines[DistanceBTInCornerLines[0].first].val[1],i,ArrowLines[DistanceBTInCornerLines[i].first].val[1]);
-        if(std::abs(ArrowLines[DistanceBTInCornerLines[0].first].val[1]-ArrowLines[DistanceBTInCornerLines[i].first].val[1])<ArrowDetectParallelThreshold) continue;
-        RCLCPP_INFO(this->get_logger(),"change two lines");
-        if(1!=i) std::swap(DistanceBTInCornerLines[1],DistanceBTInCornerLines[i]);
-        break;
-    }
-
-    if(std::abs(ArrowLines[DistanceBTInCornerLines[0].first].val[1]-ArrowLines[DistanceBTInCornerLines[1].first].val[1])<ArrowDetectParallelThreshold||
-        std::abs(ArrowLines[DistanceBTOutCornerLines[0].first].val[1]-ArrowLines[DistanceBTOutCornerLines[1].first].val[1])<ArrowDetectParallelThreshold){
-        RCLCPP_WARN(this->get_logger(),"fail to find two lines");
-        return 0;
-    }
-    else RCLCPP_INFO(this->get_logger(),"find two lines");
-
-    //End part
+    std::vector<std::vector<cv::Point>> LinesPoints;
+    std::vector<LineAL> FittedLines;
 
     #ifdef DeBugHough
 
-    DrawLines(OriginalImage,ArrowLines,cv::Scalar(225,225,225));
-
-    for(auto i : ArrowPeaks){
-        cv::circle(OriginalImage,i,1,cv::Scalar(153,156,30),-1);
-        // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
-        // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
-    }
-
-    DrawLines(MaskedImage,Lines{ArrowLines[DistanceBTOutCornerLines[0].first],ArrowLines[DistanceBTOutCornerLines[1].first]},cv::Scalar(66,66,225));
-    DrawLines(MaskedImage,Lines{ArrowLines[DistanceBTInCornerLines[0].first],ArrowLines[DistanceBTInCornerLines[1].first]},cv::Scalar(225,66,66));
-
-    cv::imshow("HoughLines",MaskedImage);
+    cv::imshow("CannyImage",CannyImage);
     cv::waitKey(33);
 
     #endif
+
+    FindPolygonCounterPointsSets(CannyImage,LinesPoints,
+        std::vector<cv::Point2f>{ArrowPeaks[0],ArrowPeaks[1],ArrowPeaks[4],ArrowPeaks[5],ArrowPeaks[6],ArrowPeaks[7]},
+        ArrowDetectorThresholdThreshold);
+
+    RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
+
+
+    for(std::size_t i=0;i<LinesPoints.size();i++){
+        cv::Vec4d line;
+        cv::fitLine(LinesPoints[i],line,cv::DIST_L2,0,0.01,0.01);
+        FittedLines.push_back(GetLineAL(line));
+    }
+
+    RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
+    RCLCPP_INFO(this->get_logger(),"finish find lines");
+
+    DrawLines(OriginalImage,FittedLines,cv::Scalar(225,225,225),4);
+
+    cv::imshow("FittedLines",OriginalImage);
+
+    cv::waitKey(0);
+
+    // Lines ArrowLines;
+
+    // cv::HoughLines(CannyImage,ArrowLines,ArrowDetectorHoughRho,
+    //     ArrowDetectorHoughTheta,ArrowDetectorHoughThreshold);
+
+    // std::vector<std::pair<int,double>> DistanceBTOutCornerLines;
+    // std::vector<std::pair<int,double>> DistanceBTInCornerLines;
+
+    // for(int i=ArrowLines.size()-1;i>=0;i--){
+    //     DistanceBTOutCornerLines.push_back(std::make_pair(i,DistanceBetweenPointAndLine(ArrowPeaks[0],ArrowLines[i])));
+    //     DistanceBTInCornerLines.push_back(std::make_pair(i,DistanceBetweenPointAndLine(ArrowPeaks[1],ArrowLines[i])));
+    // }
+
+    // std::sort(DistanceBTOutCornerLines.begin(),DistanceBTOutCornerLines.end(),[](const std::pair<int,double> & a,const std::pair<int,double> & b){
+    //     return a.second<b.second;
+    // });
+
+    // std::sort(DistanceBTInCornerLines.begin(),DistanceBTInCornerLines.end(),[](const std::pair<int,double> & a,const std::pair<int,double> & b){
+    //     return a.second<b.second;
+    // });
+
+    // const int SizeofLines=ArrowLines.size();
+
+    // if(SizeofLines<2){
+    //     RCLCPP_WARN(this->get_logger(),"ArrowLines need at least 2 lines");
+    //     return 0;
+    // }
+    // else RCLCPP_INFO(this->get_logger(),"ArrowLines has %d lines",SizeofLines);
+
+    // for(int i=1;i<SizeofLines;i++){
+    //     RCLCPP_INFO(this->get_logger(),"angle 0 : [%lf], angle %d : [%lf]",ArrowLines[DistanceBTOutCornerLines[0].first].val[1],i,ArrowLines[DistanceBTOutCornerLines[i].first].val[1]);
+    //     if(std::abs(ArrowLines[DistanceBTOutCornerLines[0].first].val[1]-ArrowLines[DistanceBTOutCornerLines[i].first].val[1])<ArrowDetectParallelThreshold) continue;
+    //     RCLCPP_INFO(this->get_logger(),"change two lines");
+    //     if(1!=i) std::swap(DistanceBTOutCornerLines[1],DistanceBTOutCornerLines[i]);
+    //     break;
+    // }
+
+    // for(int i=1;i<SizeofLines;i++){
+    //     RCLCPP_INFO(this->get_logger(),"angle 0 : [%lf], angle %d : [%lf]",ArrowLines[DistanceBTInCornerLines[0].first].val[1],i,ArrowLines[DistanceBTInCornerLines[i].first].val[1]);
+    //     if(std::abs(ArrowLines[DistanceBTInCornerLines[0].first].val[1]-ArrowLines[DistanceBTInCornerLines[i].first].val[1])<ArrowDetectParallelThreshold) continue;
+    //     RCLCPP_INFO(this->get_logger(),"change two lines");
+    //     if(1!=i) std::swap(DistanceBTInCornerLines[1],DistanceBTInCornerLines[i]);
+    //     break;
+    // }
+
+    // if(std::abs(ArrowLines[DistanceBTInCornerLines[0].first].val[1]-ArrowLines[DistanceBTInCornerLines[1].first].val[1])<ArrowDetectParallelThreshold||
+    //     std::abs(ArrowLines[DistanceBTOutCornerLines[0].first].val[1]-ArrowLines[DistanceBTOutCornerLines[1].first].val[1])<ArrowDetectParallelThreshold){
+    //     RCLCPP_WARN(this->get_logger(),"fail to find two lines");
+    //     return 0;
+    // }
+    // else RCLCPP_INFO(this->get_logger(),"find two lines");
+
+    // //End part
+
+    // #ifdef DeBugHough
+
+    // DrawLines(OriginalImage,ArrowLines,cv::Scalar(225,225,225));
+
+    // for(auto i : ArrowPeaks){
+    //     cv::circle(OriginalImage,i,1,cv::Scalar(153,156,30),-1);
+    //     // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
+    //     // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+    // }
+
+    // DrawLines(MaskedImage,Lines{ArrowLines[DistanceBTOutCornerLines[0].first],ArrowLines[DistanceBTOutCornerLines[1].first]},cv::Scalar(66,66,225));
+    // DrawLines(MaskedImage,Lines{ArrowLines[DistanceBTInCornerLines[0].first],ArrowLines[DistanceBTInCornerLines[1].first]},cv::Scalar(225,66,66));
+
+    // cv::imshow("HoughLines",MaskedImage);
+    // cv::waitKey(33);
+
+    // #endif
 
     this->ArrowPeaks.clear();
     for(int i=0;i<4;i++){
