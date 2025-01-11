@@ -93,7 +93,8 @@ double DistancePoints(const cv::Point & p1,const cv::Point & p2);
 double DistancePoints(const cv::Point2f & p1,const cv::Point & p2);
 double DistancePoints(const cv::Point & p1,const cv::Point2f & p2);
 
-void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point2f> & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold=5);
+// 发现不在给定的多边形上,就返回0
+bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point2f> & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold=5);
 void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,std::vector<cv::Point2f> & Peaks,std::map<cv::Point,bool> &vis,const double ContinueThreshold,const double PeaksThreshold=5);
 void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point2f> & Peaks,const double PeaksThreshold=5);
 

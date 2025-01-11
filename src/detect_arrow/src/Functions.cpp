@@ -88,7 +88,7 @@ pii PointToPii(const cv::Point & p){
     return std::make_pair(p.x,p.y);
 }
 
-void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point2f> & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold){
+bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point2f> & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold){
     static int dx[8]={0,0,1,-1,1,-1,1,-1};
     static int dy[8]={1,-1,0,0,1,1,-1,-1};
 
@@ -104,6 +104,8 @@ void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
     int maxy=BinaryImage.rows,maxx=BinaryImage.cols;
     Pointset.push_back(StartPoint);
     vis[PointToPii(StartPoint)]=1;
+
+    bool meetPeaks=0;
 
     std::queue<cv::Point> NowPoints;
     NowPoints.push(StartPoint);
@@ -129,8 +131,10 @@ void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
 
             // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"vis[PointToPii(NextPoint)] pass");
 
-            if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)) continue;
-
+            if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)){
+                meetPeaks=1;
+                continue;
+            }
             // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"InPeaksThreshold pass");
 
             // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"NowPoint : [%d,%d] %d",NextPoint.x,NextPoint.y,(int)BinaryImage.at<uchar>(ny,nx));
@@ -140,6 +144,12 @@ void FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
             vis[PointToPii(NextPoint)]=1;
         }
     }
+
+    if(!meetPeaks){
+        Pointset.clear();
+        return 0;
+    }
+    return 1;
 
 }
 
@@ -155,15 +165,15 @@ void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::v
             if(BinaryImage.at<uchar>(e,i)==0) continue;
             if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)) continue;
 
-            Pointssets.push_back(std::vector<cv::Point>());
-            std::vector<cv::Point> & Pointset=Pointssets.back();
+            std::vector<cv::Point> Pointset;
 
-            FindContinuePart(BinaryImage,Pointset,NowPoint,Peaks,vis,PeaksThreshold);
-
+            if (!FindContinuePart(BinaryImage,Pointset,NowPoint,Peaks,vis,PeaksThreshold)){
+                continue;
+            }
             // Arrow_detector::OOriginalImage.at<cv::Vec3b>(e,i)=cv::Vec3b(22,33,225);
             // cv::imshow("QWQWQWQW",Arrow_detector::OOriginalImage);
             // cv::waitKey(0);
-            Pointssets.push_back(Pointset);
+            Pointssets.push_back(std::move(Pointset));
         }
     }
 }

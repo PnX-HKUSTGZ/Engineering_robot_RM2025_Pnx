@@ -560,24 +560,18 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
             0,0,
             1,0
     });
-
-    double maxval,minval;
-
-    // //控制二值化的参数
-    // double threshholdk=0.5;
-    // cv::minMaxLoc(GreyImage,&minval,&maxval);
-    // minval=std::max(150.0,minval);
-    // maxval=std::max(minval,maxval);
-
-    RCLCPP_INFO(this->get_logger(),"maxval of greyimage : %lf ,minval of greyimage : %lf ",maxval,minval);
-
     cv::threshold(GreyImage,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
-    // cv::dilate(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
+    // // cv::dilate(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
 
-    cv::erode(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)),cv::Point(-1,-1),10);
+    cv::erode(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)),cv::Point(-1,-1),5);
+
+    // cv::erode(GreyImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)),cv::Point(-1,-1),1);
+    // cv::threshold(DilatedImage,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
     cv::imshow("GreyImage",GreyImage);
+    cv::imshow("PreBinaryImage",BinaryImage);
+    cv::waitKey(33);
 
     #ifdef DeBug
     cv::imshow("Dilated",DilatedImage);
