@@ -17,7 +17,9 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Imagerequest.srv"
+  "msg/RedeemBoxPosition.msg"
   DEPENDENCIES sensor_msgs
+  DEPENDENCIES geometry_msgs
 )
 
 if(BUILD_TESTING)

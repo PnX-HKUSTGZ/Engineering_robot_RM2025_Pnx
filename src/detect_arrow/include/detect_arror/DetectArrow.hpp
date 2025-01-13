@@ -5,6 +5,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include "interfaces/srv/imagerequest.hpp"
+#include "interfaces/msg/redeem_box_position.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include <thread>
 #include <algorithm>
@@ -23,7 +24,13 @@ class Arrow_detector:public rclcpp::Node{
     Arrow_detector():Node("Arrow_detector"){
         this->client_=this->create_client<Imagerequest>("OriginalVideo");
         this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("OriginalVideo",10,std::bind(&Arrow_detector::GetImage,this,_1));
+        this->publisher_=this->create_publisher<interfaces::msg::RedeemBoxPosition>("RedeemBoxPosition",10);
         RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
+    }
+    ~Arrow_detector(){
+        if(videowriter.isOpened()){
+            videowriter.release();
+        }
     }
     void InitialArrowDetector();
     void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -34,6 +41,7 @@ class Arrow_detector:public rclcpp::Node{
     rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
     rclcpp::Node::SharedPtr node_shred_ptr;
+    rclcpp::Publisher<interfaces::msg::RedeemBoxPosition>::SharedPtr publisher_;
     cv::Mat PreProgress(const cv::Mat & OriginalImage);
     bool MainDetectArrow(const cv::Mat & OriginalImage);
     bool TargetArrow(const cv::Mat & BinaryImage);

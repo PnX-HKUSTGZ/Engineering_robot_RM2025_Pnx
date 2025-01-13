@@ -14,3 +14,4 @@ detect_arrow:
     ArrowDetectParallelThreshold: 0.52359877558333333333333333333333
     ArrowDetectorThresholdThresh: 200.0
     ArrowDetectorThresholdMaxval: 300.0
+    ArrowDetectorIterations: 5
