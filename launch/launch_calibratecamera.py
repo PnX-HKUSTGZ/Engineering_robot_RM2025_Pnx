@@ -11,9 +11,9 @@ def generate_launch_description():
             name='camera_dirver',
             namespace='ENGINEER_RM_25',
             parameters=[
-                {"ExposureTimeLower":10000},
-                {"ExposureTimeUpper":10000},
-                {"Gain":10},
+                {"ExposureTimeLower":15000},
+                {"ExposureTimeUpper":15000},
+                {"Gain":15},
                 {"parampath","/home/lqx/code/Engineering_robot_RM2025_Pnx/cameraparam"}
             ]
         ),

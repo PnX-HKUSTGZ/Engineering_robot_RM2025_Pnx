@@ -6,3 +6,6 @@ install/
 log/
 *.mp4
 *.avi
+video.avi
+Pictures/
+*.png

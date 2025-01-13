@@ -21,7 +21,8 @@ find_package(interfaces REQUIRED)
 # find_package(MvCameraControl REQUIRED)
 
 add_executable(video_driver src/VideoDriver.cpp)
-add_executable(camera_dirver src/CameraDriver.cpp)
+add_executable(camera_driver src/CameraDriver.cpp)
+add_executable(picture_driver src/PictureDriver.cpp)
 
 ament_target_dependencies(video_driver
   rclcpp
@@ -32,11 +33,20 @@ ament_target_dependencies(video_driver
   interfaces
 )
 
-target_link_libraries(camera_dirver
+target_link_libraries(camera_driver
   MvCameraControl
 )
 
-ament_target_dependencies(camera_dirver
+ament_target_dependencies(camera_driver
+  rclcpp
+  OpenCV
+  sensor_msgs
+  cv_bridge
+  rclcpp_components
+  interfaces
+)
+
+ament_target_dependencies(picture_driver
   rclcpp
   OpenCV
   sensor_msgs
@@ -48,11 +58,19 @@ ament_target_dependencies(camera_dirver
 install(TARGETS video_driver
   DESTINATION lib/${PROJECT_NAME})
 
-install(TARGETS camera_dirver
+install(TARGETS camera_driver
   DESTINATION lib/${PROJECT_NAME})
 
+install(TARGETS picture_driver
+  DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+install(DIRECTORY
+  config
   DESTINATION share/${PROJECT_NAME}/
 )
 

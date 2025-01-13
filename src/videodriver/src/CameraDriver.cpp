@@ -99,8 +99,14 @@ void GainAdjustment(void* handle){
     //load in
     int ExposureTimeLower=node->get_parameter("ExposureTimeLower").as_int();
     int ExposureTimeUpper=node->get_parameter("ExposureTimeUpper").as_int();
+    float GainValue=node->get_parameter("GainValue").as_double();
 
-    MV_CC_SetGain(handle,node->get_parameter("Gain").as_int());
+    nRet=MV_CC_SetFloatValue(handle, "Gain", GainValue);
+    if(nRet!=MV_OK){
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_SetGain fail! nRet [%x]",nRet);
+    }
+    else RCLCPP_INFO(node->get_logger(),"Set Gain : %f",GainValue);
+    
 
     MVCC_FLOATVALUE exposurtime;
     nRet=MV_CC_GetExposureTime(handle,&exposurtime);
@@ -125,6 +131,18 @@ void GainAdjustment(void* handle){
     }
     else RCLCPP_INFO(node->get_logger(),"Set ExposureTimeLower : %d",ExposureTimeLower);
 
+
+    nRet=MV_CC_SetAutoExposureTimeUpper(handle,ExposureTimeUpper);
+    if(nRet!=MV_OK){
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_SetAutoExposureTimeUpper fail! nRet [%x]",nRet);
+    }
+    else RCLCPP_INFO(node->get_logger(),"Set ExposureTimeUpper : %d",ExposureTimeUpper);
+
+    nRet=MV_CC_SetAutoExposureTimeLower(handle,ExposureTimeLower);
+    if(nRet!=MV_OK){
+        RCLCPP_ERROR(node->get_logger(),"MV_CC_SetAutoExposureTimeLower fail! nRet [%x]",nRet);
+    }
+    else RCLCPP_INFO(node->get_logger(),"Set ExposureTimeLower : %d",ExposureTimeLower);
 
 }
 
@@ -196,6 +214,7 @@ do{
         break;
     }
 
+    GainAdjustment(handle);
     // 注册抓图回调
     // register image callback
     nRet = MV_CC_RegisterImageCallBackEx(handle, ImageCallBackEx, handle);
@@ -212,7 +231,6 @@ do{
     }
     else RCLCPP_INFO(node->get_logger(),"MV_CC_StartGrabbing correct");
 
-    GainAdjustment(handle);
     std::this_thread::sleep_for(100000ms);
 
     // 停止取流
@@ -254,9 +272,9 @@ do{
 int main (int argc,char ** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("CameraDriver");
-    node->declare_parameter<int>("ExposureTimeLower",70000);
-    node->declare_parameter<int>("ExposureTimeUpper",70000);
-    node->declare_parameter<int>("Gain",15);
+    node->declare_parameter<int>("ExposureTimeLower",10000);
+    node->declare_parameter<int>("ExposureTimeUpper",10000);
+    node->declare_parameter<double>("GainValue",5);
     node->declare_parameter<int>("VideoDriverModle",1);
     // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
     if(node->get_parameter("VideoDriverModle").as_int()==1){
