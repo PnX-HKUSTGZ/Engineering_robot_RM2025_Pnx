@@ -158,15 +158,28 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     videowriter<<OriginalImage;
     RCLCPP_INFO(this->get_logger(),"wirte video %d",CntVideo);
 
+    Eigen::Matrix<double,4,1> corn={120,120,0,1};
     auto RedeemVec=rtvecEigen*CenterToArrowvec;
+    auto Center3D=RedeemVec*corn;
+    cv::Mat RedeemtVec33(cv::Size(3,3),CV_32F),RedeemtVec31(cv::Size(3,1),CV_32F);
+    for(int i=0;i<3;i++) for(int e=0;e<3;e++) RedeemtVec33.at<float>(e,i)=RedeemVec(e,i);
 
+    cv::Rodrigues(RedeemtVec33,RedeemtVec31);
 
     interfaces::msg::RedeemBoxPosition::SharedPtr msg;
+
+
+    msg->center.x=Center3D(0)/Center3D(3);
+    msg->center.y=Center3D(1)/Center3D(3);
+    msg->center.z=Center3D(2)/Center3D(3);
+
+    msg->rvec=std::vector<double>{RedeemtVec31.at<float>(0),RedeemtVec31.at<float>(1),RedeemtVec31.at<float>(2)};
+    msg->tvec=std::vector<double>{RedeemVec(0,3),RedeemVec(1,3),RedeemVec(2,3)};
+    publisher_->publish(*msg);
 
     auto tempelat=(ObjRedemptionBoxCornerPointEigen[0]+ObjRedemptionBoxCornerPointEigen[1]+ObjRedemptionBoxCornerPointEigen[2]+ObjRedemptionBoxCornerPointEigen[3])/4;
     auto Center=cameraMatrixEigen*signMat*rtvecEigen*tempelat;
 
-    Eigen::Matrix<double,4,1> corn={120,120,0,1};
 
     auto Center2=cameraMatrixEigen*signMat*RedeemVec*corn;
     RCLCPP_INFO(this->get_logger(),"%lf",RedeemVec(15));
@@ -179,9 +192,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     cv::putText(OriginalImage,"1",cv::Point(Center2(0)/Center2(2),Center2(1)/Center2(2)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     cv::circle(OriginalImage,cv::Point(Center(0)/Center(2),Center(1)/Center(2)),1,cv::Scalar(223,225,133),-1);
     cv::putText(OriginalImage,"2",cv::Point(Center(0)/Center(2),Center(1)/Center(2)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
-
-
-    // msg->center={Center(0),Center(1)};
+    
 
     cv::imshow("PnP",OriginalImage);
     cv::waitKey(33);
