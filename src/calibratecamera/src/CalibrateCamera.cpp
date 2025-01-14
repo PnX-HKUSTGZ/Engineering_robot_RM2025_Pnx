@@ -45,7 +45,7 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
     
     std::vector<cv::Point2f> corner_pts;
     bool success=0;
-    success=cv::findChessboardCorners(originalimage,cv::Size(CHECKERBOARD[0],CHECKERBOARD[1]),corner_pts);
+    success=cv::findCirclesGrid(originalimage,cv::Size(CHECKERBOARD[0],CHECKERBOARD[1]),corner_pts);
 
     if(!success){
         RCLCPP_WARN(node->get_logger(),"fail to find circls grid");
@@ -66,7 +66,7 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
 
     cv::Mat cameraMatrix, distCoeffs, R, T;
 
-    if(objpoints.size()>=20){
+    if(objpoints.size()>=50){
         // std::ofstream OUT;
         std::stringstream ss;
         // OUT.open(node->get_parameter("parampath").as_string());
@@ -93,8 +93,8 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
     else{
         RCLCPP_INFO(node->get_logger(),"get %ld frames",objpoints.size());
         cv::imshow("get",msgg);
-        cv::imwrite(node->get_parameter("PicturePath").as_string()+"/"+std::to_string(objpoints.size())+".jpg",originalimage);
-        // cv::waitKey(1500);
+        // cv::imwrite(node->get_parameter("PicturePath").as_string()+"/"+std::to_string(objpoints.size())+".jpg",originalimage);
+        cv::waitKey(22);
         // std::this_thread::sleep_for(500ms);
     }
 

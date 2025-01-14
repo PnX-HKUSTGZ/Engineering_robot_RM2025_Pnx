@@ -2,11 +2,11 @@
 
 cv::Mat Arrow_detector::OOriginalImage(1440,1080,CV_8UC3,cv::Scalar(0,0,0));
 
-std::vector<double> cameraMatrix={2375.787121776882, 0, 740.0689192411256,
- 0, 2379.743671056914, 590.1717549829305,
+std::vector<double> cameraMatrix={2403.945785421187, 0, 688.9276054432846,
+ 0, 2403.604764781491, 569.8709423940634,
  0, 0, 1};
 
-std::vector<double> distCoeffs={-0.07093428455159315, 0.1865900206019591, 0.003095286426499801, 0.004747807496693957, 0.8787773017757813};
+std::vector<double> distCoeffs={-0.04804459569165925, -0.5820031133640702, -0.0003573152585559781, -2.864535462861265e-05, 8.463211462822747};
 
 std::vector<cv::Point3d> objpoints={
     cv::Point3d(0,0,0),
@@ -165,17 +165,23 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     for(int i=0;i<3;i++) for(int e=0;e<3;e++) RedeemtVec33.at<float>(e,i)=RedeemVec(e,i);
 
     cv::Rodrigues(RedeemtVec33,RedeemtVec31);
+    RCLCPP_INFO(this->get_logger(),"1");
 
-    interfaces::msg::RedeemBoxPosition::SharedPtr msg;
+    interfaces::msg::RedeemBoxPosition::SharedPtr msg=std::make_shared<interfaces::msg::RedeemBoxPosition>();
+
+    RCLCPP_INFO(this->get_logger(),"2");
 
 
     msg->center.x=Center3D(0)/Center3D(3);
     msg->center.y=Center3D(1)/Center3D(3);
     msg->center.z=Center3D(2)/Center3D(3);
 
+    RCLCPP_INFO(this->get_logger(),"3");
+
     msg->rvec=std::vector<double>{RedeemtVec31.at<float>(0),RedeemtVec31.at<float>(1),RedeemtVec31.at<float>(2)};
     msg->tvec=std::vector<double>{RedeemVec(0,3),RedeemVec(1,3),RedeemVec(2,3)};
     publisher_->publish(*msg);
+    RCLCPP_INFO(this->get_logger(),"Publish RedemptionBox Pos");
 
     auto tempelat=(ObjRedemptionBoxCornerPointEigen[0]+ObjRedemptionBoxCornerPointEigen[1]+ObjRedemptionBoxCornerPointEigen[2]+ObjRedemptionBoxCornerPointEigen[3])/4;
     auto Center=cameraMatrixEigen*signMat*rtvecEigen*tempelat;
@@ -195,7 +201,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     
 
     cv::imshow("PnP",OriginalImage);
-    cv::waitKey(33);
+    cv::waitKey(10);
 
     RCLCPP_INFO(this->get_logger(),"PnPsolver finish");
 
@@ -324,8 +330,12 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         }
     }
 
+    #ifdef DeBug
+
     cv::imshow("Counters",OriginalImage);
     cv::waitKey(33);
+
+    #endif
 
     if(isarrow.empty()){
         RCLCPP_WARN(this->get_logger(),"fail to find arrow!");
@@ -476,7 +486,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     }
     else RCLCPP_INFO(this->get_logger(),"find midpoint of other two sides successfully");
 
-    // #ifdef DeBug
+    #ifdef DeBug
 
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
@@ -484,6 +494,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
         cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
+
 
     cv::imshow("ArrowPeaks",OriginalImage);
     cv::waitKey(22);
@@ -495,7 +506,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
 
-    // #endif
+    #endif
 
     cv::Mat CannyImage;
     cv::Canny(MaskedImage,CannyImage,ArrowDetectorCannyThreshold1,ArrowDetectorCannyThreshold2);
@@ -524,9 +535,11 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
     RCLCPP_INFO(this->get_logger(),"finish find lines");
 
-    #ifdef DeBugHough
 
     DrawLines(OriginalImage,FittedLines,cv::Scalar(225,225,225),1);
+
+    #ifdef DeBugHough
+
     DrawLines(CannyImage,FittedLines,cv::Scalar(225),1);
 
     cv::imshow("FittedLines",OriginalImage);
@@ -572,6 +585,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     RCLCPP_INFO(this->get_logger(),"finish find all peaks");
 
+    // filter_.Update(ArrowPeaks_);
 
     this->ArrowPeaks=ArrowPeaks_;
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
@@ -614,7 +628,7 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
 int main (int argc,char* argv[]){
     rclcpp::init(argc,argv);
-    auto node=std::make_shared<Arrow_detector>();
+    auto node=std::make_shared<Arrow_detector>(0.9);
     node->InitialArrowDetector();
 
     rclcpp::spin(node);

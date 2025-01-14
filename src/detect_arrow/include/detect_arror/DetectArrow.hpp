@@ -7,13 +7,14 @@
 #include "interfaces/srv/imagerequest.hpp"
 #include "interfaces/msg/redeem_box_position.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "Filter.hpp"
 #include <thread>
 #include <algorithm>
 #include <sstream>
 #include <Eigen/Dense>
 
 // #define DeBug
-#define DeBugHough
+// #define DeBugHough
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -21,7 +22,7 @@ using namespace std::placeholders;
 class Arrow_detector:public rclcpp::Node{
     public:
     using Imagerequest=interfaces::srv::Imagerequest;
-    Arrow_detector():Node("Arrow_detector"){
+    Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCorner(k)){
         this->client_=this->create_client<Imagerequest>("OriginalVideo");
         this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("OriginalVideo",10,std::bind(&Arrow_detector::GetImage,this,_1));
         this->publisher_=this->create_publisher<interfaces::msg::RedeemBoxPosition>("RedeemBoxPosition",10);
@@ -55,6 +56,7 @@ class Arrow_detector:public rclcpp::Node{
     cv::Mat rvec,tvec;
     // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
     cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
+    FilterCorner filter_;
 };
 
 typedef std::pair<int,int> pii;

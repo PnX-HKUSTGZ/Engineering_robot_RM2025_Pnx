@@ -17,7 +17,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
 
-add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp)
+add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp)
 
 ament_target_dependencies(detect_arrow
   rclcpp
