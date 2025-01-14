@@ -49,12 +49,9 @@ std::vector<Eigen::Matrix<double,4,1>> Object2cornersEigen={
     Eigen::Matrix<double,4,1>(69.65001794687493,-133.99673503485076,0,1),
 };
 
-Eigen::Matrix<double,4,4> CenterToArrowvec={
-    -0.70710678118654752440084436210485,0.70710678118654752440084436210485,0,-31.466251762801364835837574113666,
-    0,0,-1,-31.466251762801364835837574113666,
-    -0.70710678118654752440084436210485,-0.70710678118654752440084436210485,0,144,
-    0,0,0,1
-};
+Eigen::Matrix<double,4,4> CenterToArrowvec;
+
+
 
 int ArrowDetectorPixelNumMax;
 int ArrowDetectorPixelNumMin;
@@ -72,6 +69,7 @@ double ArrowDetectorThresholdThresh;
 double ArrowDetectorThresholdMaxval;
 double ArrowDetectorThresholdThreshold;
 int ArrowDetectorIterations;
+double ArrowDetectorapproxPolyDPEpsilon;
 
 // template<typename T,typename G>
 bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
@@ -135,7 +133,6 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
         ss<<cameraMatrixEigen<<"\n"<<signMat<<"\n"<<rtvecEigen<<"\n"<<i<<"\n"<<coordination;
         RCLCPP_INFO(this->get_logger(),"Node : %s",ss.str().c_str());
 
-
     }
 
     Counter corners;
@@ -154,8 +151,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
 
     // #endif
 
-    cv::imshow("PnP",OriginalImage);
-    cv::waitKey(33);
+
 
     static int CntVideo=0;
     CntVideo++;
@@ -163,8 +159,32 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     RCLCPP_INFO(this->get_logger(),"wirte video %d",CntVideo);
 
     auto RedeemVec=rtvecEigen*CenterToArrowvec;
-    RedeemVec/=RedeemVec(15);
-    
+
+
+    interfaces::msg::RedeemBoxPosition::SharedPtr msg;
+
+    auto tempelat=(ObjRedemptionBoxCornerPointEigen[0]+ObjRedemptionBoxCornerPointEigen[1]+ObjRedemptionBoxCornerPointEigen[2]+ObjRedemptionBoxCornerPointEigen[3])/4;
+    auto Center=cameraMatrixEigen*signMat*rtvecEigen*tempelat;
+
+    Eigen::Matrix<double,4,1> corn={120,120,0,1};
+
+    auto Center2=cameraMatrixEigen*signMat*RedeemVec*corn;
+    RCLCPP_INFO(this->get_logger(),"%lf",RedeemVec(15));
+
+    std::stringstream ssss;
+    ssss<<"Center: "<<Center<<" Center2: "<<Center2;
+    RCLCPP_INFO(this->get_logger(),"%s",ssss.str().c_str());
+
+    cv::circle(OriginalImage,cv::Point(Center2(0)/Center2(2),Center2(1)/Center2(2)),1,cv::Scalar(223,225,133),-1);
+    cv::putText(OriginalImage,"1",cv::Point(Center2(0)/Center2(2),Center2(1)/Center2(2)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+    cv::circle(OriginalImage,cv::Point(Center(0)/Center(2),Center(1)/Center(2)),1,cv::Scalar(223,225,133),-1);
+    cv::putText(OriginalImage,"2",cv::Point(Center(0)/Center(2),Center(1)/Center(2)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+
+
+    // msg->center={Center(0),Center(1)};
+
+    cv::imshow("PnP",OriginalImage);
+    cv::waitKey(33);
 
     RCLCPP_INFO(this->get_logger(),"PnPsolver finish");
 
@@ -175,6 +195,11 @@ void Arrow_detector::InitialArrowDetector(){
     using namespace std::placeholders;
     using namespace std::chrono;
     node_shred_ptr=this->shared_from_this();
+
+    CenterToArrowvec<<0.70710678118654752440084436210485,0., 0.70710678118654752440084436210485, -31.466251762801364835837574113666,
+    -0.70710678118654752440084436210485,0.0, 0.70710678118654752440084436210485, -31.466251762801364835837574113666,
+    0., 1., 0.0, 144.,
+    0., 0., 0., 1.;
 
     this->declare_parameter<int>("ArrowDetectorPixelNumMax",80000);
     this->declare_parameter<int>("ArrowDetectorPixelNumMin",15000);
@@ -197,6 +222,8 @@ void Arrow_detector::InitialArrowDetector(){
 
     this->declare_parameter<int>("ArrowDetectorIterations",5);
 
+    this->declare_parameter<double>("ArrowDetectorapproxPolyDPEpsilon",20);
+
     ArrowDetectorPixelNumMax=this->get_parameter("ArrowDetectorPixelNumMax").as_int();
     ArrowDetectorPixelNumMin=this->get_parameter("ArrowDetectorPixelNumMin").as_int();
     ArrowDetectorLengthWidthRatioMax=this->get_parameter("ArrowDetectorLengthWidthRatioMax").as_double();
@@ -217,16 +244,18 @@ void Arrow_detector::InitialArrowDetector(){
     ArrowDetectorThresholdThreshold=this->get_parameter("ArrowDetectorThresholdThreshold").as_double();
 
     ArrowDetectorIterations=this->get_parameter("ArrowDetectorIterations").as_int();
+    ArrowDetectorapproxPolyDPEpsilon=this->get_parameter("ArrowDetectorapproxPolyDPEpsilon").as_double();
 }
 
 void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     if(!rclcpp::ok()){
         rclcpp::shutdown();
     }
-    if((this->now()-msg->header.stamp)>=rclcpp::Duration(0,1000000)){
+    // if((this->now()-msg->header.stamp)>=rclcpp::Duration(1,5000'000000)){
         //超过10ms丢弃
-        return;
-    }
+        // RCLCPP_INFO(this->get_logger(),"Time out.");
+        // return;
+    // }
     cv_bridge::CvImagePtr cv_ptr;
     try{
         cv_ptr=cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
@@ -248,8 +277,11 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     Counters counters_;
     Counter isarrow;
     Counter arrowapproxcurve;
+    int NowMaxPixelNum=0;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
+    cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),3);
+
 
     for(auto &counter_ :counters_){
 
@@ -259,7 +291,9 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         double LengthWidthRatio= (std::min(rotatedrect_.size.width,rotatedrect_.size.height)<=eps ? 
             -1 : std::max(rotatedrect_.size.width,rotatedrect_.size.height)/std::min(rotatedrect_.size.width,rotatedrect_.size.height));
         int pixel_num=cv::contourArea(counter_);
-        cv::approxPolyDP(counter_,approxcurve,20,1);
+        cv::approxPolyDP(counter_,approxcurve,ArrowDetectorapproxPolyDPEpsilon,1);
+
+        cv::putText(OriginalImage,std::to_string(approxcurve.size()),rotatedrect_.center,cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(223,123,43));
 
         RCLCPP_INFO(this->get_logger(),"LengthWidthRatio : %lf",LengthWidthRatio);
         RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
@@ -272,12 +306,15 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         bool approxsize=(std::size_t(ArrowDetectorApproxSizeMin)<=approxcurve.size()&&
             approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
-        if(pixel_in&&lwratio&&approxsize){
-            isarrow=counter_;
-            arrowapproxcurve=approxcurve;
-            break;
+        if(pixel_in&&lwratio&&approxsize&&NowMaxPixelNum<pixel_in){
+            isarrow=std::move(counter_);
+            arrowapproxcurve=std::move(approxcurve);
+            NowMaxPixelNum=pixel_in;
         }
     }
+
+    cv::imshow("Counters",OriginalImage);
+    cv::waitKey(33);
 
     if(isarrow.empty()){
         RCLCPP_WARN(this->get_logger(),"fail to find arrow!");
@@ -483,7 +520,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     cv::imshow("FittedLines",OriginalImage);
     cv::imshow("CannyImageDD",CannyImage);
-    cv::waitKey(0);
+    cv::waitKey(33);
 
     #endif
 

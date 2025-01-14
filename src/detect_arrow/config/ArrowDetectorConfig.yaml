@@ -1,7 +1,7 @@
 detect_arrow:
   ros__parameters:
     ArrowDetectorPixelNumMax: 80000
-    ArrowDetectorPixelNumMin: 15000
+    ArrowDetectorPixelNumMin: 5000
     ArrowDetectorLengthWidthRatioMax: 2.8284271247461900976033774484194
     ArrowDetectorLengthWidthRatioMin: 1.1
     ArrowDetectorApproxSizeMax: 10
@@ -15,3 +15,4 @@ detect_arrow:
     ArrowDetectorThresholdThresh: 200.0
     ArrowDetectorThresholdMaxval: 300.0
     ArrowDetectorIterations: 5
+    ArrowDetectorapproxPolyDPEpsilon: 5.0
