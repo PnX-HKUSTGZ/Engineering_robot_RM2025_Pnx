@@ -2,11 +2,11 @@
 
 cv::Mat Arrow_detector::OOriginalImage(1440,1080,CV_8UC3,cv::Scalar(0,0,0));
 
-std::vector<double> cameraMatrix={2403.945785421187, 0, 688.9276054432846,
- 0, 2403.604764781491, 569.8709423940634,
+std::vector<double> cameraMatrix={2395.321201462218, 0, 694.4679804647494,
+ 0, 2395.631182994724, 565.4935222230949,
  0, 0, 1};
 
-std::vector<double> distCoeffs={-0.04804459569165925, -0.5820031133640702, -0.0003573152585559781, -2.864535462861265e-05, 8.463211462822747};
+std::vector<double> distCoeffs={-0.05759433071291451, 0.0006891020898386943, -0.0004902067374258133, 7.184226741273259e-05, 2.151048297510786};
 
 std::vector<cv::Point3d> objpoints={
     cv::Point3d(0,0,0),
@@ -88,6 +88,8 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     }
 
     std::stringstream ss;
+    ss<<"cameraMatrixCV\n"<<cameraMatrixCV;
+    ss<<"distCoeffsCV\n"<<distCoeffsCV;
     ss<<"rvec:\n"<<rvec<<std::endl;
     ss<<"tvec:\n"<<tvec<<std::endl;
     RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
@@ -297,7 +299,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     int NowMaxPixelNum=0;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
-    cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),3);
+    cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),1);
 
 
     for(auto &counter_ :counters_){
@@ -581,7 +583,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     static std::vector<std::pair<std::pair<int,int>,std::pair<int,int> > > MapOfIntersectionsLines={
         std::make_pair(std::make_pair(0,4),std::make_pair(0,2)),
         std::make_pair(std::make_pair(1,5),std::make_pair(1,3)),
-        std::make_pair(std::make_pair(2,3),std::make_pair(2,0)),
+        std::make_pair(std::make_pair(2,3),std::make_pair(0,2)),
         std::make_pair(std::make_pair(2,3),std::make_pair(1,3)),
         std::make_pair(std::make_pair(0,4),std::make_pair(4,5)),
         std::make_pair(std::make_pair(4,5),std::make_pair(1,5)),
@@ -600,9 +602,11 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     #ifdef DeBug
 
-    for(auto i : ArrowPeaks_)
-        cv::circle(OriginalImage,i,1,cv::Scalar(32,122,225),-1);
-
+    for(int i=0;i<8;i++){
+        cv::circle(OriginalImage,ArrowPeaks_[i],1,cv::Scalar(32,122,225),-1);
+        cv::putText(OriginalImage,std::to_string(i),ArrowPeaks_[i],cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(32,122,225));
+        RCLCPP_INFO(this->get_logger(),"Point %d: [%f,%f]",i,ArrowPeaks_[i].x,ArrowPeaks_[i].y);
+    }
     #endif
 
     if(ArrowPeaks_.size()!=8){
@@ -627,7 +631,7 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
         return 0;
     }
 
-    PnPsolver(ArrowPeaks,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,0);
+    PnPsolver(ArrowPeaks,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_ITERATIVE);
 
     return 1;
 }

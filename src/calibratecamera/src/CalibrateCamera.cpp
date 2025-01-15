@@ -94,7 +94,7 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
         RCLCPP_INFO(node->get_logger(),"get %ld frames",objpoints.size());
         cv::imshow("get",msgg);
         // cv::imwrite(node->get_parameter("PicturePath").as_string()+"/"+std::to_string(objpoints.size())+".jpg",originalimage);
-        cv::waitKey(22);
+        cv::waitKey(500);
         // std::this_thread::sleep_for(500ms);
     }
 
