@@ -325,10 +325,14 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         bool approxsize=(std::size_t(ArrowDetectorApproxSizeMin)<=approxcurve.size()&&
             approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
-        if(pixel_in&&lwratio&&approxsize&&NowMaxPixelNum<pixel_in){
+        if(pixel_in&&lwratio&&approxsize&&NowMaxPixelNum<pixel_num){
             isarrow=std::move(counter_);
             arrowapproxcurve=std::move(approxcurve);
-            NowMaxPixelNum=pixel_in;
+            NowMaxPixelNum=pixel_num;
+            cv::drawContours(OriginalImage,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
+            cv::drawContours(OriginalImage,Counters{arrowapproxcurve},-1,cv::Scalar(0,225,225),1);
+            cv::imshow("DETECT GET",OriginalImage);
+            cv::waitKey(0);
         }
     }
 
@@ -651,7 +655,7 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
     });
     cv::threshold(GreyImage,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
-    cv::erode(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)),cv::Point(-1,-1),ArrowDetectorIterations);
+    cv::erode(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)),cv::Point(-1,-1),ArrowDetectorIterations);
 
     cv::imshow("GreyImage",GreyImage);
     cv::imshow("BinaryImage",BinaryImage);

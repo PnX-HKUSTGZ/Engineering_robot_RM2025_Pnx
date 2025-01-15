@@ -1,8 +1,8 @@
 detect_arrow:
   ros__parameters:
     ArrowDetectorPixelNumMax: 80000
-    ArrowDetectorPixelNumMin: 5000
-    ArrowDetectorLengthWidthRatioMax: 2.8284271247461900976033774484194
+    ArrowDetectorPixelNumMin: 2000
+    ArrowDetectorLengthWidthRatioMax: 4.284271247461900976033774484194
     ArrowDetectorLengthWidthRatioMin: 1.1
     ArrowDetectorApproxSizeMax: 8
     ArrowDetectorApproxSizeMin: 6
@@ -12,7 +12,7 @@ detect_arrow:
     ArrowDetectorHoughTheta: 0.00436332312986111111111111111111
     ArrowDetectorHoughThreshold: 35
     ArrowDetectParallelThreshold: 0.52359877558333333333333333333333
-    ArrowDetectorThresholdThresh: 100.0
+    ArrowDetectorThresholdThresh: 50.0
     ArrowDetectorThresholdMaxval: 300.0
     # 寻找连续片段的顶点抑制范围
     ArrowDetectorThresholdThreshold: 5.0
