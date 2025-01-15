@@ -440,7 +440,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     /*
     第一次迭代顶点储存
     储存规则：
-    最外侧直角顶点，最内侧直角顶点，从中心线外接圆顺时针方向第一个尾处的两顶点，从中心线外接圆顺时针方向第二尾处的两顶点()
+    最外侧直角顶点，最内侧直角顶点，从中心线外接圆顺时针方向第一个尾处的两顶点(外侧在前)，从中心线外接圆顺时针方向第二尾处的两顶点(外侧在前)
     */
     std::vector<cv::Point> ArrowPeaks;
 
@@ -496,15 +496,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     }
 
 
-    cv::imshow("ArrowPeaks",OriginalImage);
-    cv::waitKey(22);
-
-
-    for(auto i : ArrowPeaks){
-        cv::circle(OriginalImage,i,1,cv::Scalar(153,156,30),-1);
-        // std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
-        // cv::putText(OriginalImage,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
-    }
+    // cv::imshow("ArrowPeaks",OriginalImage);
+    // cv::waitKey(22);
 
     #endif
 
@@ -513,17 +506,47 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     std::vector<std::vector<cv::Point>> LinesPoints;
     std::vector<LineVP> FittedLines;
+    std::vector<std::pair<cv::Point,cv::Point> > Endpoints;
+    std::vector<std::pair<int,int>> EndpointsIndex;
 
-    #ifdef DeBugHough
+    // #ifdef DeBugHough
 
-    cv::imshow("CannyImage",CannyImage);
-    cv::waitKey(33);
+    // cv::imshow("CannyImage",CannyImage);
+    // cv::waitKey(33);
 
-    #endif
+    // #endif
 
     FindPolygonCounterPointsSets(CannyImage,LinesPoints,
         ArrowPeaks,
-        ArrowDetectorThresholdThreshold);
+        ArrowDetectorThresholdThreshold,
+        Endpoints);
+
+    for(auto &p : Endpoints){
+        std::pair<int,int> index=std::make_pair(-1,-1);
+        for(int i=0;i<6;i++){
+            if(p.first==ArrowPeaks[i]) index.first=i;
+            if(p.second==ArrowPeaks[i]) index.second=i;
+        }
+        if(index.first==-1||index.second==-1){
+            RCLCPP_ERROR(this->get_logger(),"ArrowPeaks mismatch");
+            rclcpp::shutdown();
+        }
+        if(index.first>index.second) std::swap(index.first,index.second);
+        EndpointsIndex.push_back(index);
+    }
+
+    if(Endpoints.size()!=6){
+        RCLCPP_WARN(this->get_logger(),"size of Endpoints : %ld which is not equal to 6",Endpoints.size());
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"size of Endpoints : %ld",Endpoints.size());
+
+    if(EndpointsIndex.size()!=6){
+        RCLCPP_WARN(this->get_logger(),"size of Endpoints : %ld which is not equal to 6",EndpointsIndex.size());
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"size of Endpoints : %ld",EndpointsIndex.size());
+
 
     for(std::size_t i=0;i<LinesPoints.size();i++){
         cv::Vec4d line;
@@ -532,11 +555,16 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         RCLCPP_INFO(this->get_logger(),"Line Info : %lf %lf %lf %lf",line[0],line[1],line[2],line[3]);
     }
 
-    RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
+    if(FittedLines.size()!=6){
+        RCLCPP_WARN(this->get_logger(),"size of FittedLines : %ld which is not equal to 6",FittedLines.size());
+        return 0;
+    }
+    else RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
     RCLCPP_INFO(this->get_logger(),"finish find lines");
 
 
     DrawLines(OriginalImage,FittedLines,cv::Scalar(225,225,225),1);
+
 
     #ifdef DeBugHough
 
@@ -544,46 +572,44 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     cv::imshow("FittedLines",OriginalImage);
     cv::imshow("CannyImageDD",CannyImage);
-    cv::waitKey(33);
 
     #endif
 
     //第二次迭代顶点储存
     std::vector<cv::Point2f> ArrowPeaks_;
-    std::vector<cv::Point2f> AllItersections;
+    
+    static std::vector<std::pair<std::pair<int,int>,std::pair<int,int> > > MapOfIntersectionsLines={
+        std::make_pair(std::make_pair(0,4),std::make_pair(0,2)),
+        std::make_pair(std::make_pair(1,5),std::make_pair(1,3)),
+        std::make_pair(std::make_pair(2,3),std::make_pair(2,0)),
+        std::make_pair(std::make_pair(2,3),std::make_pair(1,3)),
+        std::make_pair(std::make_pair(0,4),std::make_pair(4,5)),
+        std::make_pair(std::make_pair(4,5),std::make_pair(1,5)),
+        std::make_pair(std::make_pair(0,2),std::make_pair(1,5)),
+        std::make_pair(std::make_pair(0,4),std::make_pair(1,3)),
+    };
 
-    GetLinesIntersections(FittedLines,AllItersections);
-
-    for(int i=0;i<6;i++){
-        double distance=1e9;
-        int cnt=-1;
-        for(int e=AllItersections.size()-1;e>=0;e--){
-            if(DistancePoints(ArrowPeaks[i],AllItersections[e])<distance){
-                distance=DistancePoints(ArrowPeaks[i],AllItersections[e]);
-                cnt=e;
-            }
+    for(int i=0;i<8;i++){
+        int index1=-1,index2=-1;
+        for(int e=0;e<6;e++){
+            if(MapOfIntersectionsLines[i].first==EndpointsIndex[e]) index1=e;
+            if(MapOfIntersectionsLines[i].second==EndpointsIndex[e]) index2=e;
         }
-        ArrowPeaks_.push_back(AllItersections[cnt]);
+        ArrowPeaks_.push_back(GetLineIntersections(FittedLines[index1],FittedLines[index2]));
     }
 
-    std::sort(AllItersections.begin(),AllItersections.end(),[&ArrowPeaks_](const cv::Point2d & a,const cv::Point2d & b){
-        return DistancePoints(a,ArrowPeaks_[0])<DistancePoints(b,ArrowPeaks_[0]);
-    });
+    #ifdef DeBug
 
-    for(int i=0;i<4;i++){
-        if(AllItersections[i]==ArrowPeaks_[0]||AllItersections[i]==ArrowPeaks_[1]) continue;
-        ArrowPeaks_.push_back(AllItersections[i]);
-    }
+    for(auto i : ArrowPeaks_)
+        cv::circle(OriginalImage,i,1,cv::Scalar(32,122,225),-1);
+
+    #endif
 
     if(ArrowPeaks_.size()!=8){
         RCLCPP_ERROR(this->get_logger(),"Fail to find all peaks, size of ArrowPeaks_ : %ld",ArrowPeaks_.size());
         return 0;
     }
     else RCLCPP_INFO(this->get_logger(),"find all peaks successfully");
-
-    if((ArrowPeaks_[7]-center).cross(Centerline)<eps) std::swap(ArrowPeaks_[6],ArrowPeaks_[7]);
-
-    RCLCPP_INFO(this->get_logger(),"finish find all peaks");
 
     // filter_.Update(ArrowPeaks_);
 
@@ -623,7 +649,11 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
     cv::erode(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)),cv::Point(-1,-1),ArrowDetectorIterations);
 
-    return BinaryImage;
+    cv::imshow("GreyImage",GreyImage);
+    cv::imshow("BinaryImage",BinaryImage);
+    cv::imshow("DilatedImage",DilatedImage);
+
+    return DilatedImage;
 }
 
 int main (int argc,char* argv[]){

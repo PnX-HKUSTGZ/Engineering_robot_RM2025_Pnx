@@ -2,4 +2,4 @@ camera_driver:
   ros__parameters:
     ExposureTimeLower: 40000
     ExposureTimeUpper: 40000
-    GainValue: 0.0
+    GainValue: 5.0

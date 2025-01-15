@@ -13,8 +13,8 @@
 #include <sstream>
 #include <Eigen/Dense>
 
-// #define DeBug
-// #define DeBugHough
+#define DeBug
+#define DeBugHough
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -111,13 +111,15 @@ template<typename T>
 bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<T> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold=5);
 
 template<typename T>
-bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,std::vector<cv::Point_<T> > & Peaks,std::map<cv::Point,bool> &vis,const double ContinueThreshold,const double PeaksThreshold=5);
+bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<T> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<T>,cv::Point_<T> > & endpoints);
 
 template<typename T>
-void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<T> > & Peaks,const double PeaksThreshold=5);
+void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<T>> & Peaks,const double PeaksThreshold,std::vector<std::pair<cv::Point_<T>,cv::Point_<T>> > & Endpoints);
 
 template<typename T>
 void GetLinesIntersections(const std::vector<LineVP> & lines,std::vector<cv::Point_<T> > & Intersections);
+
+cv::Point2f GetLineIntersections(const LineVP & line1,const LineVP & line2);
 
 bool operator < (const cv::Point & a,const cv::Point & b);
 

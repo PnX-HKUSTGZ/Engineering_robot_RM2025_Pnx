@@ -81,11 +81,11 @@ template double DistancePoints<float,double> (const cv::Point_<float> & p1,const
 template double DistancePoints<double,float> (const cv::Point_<double> & p1,const cv::Point_<float> & p2);
 
 template<typename T>
-bool InPeaksThreshold(const cv::Point & p,const std::vector<cv::Point_<T> > & Peaks,const double PeaksThreshold){
+std::pair<bool,cv::Point_<T> > InPeaksThreshold(const cv::Point & p,const std::vector<cv::Point_<T> > & Peaks,const double PeaksThreshold){
     for(const auto & i : Peaks){
-        if(DistancePoints(p,i)<=PeaksThreshold) return 1;
+        if(DistancePoints(p,i)<=PeaksThreshold) return std::make_pair(1,i);
     }
-    return 0;
+    return std::make_pair(0,cv::Point_<T>(-1,-1));
 }
 
 template<typename T>
@@ -94,7 +94,7 @@ std::pair<T,T> PointToPii(const cv::Point_<T> & p){
 }
 
 template<typename T>
-bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<T> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold){
+bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<T> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<T>,cv::Point_<T> > & endpoints){
     static int dx[8]={0,0,1,-1,1,-1,1,-1};
     static int dy[8]={1,-1,0,0,1,1,-1,-1};
 
@@ -111,10 +111,11 @@ bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
     Pointset.push_back(StartPoint);
     vis[PointToPii(StartPoint)]=1;
 
-    bool meetPeaks=0;
+    // bool meetPeaks=0;
 
     std::queue<cv::Point> NowPoints;
     NowPoints.push(StartPoint);
+    endpoints=std::make_pair(cv::Point_<T>(-1,-1),cv::Point_<T>(-1,-1));
     RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"StartPoint : [%d,%d]",StartPoint.x,StartPoint.y);
     while(!NowPoints.empty()){
         cv::Point NowPoint=NowPoints.front();
@@ -136,9 +137,18 @@ bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
             if(vis[PointToPii(NextPoint)]) continue;
 
             // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"vis[PointToPii(NextPoint)] pass");
-
-            if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)){
-                meetPeaks=1;
+            std::pair<bool,cv::Point_<T> > result=InPeaksThreshold(NowPoint,Peaks,PeaksThreshold);
+            if(result.first){
+                // meetPeaks=1;
+                if(endpoints.first==result.second||endpoints.second==result.second){
+                    continue;
+                }
+                if(abs(endpoints.first.x+1)<=eps){
+                    endpoints.first=result.second;
+                }
+                else if(abs(endpoints.second.x+1)<=eps){
+                    endpoints.second=result.second;
+                }
                 continue;
             }
             // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"InPeaksThreshold pass");
@@ -151,19 +161,23 @@ bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
         }
     }
 
-    if(!meetPeaks){
+    // std::stringstream ss;
+    // ss<<endpoints.first<<","<<endpoints.second;
+    // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"EndPoint: %s",ss.str().c_str());
+
+    if(endpoints.second.x==-1){
         Pointset.clear();
         return 0;
     }
     return 1;
 
 }
-template bool FindContinuePart<int>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<int> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold);
-template bool FindContinuePart<double>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<double> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold);
+template bool FindContinuePart<int>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<int> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<int>,cv::Point_<int> > & endpoints);
+template bool FindContinuePart<double>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<double> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<double>,cv::Point_<double> > & endpoints);
 
 
 template<typename T> 
-void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<T>> & Peaks,const double PeaksThreshold){
+void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<T>> & Peaks,const double PeaksThreshold,std::vector<std::pair<cv::Point_<T>,cv::Point_<T>> >& Endpoints){
 
     std::map<std::pair<int,int>,bool> vis;
 
@@ -173,22 +187,24 @@ void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::v
             cv::Point NowPoint(i,e);
             if(vis[PointToPii(NowPoint)]) continue;
             if(BinaryImage.at<uchar>(e,i)==0) continue;
-            if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold)) continue;
+            if(InPeaksThreshold(NowPoint,Peaks,PeaksThreshold).first) continue;
 
             std::vector<cv::Point> Pointset;
+            std::pair<cv::Point_<T>,cv::Point_<T> > endpoints;
 
-            if (!FindContinuePart(BinaryImage,Pointset,NowPoint,Peaks,vis,PeaksThreshold)){
+            if (!FindContinuePart(BinaryImage,Pointset,NowPoint,Peaks,vis,PeaksThreshold,endpoints)){
                 continue;
             }
             // Arrow_detector::OOriginalImage.at<cv::Vec3b>(e,i)=cv::Vec3b(22,33,225);
             // cv::imshow("QWQWQWQW",Arrow_detector::OOriginalImage);
             // cv::waitKey(0);
             Pointssets.push_back(std::move(Pointset));
+            Endpoints.push_back(std::move(endpoints));
         }
     }
 }
-template void FindPolygonCounterPointsSets<int>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<int> > & Peaks,const double PeaksThreshold);
-template void FindPolygonCounterPointsSets<double>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<double> > & Peaks,const double PeaksThreshold);
+template void FindPolygonCounterPointsSets<int>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<int> > & Peaks,const double PeaksThreshold,std::vector<std::pair<cv::Point_<int>,cv::Point_<int>> > & Endpoints);
+template void FindPolygonCounterPointsSets<double>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<double> > & Peaks,const double PeaksThreshold,std::vector<std::pair<cv::Point_<double>,cv::Point_<double>> > & Endpoints);
 
 LineABC GetLineABC(const Line & l){
     double r=l.val[0],theta=l.val[1];
@@ -238,6 +254,10 @@ void GetLinesIntersections(const std::vector<LineVP> & lines,std::vector<cv::Poi
     int siz=lines.size();
     for(int i=0;i<siz;i++){
         for(int e=i+1;e<siz;e++){
+            if(abs(lines[i][0]-lines[e][0])<eps&&abs(lines[i][1]-lines[e][1])<eps){
+                continue;
+                //平行
+            }
             double a1=lines[i][0],b1=lines[i][1],x1=lines[i][2],y1=lines[i][3];
             double a2=lines[e][0],b2=lines[e][1],x2=lines[e][2],y2=lines[e][3];
 
@@ -258,3 +278,20 @@ void GetLinesIntersections(const std::vector<LineVP> & lines,std::vector<cv::Poi
 template void GetLinesIntersections<int>(const std::vector<LineVP> & lines,std::vector<cv::Point_<int> > & Intersections);
 template void GetLinesIntersections<double>(const std::vector<LineVP> & lines,std::vector<cv::Point_<double> > & Intersections);
 template void GetLinesIntersections<float>(const std::vector<LineVP> & lines,std::vector<cv::Point_<float> > & Intersections);
+
+cv::Point2f GetLineIntersections(const LineVP & line1,const LineVP & line2){
+    double a1=line1[0],b1=line1[1],x1=line1[2],y1=line1[3];
+    double a2=line2[0],b2=line2[1],x2=line2[2],y2=line2[3];
+
+    if(abs(a1-a2)<eps&&abs(b1-b2)<eps){
+        RCLCPP_ERROR(rclcpp::get_logger("GetLineIntersections"),"two lines parallel! line1 : [%lf,%lf,%lf,%lf], line2 : [%lf,%lf,%lf,%lf]",
+        a1,b1,x1,y1,
+        a2,b2,x2,y2);
+        rclcpp::shutdown();
+    }
+
+    double t1=(b1*(x2-x1)-a1*(y2-y1))/(b2*a1-a2*b1);
+    double x=x2+t1*a2,y=y2+t1*b2;
+    
+    return cv::Point2f(x,y);
+}
