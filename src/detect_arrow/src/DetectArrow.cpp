@@ -12,9 +12,9 @@ std::vector<cv::Point3d> objpoints={
     cv::Point3d(0,0,0),
     cv::Point3d(10,10,0),
     cv::Point3d(141.42135623730950488016887242097,0,0),
-    cv::Point3d(123.13708498984760390413509793678,10,0),
+    cv::Point3d(131.42135623730950488016887242097,10,0),
     cv::Point3d(0,141.42135623730950488016887242097,0),
-    cv::Point3d(10,123.13708498984760390413509793678,0),
+    cv::Point3d(10,131.42135623730950488016887242097,0),
     cv::Point3d(10,0,0),
     cv::Point3d(0,10,0)
 };
@@ -23,9 +23,9 @@ std::vector<Eigen::Matrix<double,4,1>> objpointsEigen{
     Eigen::Matrix<double,4,1>(0,0,0,1),
     Eigen::Matrix<double,4,1>(10,10,0,1),
     Eigen::Matrix<double,4,1>(141.42135623730950488016887242097,0,0,1),
-    Eigen::Matrix<double,4,1>(123.13708498984760390413509793678,10,0,1),
+    Eigen::Matrix<double,4,1>(131.42135623730950488016887242097,10,0,1),
     Eigen::Matrix<double,4,1>(0,141.42135623730950488016887242097,0,1),
-    Eigen::Matrix<double,4,1>(10,123.13708498984760390413509793678,0,1),
+    Eigen::Matrix<double,4,1>(10,131.42135623730950488016887242097,0,1),
     Eigen::Matrix<double,4,1>(10,0,0,1),
     Eigen::Matrix<double,4,1>(0,10,0,1)
 };
@@ -203,7 +203,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     
 
     cv::imshow("PnP",OriginalImage);
-    cv::waitKey(10);
+    cv::waitKey(0);
 
     RCLCPP_INFO(this->get_logger(),"PnPsolver finish");
 
@@ -298,7 +298,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     Counter arrowapproxcurve;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
-    cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),1);
+    // cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),1);
 
 
     cv::Point2f center;
@@ -321,7 +321,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         int pixel_num=cv::contourArea(counter_);
         cv::approxPolyDP(counter_,approxcurve,ArrowDetectorapproxPolyDPEpsilon,1);
 
-        cv::putText(OriginalImage,std::to_string(approxcurve.size()),rotatedrect_.center,cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(223,123,43));
+        // cv::putText(OriginalImage,std::to_string(approxcurve.size()),rotatedrect_.center,cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(223,123,43));
 
         RCLCPP_INFO(this->get_logger(),"LengthWidthRatio : %lf",LengthWidthRatio);
         RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
@@ -376,8 +376,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         arrowapproxcurve=std::move(approxcurve);
         cv::drawContours(OriginalImage,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
         cv::drawContours(OriginalImage,Counters{arrowapproxcurve},-1,cv::Scalar(0,225,225),1);
-        cv::imshow("DETECT GET",OriginalImage);
-        cv::waitKey(0);
+        // cv::imshow("DETECT GET",OriginalImage);
+        // cv::waitKey(0);
 
     }
 
@@ -401,7 +401,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::circle(Mask,center,radius,cv::Scalar(255),-1);
 
     cv::copyTo(BinaryImage,MaskedImage,Mask);
-    
+
     std::sort(HorizonLinePair.begin(),HorizonLinePair.end(),[&arrowapproxcurve](const std::pair<Slope,Slope>& a,const std::pair<Slope,Slope>& b){
         return  DistancePoints(arrowapproxcurve[a.first.p1],arrowapproxcurve[a.first.p2])+DistancePoints(arrowapproxcurve[a.second.p1],arrowapproxcurve[a.second.p2]) >
             DistancePoints(arrowapproxcurve[b.first.p1],arrowapproxcurve[b.first.p2])+DistancePoints(arrowapproxcurve[b.second.p1],arrowapproxcurve[b.second.p2]);
@@ -597,6 +597,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     #ifdef DeBug
 
     for(int i=0;i<8;i++){
+        // OriginalImage.at<cv::Vec3f>(int(ArrowPeaks_[i].y),int(ArrowPeaks_[i].x))=cv::Vec3f(0,0,0);
         cv::circle(OriginalImage,ArrowPeaks_[i],1,cv::Scalar(32,122,225),-1);
         cv::putText(OriginalImage,std::to_string(i),ArrowPeaks_[i],cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(32,122,225));
         RCLCPP_INFO(this->get_logger(),"Point %d: [%f,%f]",i,ArrowPeaks_[i].x,ArrowPeaks_[i].y);
@@ -647,11 +648,33 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
     cv::erode(BinaryImage,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)),cv::Point(-1,-1),ArrowDetectorIterations);
 
+    cv::Mat sharpening_kenel=(cv::Mat_<float>(3,3)<<
+        0,-1,0,
+        -1,5,-1,
+        0,-1,0
+    );
+    cv::Mat Sharpened;
+    cv::filter2D(GreyImage,Sharpened,-1,sharpening_kenel);
+
+    cv::Mat blurred;
+    cv::GaussianBlur(GreyImage,blurred,cv::Size(7,7),0);
+    cv::Mat high=GreyImage-blurred;
+    cv::Mat enhance=Sharpened+1.5*high;
+
+    cv::Mat Binary_en;
+    cv::threshold(enhance,Binary_en,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
+
+    cv::imshow("Sharpened",Sharpened);
+    cv::imshow("enhance",enhance);
+    cv::imshow("Binary_en",Binary_en);
+
     cv::imshow("GreyImage",GreyImage);
     cv::imshow("BinaryImage",BinaryImage);
     cv::imshow("DilatedImage",DilatedImage);
 
-    return DilatedImage;
+    // return DilatedImage;
+    // return BinaryImage;
+    return Binary_en;
 }
 
 int main (int argc,char* argv[]){
