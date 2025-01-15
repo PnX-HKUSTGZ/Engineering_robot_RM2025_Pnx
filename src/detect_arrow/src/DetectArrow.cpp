@@ -296,11 +296,20 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     Counters counters_;
     Counter isarrow;
     Counter arrowapproxcurve;
-    int NowMaxPixelNum=0;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
     cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),1);
 
+
+    cv::Point2f center;
+    std::vector<cv::Point2f> TrianglePeaks;
+    float radius;
+    cv::Mat MaskedImage;
+    std::vector<Slope> slopes;
+    std::vector<std::pair<Slope,Slope>> HorizonLinePair;
+    std::vector<bool> UsedLineMakePair(20,false);
+    double HorizonThreshold=5,RThreshold=10,LThreshold=0;
+    int NowMaxSize=0;
 
     for(auto &counter_ :counters_){
 
@@ -325,15 +334,51 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         bool approxsize=(std::size_t(ArrowDetectorApproxSizeMin)<=approxcurve.size()&&
             approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
-        if(pixel_in&&lwratio&&approxsize&&NowMaxPixelNum<pixel_num){
-            isarrow=std::move(counter_);
-            arrowapproxcurve=std::move(approxcurve);
-            NowMaxPixelNum=pixel_num;
-            cv::drawContours(OriginalImage,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
-            cv::drawContours(OriginalImage,Counters{arrowapproxcurve},-1,cv::Scalar(0,225,225),1);
-            cv::imshow("DETECT GET",OriginalImage);
-            cv::waitKey(0);
+        if(!(pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num))) continue;
+        cv::minEnclosingCircle(counter_,center,radius);
+        cv::minEnclosingTriangle(counter_,TrianglePeaks);
+
+        slopes.clear();
+        for(int i=approxcurve.size()-1,siz=approxcurve.size();i>=0;i--){
+            slopes.push_back(Slope{i,(i+1)%siz,[](cv::Point p1,cv::Point p2){
+                double angle=GetAngleAccordingToHorizon(p1,p2);
+                return abs(angle-180)<5 ? 0 : angle;}(approxcurve[i],approxcurve[(i+1)%siz])});
         }
+        std::sort(slopes.begin(),slopes.end(),[](const Slope & a,const Slope & b){
+            return a.slope<b.slope;
+        });
+        
+        int TryCnt=0;
+        while(HorizonLinePair.size()!=3&&TryCnt<=20){
+            HorizonLinePair.clear();
+            for(int i=slopes.size()-1;i>=0;i--) UsedLineMakePair[i]=0;
+
+            HorizonThreshold=(RThreshold+LThreshold)/2;
+            for(int i=slopes.size()-1;i;i--){
+                if(UsedLineMakePair[i]||std::abs(slopes[i].slope-slopes[i-1].slope)>HorizonThreshold) continue;
+                HorizonLinePair.push_back(std::make_pair(slopes[i],slopes[i-1]));
+                UsedLineMakePair[i]=UsedLineMakePair[i-1]=1;
+            }
+            if(HorizonLinePair.size()==3) break;
+            if(HorizonLinePair.size()<3) LThreshold=HorizonThreshold;
+            else if(HorizonLinePair.size()>3) RThreshold=HorizonThreshold;
+            TryCnt++;
+        }
+        if(HorizonLinePair.size()!=3){
+            RCLCPP_WARN(this->get_logger(),"fail to find horizon line pairs");
+            continue;
+        }
+        else RCLCPP_INFO(this->get_logger(),"find horizon line pairs!");
+
+
+        NowMaxSize=pixel_num;
+        isarrow=std::move(counter_);
+        arrowapproxcurve=std::move(approxcurve);
+        cv::drawContours(OriginalImage,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
+        cv::drawContours(OriginalImage,Counters{arrowapproxcurve},-1,cv::Scalar(0,225,225),1);
+        cv::imshow("DETECT GET",OriginalImage);
+        cv::waitKey(0);
+
     }
 
     #ifdef DeBug
@@ -349,69 +394,14 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     }
     else RCLCPP_INFO(this->get_logger(),"find arrow!");
 
-    cv::Point2f center;
-    std::vector<cv::Point2f> TrianglePeaks;
-    float radius;
-    cv::Mat MaskedImage;
     cv::Mat Mask(OriginalImage.size(),CV_8UC1,cv::Scalar(0));
-    cv::minEnclosingCircle(isarrow,center,radius);
-    cv::minEnclosingTriangle(isarrow,TrianglePeaks);
+    // cv::minEnclosingCircle(isarrow,center,radius);
+    // cv::minEnclosingTriangle(isarrow,TrianglePeaks);
 
     cv::circle(Mask,center,radius,cv::Scalar(255),-1);
 
     cv::copyTo(BinaryImage,MaskedImage,Mask);
-
-    double maxAngle=0;
-    cv::Point2f TrianglePeak;
-    for(int i=0;i<3;i++){
-        if(maxAngle<GetAngle(TrianglePeaks[i],TrianglePeaks[(i+1)%3],TrianglePeaks[(i+2)%3])){
-            TrianglePeak=TrianglePeaks[i];
-            maxAngle=GetAngle(TrianglePeaks[i],TrianglePeaks[(i+1)%3],TrianglePeaks[(i+2)%3]);
-        }
-    }
-    std::vector<Slope> slopes;
-    double HorizonThreshold=10,RThreshold=20,LThreshold=0;
-    int TryCnt=0;
-    std::vector<bool> UsedLineMakePair(20,false);
-    std::vector<std::pair<Slope,Slope>> HorizonLinePair;
-
-    for(int i=arrowapproxcurve.size()-1,siz=arrowapproxcurve.size();i>=0;i--){
-        slopes.push_back(Slope{i,(i+1)%siz,[](cv::Point p1,cv::Point p2){
-            double angle=GetAngleAccordingToHorizon(p1,p2);
-            return abs(angle-180)<5 ? 5 : angle;
-        }(arrowapproxcurve[i],arrowapproxcurve[(i+1)%siz])});
-        RCLCPP_INFO(this->get_logger(),"angle: %lf",slopes.back().slope);
-    }
-
-    std::sort(slopes.begin(),slopes.end(),[](const Slope & a,const Slope & b){
-        return a.slope<b.slope;
-    });
-
-    // cv::imshow("lll",OriginalImage);
-    // cv::waitKey(33);
-
-    while(HorizonLinePair.size()!=3&&TryCnt<=20){
-        HorizonLinePair.clear();
-        for(int i=slopes.size()-1;i>=0;i--) UsedLineMakePair[i]=0;
-
-        HorizonThreshold=(RThreshold+LThreshold)/2;
-        for(int i=slopes.size()-1;i;i--){
-            if(UsedLineMakePair[i]||std::abs(slopes[i].slope-slopes[i-1].slope)>HorizonThreshold) continue;
-            HorizonLinePair.push_back(std::make_pair(slopes[i],slopes[i-1]));
-            UsedLineMakePair[i]=UsedLineMakePair[i-1]=1;
-        }
-        if(HorizonLinePair.size()==3) break;
-        if(HorizonLinePair.size()<3) LThreshold=HorizonThreshold;
-        else if(HorizonLinePair.size()>3) RThreshold=HorizonThreshold;
-        TryCnt++;
-    }
-
-    if(HorizonLinePair.size()!=3){
-        RCLCPP_WARN(this->get_logger(),"fail to find horizon line pairs");
-        return 0;
-    }
-    else RCLCPP_INFO(this->get_logger(),"find horizon line pairs!");
-
+    
     std::sort(HorizonLinePair.begin(),HorizonLinePair.end(),[&arrowapproxcurve](const std::pair<Slope,Slope>& a,const std::pair<Slope,Slope>& b){
         return  DistancePoints(arrowapproxcurve[a.first.p1],arrowapproxcurve[a.first.p2])+DistancePoints(arrowapproxcurve[a.second.p1],arrowapproxcurve[a.second.p2]) >
             DistancePoints(arrowapproxcurve[b.first.p1],arrowapproxcurve[b.first.p2])+DistancePoints(arrowapproxcurve[b.second.p1],arrowapproxcurve[b.second.p2]);
