@@ -9,3 +9,5 @@ log/
 video.avi
 Pictures/
 *.png
+*.gv
+*.pdf

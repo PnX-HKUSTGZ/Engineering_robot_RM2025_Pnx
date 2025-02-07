@@ -1,0 +1,14 @@
+<robot name="EngineeringRobot">
+    <link name="odom">
+    </link>
+
+    <link name="camera">
+    </link>
+
+    <joint name="cameratoodom" type="fixed">
+        <parent link="odom"/>
+        <child link="camera"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+</robot>

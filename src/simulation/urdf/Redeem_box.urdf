@@ -1,0 +1,91 @@
+<robot name="Redeem_box">
+
+    <material name="gray">
+        <color rgba="0.6 0.6 0.6 1.0"/>
+    </material>
+
+    <link name="base">
+    </link>
+
+<!-- 3.141592654 -->
+    <link name="backboard">
+        <visual>
+            <!-- <origin xyz="0.0 0.0 0.2125" rpy="0.0 0.0 0.0"/> -->
+            <geometry>
+                <box size="0.288 0.288 0.001"/>
+            </geometry>
+            <material name="gray"/>
+        </visual>
+    </link>
+
+    <joint name="backboardtobase" type="fixed">
+        <parent link="base"/>
+        <child link="backboard"/>
+        <origin xyz="0.0 0.0 -0.2125" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+    <link name="leftboard">
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 1.570796327 0.0"/>
+            <geometry>
+                <box size="0.212 0.288 0.048"/>
+            </geometry>
+            <material name="gray"/>
+        </visual>
+    </link>
+
+    <link name="rightboard">
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 1.570796327 0.0"/>
+            <geometry>
+                <box size="0.212 0.288 0.048"/>
+            </geometry>
+            <material name="gray"/>
+        </visual>
+    </link>
+
+    <link name="upperboard">
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="1.570796327 1.570796327 0.0"/>
+            <geometry>
+                <box size="0.212 0.288 0.048"/>
+            </geometry>
+            <material name="gray"/>
+        </visual>
+    </link>
+
+    <link name="lowerboard">
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="1.570796327 1.570796327 0.0"/>
+            <geometry>
+                <box size="0.212 0.288 0.048"/>
+            </geometry>
+            <material name="gray"/>
+        </visual>
+    </link>
+
+    <joint name="leftboardtobase" type="fixed">
+        <parent link="base"/>
+        <child link="leftboard"/>
+        <origin xyz="-0.120 0.0 -0.106" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+    <joint name="rightboardtobase" type="fixed">
+        <parent link="base"/>
+        <child link="rightboard"/>
+        <origin xyz="0.120 0.0 -0.106" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+    <joint name="upperboardtobase" type="fixed">
+        <parent link="base"/>
+        <child link="upperboard"/>
+        <origin xyz="0.0 0.120 -0.106"/>        
+    </joint>
+
+    <joint name="lowerboardtobase" type="fixed">
+        <parent link="base"/>
+        <child link="lowerboard"/>
+        <origin xyz="0.0 -0.120 -0.106"/>        
+    </joint>
+
+</robot>
