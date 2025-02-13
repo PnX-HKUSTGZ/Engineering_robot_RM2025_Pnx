@@ -78,8 +78,8 @@ DepthFusion() : Node("depth_fusion"){
     RCLCPP_ERROR_EXPRESSION(this->get_logger(),!rclcpp::ok,"depth_pub_ create fail!.");
 
     //定义参数
-    this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx/config.yaml");
-    YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string());
+    this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
+    YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
 
     camera_matrix_ = config["camera_matrix"].as<std::vector<double>>();
     dist_coeffs_ = config["dist_coeffs"].as<std::vector<double>>();
