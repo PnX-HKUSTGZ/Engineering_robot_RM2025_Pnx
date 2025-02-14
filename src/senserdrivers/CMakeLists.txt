@@ -5,11 +5,50 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+include_directories("/opt/ros/humble/include/**")
+include_directories("/usr/include/pcl-1.12/")
+include_directories("/usr/include/eigen3/")
+include_directories("/usr/include/opencv4/")
+
+include_directories(${PROJECT_SOURCE_DIR}/include)
+link_directories(${PROJECT_SOURCE_DIR}/lib)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(interfaces REQUIRED)
+
+add_executable(camera_driver src/CameraDriver.cpp)
+
+ament_target_dependencies(camera_driver
+  rclcpp
+  OpenCV
+  sensor_msgs
+  cv_bridge
+  rclcpp_components
+  interfaces
+)
+
+target_link_libraries(camera_driver
+  MvCameraControl
+)
+
+install(TARGETS camera_driver
+  DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
