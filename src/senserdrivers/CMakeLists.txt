@@ -22,6 +22,7 @@ find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
 
+
 add_executable(camera_driver src/CameraDriver.cpp)
 
 ament_target_dependencies(camera_driver
@@ -37,7 +38,17 @@ target_link_libraries(camera_driver
   MvCameraControl
 )
 
-install(TARGETS camera_driver
+add_executable(mid360_driver src/Livoxmid360Driver.cpp)
+
+ament_target_dependencies(mid360_driver
+  rclcpp
+  sensor_msgs)
+
+target_link_libraries(mid360_driver livox_lidar_sdk_static)
+
+install(TARGETS 
+  camera_driver
+  mid360_driver
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

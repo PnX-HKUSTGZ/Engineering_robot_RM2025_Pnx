@@ -7,7 +7,7 @@
 #include <string>
 #include "interfaces/srv/imagerequest.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "VideoDriver/MvCameraControl.h"
+#include "SenserDrivers/MvCameraControl.h"
 
 using namespace std::chrono;
 
