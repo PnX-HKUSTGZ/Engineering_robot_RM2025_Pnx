@@ -3,7 +3,6 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
-#include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.hpp>
 
 #include <message_filters/subscriber.h>
@@ -31,51 +30,27 @@ using namespace std::chrono_literals;
 
 const double eps=1e-9;
 
-void fromMsgPointCloud2toPointCloud2(const sensor_msgs::msg::PointCloud2& msgcloud, sensor_msgs::PointCloud2& cloud){
-    cloud.data=msgcloud.data;
-    cloud.height=msgcloud.height;
-    cloud.width=msgcloud.width;
-    cloud.is_bigendian=msgcloud.is_bigendian;
-    cloud.is_dense=msgcloud.is_dense;
-    cloud.point_step=msgcloud.point_step;
-    cloud.row_step=msgcloud.row_step;
-    for (auto i : msgcloud.fields){
-        sensor_msgs::PointField lin;
-        lin.name=i.name;
-        lin.datatype=i.datatype;
-        lin.offset=i.offset;
-        lin.count=i.count;
-        cloud.fields.push_back(lin);
-    }
-}
-
 class DepthFusion : public rclcpp::Node {
 public:
 
 DepthFusion() : Node("depth_fusion"){
-    //自动添加命名空间
-    ros::NodeHandle nh("sensor");
-    cloud_sub_.subscribe(nh,"pointcloud",10);
-    image_sub_.subscribe(nh,"image",10);
-    RCLCPP_INFO_EXPRESSION(this->get_logger(),rclcpp::ok,"sub_ create!.");
-    RCLCPP_ERROR_EXPRESSION(this->get_logger(),!rclcpp::ok,"sub_ create fail!.");
+    cloud_sub_.subscribe(this,"sensor/pointcloud");
+    image_sub_.subscribe(this,"sensor/image");
+    RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"sub_ create!.");
 
     // 初始化tf2
     tf_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf_listener_=std::make_shared<tf2_ros::TransformListener>(*tf_buffer_, this);
-    RCLCPP_INFO_EXPRESSION(this->get_logger(),rclcpp::ok,"tf2_ create!.");
-    RCLCPP_ERROR_EXPRESSION(this->get_logger(),!rclcpp::ok,"tf2_ create fail!.");
+    RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"tf2_ create!.");
 
     // 初始化同步器
     sync_.reset(new Sync(SyncPolicy(10), cloud_sub_, image_sub_));
     sync_->registerCallback(&DepthFusion::callback, this);
-    RCLCPP_INFO_EXPRESSION(this->get_logger(),rclcpp::ok,"sync_ create!.");
-    RCLCPP_ERROR_EXPRESSION(this->get_logger(),!rclcpp::ok,"sync_ create fail!.");
+    RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"sync_ create!.");
 
     // 初始化深度图的发布者
     depth_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/sensor/depimage",10);
-    RCLCPP_INFO_EXPRESSION(this->get_logger(),rclcpp::ok,"depth_pub_ create!.");
-    RCLCPP_ERROR_EXPRESSION(this->get_logger(),!rclcpp::ok,"depth_pub_ create fail!.");
+    RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"depth_pub_ create!.");
 
     //定义参数
     this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
@@ -110,14 +85,14 @@ private:
             Eigen::Matrix4d transform_matrix = Eigen::Matrix4d::Identity();
             transform_matrix.block<3, 3>(0, 0) = rotation_matrix;
             transform_matrix.block<3, 1>(0, 3) = translation;
-            RCLCPP_INFO(this->get_logger(),"transform_matrix: %f",transform_matrix);
+            std::stringstream ss;ss << transform_matrix;
+            RCLCPP_INFO(this->get_logger(),"transform_matrix: %s",ss.str().c_str());
 
             pcl::PointCloud<pcl::PointXYZ> pcl_cloud,pcl_cloud_transformed;
-            sensor_msgs::PointCloud2 ros_cloud;
 
             // convert ros msg to pcl cloud.
-            fromMsgPointCloud2toPointCloud2(*cloud_msg,ros_cloud);
-            pcl::fromROSMsg<pcl::PointXYZ>(ros_cloud,pcl_cloud);
+            // fromMsgPointCloud2toPointCloud2(*cloud_msg,ros_cloud);
+            pcl::fromROSMsg<pcl::PointXYZ>(*cloud_msg,pcl_cloud);
             
             // transform
             pcl::transformPointCloud(pcl_cloud,pcl_cloud_transformed,transform_matrix);
@@ -181,7 +156,9 @@ int height;
 int width;
 };
 
-int mian(int argc, char **argv){
+int main(int argc, char **argv){
     rclcpp::init(argc, argv);
-
+    rclcpp::spin(std::make_shared<DepthFusion>());
+    rclcpp::shutdown();
+    return 0;
 }

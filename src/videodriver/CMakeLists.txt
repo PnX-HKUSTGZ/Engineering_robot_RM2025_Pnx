@@ -7,6 +7,11 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
+include_directories("/opt/ros/humble/include/**")
+include_directories("/usr/include/pcl-1.12/")
+include_directories("/usr/include/eigen3/")
+include_directories("/usr/include/opencv4/")
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 link_directories(${PROJECT_SOURCE_DIR}/lib)
 
