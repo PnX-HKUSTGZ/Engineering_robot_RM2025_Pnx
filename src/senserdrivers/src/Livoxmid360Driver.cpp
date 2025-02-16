@@ -1,9 +1,14 @@
 #include "SenserDrivers/Livoxmid360Driver.hpp"
 
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
+
 std::shared_ptr<Mid360Driver> node;
 
 void PointCloudCallback(uint32_t handle, const uint8_t dev_type, LivoxLidarEthernetPacket* data, void* client_data) {
-    if (data == nullptr) {
+  RCLCPP_INFO(node->get_logger(),"PointCloudCallback called.");
+  if (data == nullptr) {
       return;
     }
     RCLCPP_INFO(rclcpp::get_logger("Mid360Driver:PointCloudCallback"),"point cloud handle: %u, data_num: %d, data_type: %d, length: %d, frame_counter: %d\n",
@@ -16,68 +21,30 @@ void Mid360Driver::PublishPointCloud(const LivoxLidarEthernetPacket* data) {
         RCLCPP_ERROR(this->get_logger(),"data_type is kLivoxLidarSphericalCoordinateData not supported.");
         return;
     }
+    // node->cloud_buffer_->addPoint(data);
     LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
+    pcl::PointCloud<pcl::PointXYZ> cloud;
     sensor_msgs::msg::PointCloud2 cloud_msg;
-    cloud_msg.header.stamp = this->now();
-    cloud_msg.height = 1; //无序点云
-    cloud_msg.width = data->dot_num; // 点云数量
-    cloud_msg.is_dense = true; // 点云是否有序
-    cloud_msg.is_bigendian = false; // 字节序
+    int cloud_siz=0;
+    for(size_t i=0;i<data->dot_num;i++) cloud_siz += (p_point_data[i].tag == 0);
+    cloud.height=1;
+    cloud.width=cloud_siz;
+    cloud.is_dense=true;
+    cloud.points.resize(cloud.height*cloud.width);
 
-    //设置内容
-    if(data->data_type == kLivoxLidarCartesianCoordinateHighData) {
-        cloud_msg.fields.resize(5);
-        cloud_msg.fields[0].name = "x";
-        cloud_msg.fields[0].offset = 0;
-        cloud_msg.fields[0].datatype = sensor_msgs::msg::PointField::INT32;
-        cloud_msg.fields[0].count = 1;
-        cloud_msg.fields[1].name = "y";
-        cloud_msg.fields[1].offset = 4;
-        cloud_msg.fields[1].datatype = sensor_msgs::msg::PointField::INT32;
-        cloud_msg.fields[1].count = 1;
-        cloud_msg.fields[2].name = "z";
-        cloud_msg.fields[2].offset = 8;
-        cloud_msg.fields[2].datatype = sensor_msgs::msg::PointField::INT32;
-        cloud_msg.fields[2].count = 1;
-        cloud_msg.fields[3].name = "reflectivity";
-        cloud_msg.fields[3].offset = 12;
-        cloud_msg.fields[3].datatype = sensor_msgs::msg::PointField::UINT8;
-        cloud_msg.fields[3].count = 1;
-        cloud_msg.fields[4].name = "tag";
-        cloud_msg.fields[4].offset = 14;
-        cloud_msg.fields[4].datatype = sensor_msgs::msg::PointField::UINT8;
-        cloud_msg.fields[4].count = 1;
-        cloud_msg.point_step = 16; // 每个点的大小
+    for(size_t i=0,j=0;i<data->dot_num;i++){
+        if(p_point_data[i].tag == 0){
+            cloud.points[j].x=p_point_data[i].x/1000.0;
+            cloud.points[j].y=p_point_data[i].y/1000.0;
+            cloud.points[j].z=p_point_data[i].z/1000.0;
+            RCLCPP_INFO(this->get_logger(),"point: %f, %f, %f, %f",cloud.points[j].x,cloud.points[j].y,cloud.points[j].z);
+            j++;
+        }
     }
-    else if(data->data_type == kLivoxLidarCartesianCoordinateLowData) {
-        cloud_msg.fields.resize(5);
-        cloud_msg.fields[0].name = "x";
-        cloud_msg.fields[0].offset = 0;
-        cloud_msg.fields[0].datatype = sensor_msgs::msg::PointField::INT16;
-        cloud_msg.fields[0].count = 1;
-        cloud_msg.fields[1].name = "y";
-        cloud_msg.fields[1].offset = 2;
-        cloud_msg.fields[1].datatype = sensor_msgs::msg::PointField::INT16;
-        cloud_msg.fields[1].count = 1;
-        cloud_msg.fields[2].name = "z";
-        cloud_msg.fields[2].offset = 4;
-        cloud_msg.fields[2].datatype = sensor_msgs::msg::PointField::INT16;
-        cloud_msg.fields[2].count = 1;
-        cloud_msg.fields[3].name = "reflectivity";
-        cloud_msg.fields[3].offset = 6;
-        cloud_msg.fields[3].datatype = sensor_msgs::msg::PointField::UINT8;
-        cloud_msg.fields[3].count = 1;
-        cloud_msg.fields[4].name = "tag";
-        cloud_msg.fields[4].offset = 7;
-        cloud_msg.fields[4].datatype = sensor_msgs::msg::PointField::UINT8;
-        cloud_msg.fields[4].count = 1;
-        cloud_msg.point_step = 8; // 每个点的大小
-    }
-
-    cloud_msg.row_step = cloud_msg.point_step * cloud_msg.width; // 每行的大小
-    cloud_msg.data.resize(cloud_msg.row_step); // 分配内存
-    memcpy(cloud_msg.data.data(), p_point_data, cloud_msg.row_step); // 复制数据
-    point_cloud_pub_->publish(cloud_msg); // 发布消息
+    pcl::toROSMsg(cloud,cloud_msg);
+    cloud_msg.header.frame_id="/sensor/mid360";
+    cloud_msg.header.stamp=node->get_clock()->now();
+    point_cloud_pub_->publish(cloud_msg);
 }
 
 void LidarInfoChangeCallback(const uint32_t handle, const LivoxLidarInfo* info, void* client_data) {
@@ -157,3 +124,47 @@ int main (int argc, const char *argv[]) {
     rclcpp::shutdown();
     return 0;
 }
+
+
+// test
+// int main (int argc, const char *argv[]) {
+//   rclcpp::init(argc, argv);
+//   auto pnode = std::make_shared<rclcpp::Node>("test");
+//   auto pub_=pnode->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/mid360/pointcloud",10);
+//   auto static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(pnode);
+//   geometry_msgs::msg::TransformStamped t;
+//   t.header.stamp =pnode->now();
+//   t.header.frame_id = "map";
+//   t.child_frame_id = "sensor/mid360";
+//   t.transform.translation.x = 0.0;
+//   t.transform.translation.y = 0.0;
+//   t.transform.translation.z = 0.0;
+//   t.transform.rotation.x = 0.0;
+//   t.transform.rotation.y = 0.0;
+//   t.transform.rotation.z = 0.0;
+//   t.transform.rotation.w = 1.0;
+//   static_tf_broadcaster_->sendTransform(t);
+//   RCLCPP_INFO(pnode->get_logger(), "tf broadcaster successfully.");
+//   pcl::PointCloud<pcl::PointXYZ> cloud_pcl;
+//   cloud_pcl.width=2;
+//   cloud_pcl.height=1;
+//   cloud_pcl.points.resize(cloud_pcl.width*cloud_pcl.height);
+//   cloud_pcl.points[0].x=1;
+//   cloud_pcl.points[0].y=1;
+//   cloud_pcl.points[0].z=0;
+//   cloud_pcl.points[1].x=-1;
+//   cloud_pcl.points[1].y=-1;
+//   cloud_pcl.points[1].z=0;
+//   sensor_msgs::msg::PointCloud2 cloud_msg;
+//   pcl::toROSMsg(cloud_pcl,cloud_msg);
+//   cloud_msg.header.frame_id="/sensor/mid360";
+//   cloud_msg.header.stamp=pnode->get_clock()->now();
+//   auto a=pnode->create_wall_timer(std::chrono::milliseconds(100),[&](){
+//     pub_->publish(cloud_msg);
+//     RCLCPP_INFO(pnode->get_logger(),"publish point cloud.");
+//   });
+//   a->call();
+//   rclcpp::spin(pnode);
+//   rclcpp::shutdown();
+//   return 0;
+// }

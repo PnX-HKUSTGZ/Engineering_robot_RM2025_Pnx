@@ -21,7 +21,9 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
-
+find_package(pcl_conversions REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 add_executable(camera_driver src/CameraDriver.cpp)
 
@@ -32,6 +34,8 @@ ament_target_dependencies(camera_driver
   cv_bridge
   rclcpp_components
   interfaces
+  tf2
+  tf2_ros
 )
 
 target_link_libraries(camera_driver
@@ -42,7 +46,11 @@ add_executable(mid360_driver src/Livoxmid360Driver.cpp)
 
 ament_target_dependencies(mid360_driver
   rclcpp
-  sensor_msgs)
+  sensor_msgs
+  pcl_conversions
+  tf2
+  tf2_ros
+)
 
 target_link_libraries(mid360_driver livox_lidar_sdk_static)
 

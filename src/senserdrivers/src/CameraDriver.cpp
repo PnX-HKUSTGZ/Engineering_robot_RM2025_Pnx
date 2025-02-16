@@ -1,5 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
+#include <tf2/utils.hpp>
+#include <tf2_ros/transform_broadcaster.h>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
@@ -12,6 +14,7 @@
 using namespace std::chrono;
 
 std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> publisher_;
+std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 std::shared_ptr<rclcpp::Node> node;
 std::shared_ptr<rclcpp::Service<interfaces::srv::Imagerequest>> service_;
 int nRet = MV_OK;
@@ -86,12 +89,29 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
     cv::Mat imageRGB;
     cv::cvtColor(OriginalImage, imageRGB, cv::COLOR_BayerRG2RGB);
 
+    geometry_msgs::msg::TransformStamped t;
     auto image_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",imageRGB).toImageMsg();
+    auto time_=node->get_clock()->now();
+
+    t.header.stamp=time_;
+    t.header.frame_id="/sensor/mid360";
+    t.child_frame_id="/sensor/camera";
+    t.transform.translation.x=2;
+    t.transform.translation.y=0;
+    t.transform.translation.z=0;
+    t.transform.rotation.x=0;
+    t.transform.rotation.y=0;
+    t.transform.rotation.z=0;
+    t.transform.rotation.w=1;
+    tf_broadcaster_->sendTransform(t);
+
+    image_ptr->header.frame_id="/sensor/camera";
+    image_ptr->header.stamp=time_;
 
     publisher_->publish(*image_ptr);
-    cv::imshow("Camera",imageRGB);
+    // cv::imshow("Camera",imageRGB);
     // cv::imshow("Camera1",OriginalImage);
-    cv::waitKey(22);
+    // cv::waitKey(22);
     RCLCPP_INFO(node->get_logger(),"publish video");
 }
 
@@ -279,6 +299,7 @@ int main (int argc,char ** argv){
     // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
     if(node->get_parameter("VideoDriverModle").as_int()==1){
         publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
+        tf_broadcaster_=std::make_shared<tf2_ros::TransformBroadcaster>(node);
         while(rclcpp::ok()) publish_video();
     }
     rclcpp::spin(node);
