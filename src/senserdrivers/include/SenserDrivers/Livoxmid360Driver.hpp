@@ -89,7 +89,7 @@ public:
     Mid360Driver(const rclcpp::NodeOptions & options=rclcpp::NodeOptions())
     : Node("mid360_driver", options) {
         point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud", 10);
-        this->declare_parameter<std::string>("mid360_config_Location","/root/Engineering_robot_RM2025_Pnx/src/senserdrivers/config/mid360_config.json");
+        this->declare_parameter<std::string>("mid360_config_Location","/home/lqx/code/Engineering_robot_RM2025_Pnx/src/senserdrivers/config/mid360_config.json");
         configpath=this->get_parameter("mid360_config_Location").as_string();
         RCLCPP_INFO(this->get_logger(),"mid360_configpath:%s",configpath.c_str());
 

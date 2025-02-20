@@ -20,11 +20,15 @@
 #include <tf2/time.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2/utils.hpp>
 
 #include <yaml-cpp/yaml.h>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+// #include <logging.hpp>
 
 using namespace std::chrono_literals;
 
@@ -52,12 +56,32 @@ DepthFusion() : Node("depth_fusion"){
     depth_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/sensor/depimage",10);
     RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"depth_pub_ create!.");
 
+    // 初始化点云的发布者
+    point_colored_cloud_pub_=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/colored_pointcloud",10);
+    RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"point_colored_cloud_pub_ create!.");
+
+    // 初始化tf2的静态广播器
+    static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+    geometry_msgs::msg::TransformStamped t;
+    t.header.stamp =this->now();
+    t.header.frame_id = "/sensor/camera";
+    t.child_frame_id = "/sensor/colored_pointcloud";
+    t.transform.translation.x =0;
+    t.transform.translation.y =0;
+    t.transform.translation.z =0;
+    t.transform.rotation.x =0;
+    t.transform.rotation.y =0;
+    t.transform.rotation.z =0;
+    t.transform.rotation.w =1;
+    static_tf_broadcaster_->sendTransform(t);
+    RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"tf broadcaster successfully.");
+
     //定义参数
-    this->declare_parameter<std::string>("Location","/root/Engineering_robot_RM2025_Pnx");
+    this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
     YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
 
-    camera_matrix_ = config["camera_matrix"].as<std::vector<double>>();
-    dist_coeffs_ = config["dist_coeffs"].as<std::vector<double>>();
+    camera_matrix_ = config["camera"]["camera_matrix"].as<std::vector<double>>();
+    dist_coeffs_ = config["camera"]["dist_coeffs"].as<std::vector<double>>();
     Eigen::Matrix3d lin_dist_coeffs_=Eigen::Matrix3d::Zero();
     lin_dist_coeffs_<<dist_coeffs_[0],dist_coeffs_[1],dist_coeffs_[4],
                       dist_coeffs_[2],dist_coeffs_[3],dist_coeffs_[5],
@@ -65,8 +89,8 @@ DepthFusion() : Node("depth_fusion"){
     camera_matrix_eigen_=Eigen::Matrix4d::Zero();
     camera_matrix_eigen_.block<3,3>(0,0)=lin_dist_coeffs_;
     camera_matrix_Mat=cv::Mat(3,3,CV_64FC1,camera_matrix_.data());
-    height = config["height"].as<int>();
-    width = config["width"].as<int>();
+    height = config["camera"]["height"].as<int>();
+    width = config["camera"]["width"].as<int>();
 
 }
 
@@ -77,7 +101,7 @@ private:
         try{
             tf2::TimePoint image_time_point = tf2::TimePoint(std::chrono::seconds(image_msg->header.stamp.sec)+std::chrono::nanoseconds(image_msg->header.stamp.nanosec));
             tf2::TimePoint cloud_time_point = tf2::TimePoint(std::chrono::seconds(cloud_msg->header.stamp.sec)+std::chrono::nanoseconds(cloud_msg->header.stamp.nanosec));
-            geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform("/sensor/camera", image_time_point, "/sensor/pointcloud", cloud_time_point, "odom");
+            geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform("/sensor/camera", image_time_point, "/sensor/mid360/point_cloud", cloud_time_point, "odom");
             // 定义四元数 [w, x, y, z]
             Eigen::Quaternion rotate(transform.transform.rotation.w,transform.transform.rotation.x,transform.transform.rotation.y,transform.transform.rotation.z);
             Eigen::Matrix3d rotation_matrix = rotate.toRotationMatrix();
@@ -103,8 +127,9 @@ private:
             cv::undistort(cv_image,cv_image_undistort,camera_matrix_Mat,dist_coeffs_);
 
             // 遍历点云，将每个点投影到图像上
-            for (const auto& point : pcl_cloud_transformed) {
+            for (int i = 0,len=pcl_cloud_transformed.points.size(); i < len; ++i) {
                 // 将点云坐标转换为像素坐标
+                const pcl::PointXYZ &point = pcl_cloud_transformed.points[i];
                 if(point.z<=0){
                     continue;
                 }
@@ -112,9 +137,20 @@ private:
                 Eigen::Vector4d point_camera = camera_matrix_eigen_ * point_homogeneous;
                 if(!(point_camera(0,0)>=0 && point_camera(1,0)>=0 && point_camera(0,0)<width && point_camera(1,0)<height)) continue;
                 if(point_camera(2,0)<cv_depth.at<float>(point_camera(1,0),point_camera(0,0))||std::abs(cv_depth.at<float>(point_camera(1,0),point_camera(0,0)))<=eps){
+                    cv::Point2d targ=cv::Point2d(point_camera(1,0),point_camera(0,0));
+                    this->colored_point.push_back(pcl::PointXYZRGB(point.x,point.y,point.z,
+                        cv_image_undistort.at<cv::Vec3b>(targ)[2],cv_image_undistort.at<cv::Vec3b>(targ)[1],cv_image_undistort.at<cv::Vec3b>(targ)[0]));
                     cv_depth.at<float>(point_camera(1,0),point_camera(0,0))=point_camera(2,0);
                 }
             }
+            this->colored_point.height=1;
+            this->colored_point.width=colored_point.points.size();
+            this->colored_point.is_dense=true;
+            sensor_msgs::msg::PointCloud2 colored_point_msg;
+            pcl::toROSMsg(this->colored_point,colored_point_msg);
+            colored_point_msg.header.frame_id="/sensor/colored_pointcloud";
+            colored_point_msg.header.stamp=image_msg->header.stamp;
+            point_colored_cloud_pub_->publish(colored_point_msg);
 
             cv::Mat cv_depth_normalized;
             double max_depth=0;
@@ -146,6 +182,11 @@ std::shared_ptr<Sync> sync_;
 
 // 深度图的发布者
 rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_pub_;
+
+// 点云的发布者
+rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_colored_cloud_pub_;
+std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
+pcl::PointCloud<pcl::PointXYZRGB> colored_point;
 
 //相机参数
 std::vector<double> camera_matrix_;
