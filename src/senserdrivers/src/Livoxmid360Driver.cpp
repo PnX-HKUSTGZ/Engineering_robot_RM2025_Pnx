@@ -223,7 +223,6 @@ void QueryInternalInfoCallback(livox_status status, uint32_t handle,
 void ImuDataCallback(uint32_t handle, const uint8_t dev_type,  LivoxLidarEthernetPacket* data, void* client_data){
   if(data==nullptr) return;
   if(data->data_type!=kLivoxLidarImuData) return;
-  void*(client_data);
   RCLCPP_INFO(rclcpp::get_logger("Mid360Driver:PointCloudCallback"),"ImuDataCallback called. imu handle: %u, data_num: %d, data_type: %d, length: %d, frame_counter: %d\n"
     ,handle, data->dot_num, data->data_type, data->length, data->frame_cnt);
   node->PublishIMU(data);
