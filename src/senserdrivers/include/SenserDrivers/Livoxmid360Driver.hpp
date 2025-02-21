@@ -28,75 +28,76 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
-using namespace std::placeholders;
+// #define cloudelog
 
 using namespace std::placeholders;
 
-class CloudPointBuffer {
-public:
-    CloudPointBuffer(float duration, const std::string& frame_id, rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_, rclcpp::Node* node):
-        duration(duration), frame_id(frame_id), point_cloud_pub_(point_cloud_pub_), node(node){
-        start_time=node->now();
-    }
-    void addPoint(const LivoxLidarEthernetPacket* data) {
-        if(node->now()-start_time>rclcpp::Duration::from_seconds(duration)){
-            RCLCPP_INFO(node->get_logger(),"addPoint time out, this call will not publish cloud.");
-            return;
-        }
-        else RCLCPP_INFO(node->get_logger(),"addPoint time in, this call will publish cloud.");
-        LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
-        mtx_cloud.lock();
-        int cloud_siz=0;
-        for(size_t i=0;i<data->dot_num;i++) cloud_siz += (p_point_data[i].tag == 0);
-        for(size_t i=0;i<cloud_siz;i++){
-            if(p_point_data[i].tag != 0) continue;
-            cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
-            // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
-        }
-        cloud.width=cloud.size();
-        cloud.height=1;
-        cloud.is_dense=true;
-        mtx_cloud.unlock();
-        RCLCPP_INFO(node->get_logger(),"addPoint successfully.");
-    }
+using namespace std::placeholders;
 
-    void publishCloud(builtin_interfaces::msg::Time time_=rclcpp::Clock().now()) {
-        sensor_msgs::msg::PointCloud2 cloud_msg;
-        mtx_cloud.lock();
-        pcl::toROSMsg(cloud,cloud_msg);
-        mtx_cloud.unlock();
-        cloud_msg.header.frame_id=frame_id;
-        cloud_msg.header.stamp=time_;
-        point_cloud_pub_->publish(cloud_msg);
-        this->reset();
-        RCLCPP_INFO(node->get_logger(),"publishCloud successfully.");
-    }
+// class CloudPointBuffer {
+// public:
+//     CloudPointBuffer(float duration, const std::string& frame_id, rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_, rclcpp::Node* node):
+//         duration(duration), frame_id(frame_id), point_cloud_pub_(point_cloud_pub_), node(node){
+//         start_time=node->now();
+//     }
+//     void addPoint(const LivoxLidarEthernetPacket* data) {
+//         if(node->now()-start_time>rclcpp::Duration::from_seconds(duration)){
+//             RCLCPP_INFO(node->get_logger(),"addPoint time out, this call will not publish cloud.");
+//             return;
+//         }
+//         else RCLCPP_INFO(node->get_logger(),"addPoint time in, this call will publish cloud.");
+//         LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
+//         // mtx_cloud.lock();
+//         int cloud_siz=0;
+//         for(size_t i=0;i<data->dot_num;i++){
+//             if(p_point_data[i].tag != 0) continue;
+//             cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
+//             // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
+//         }
+//         cloud.width=cloud.size();
+//         cloud.height=1;
+//         cloud.is_dense=true;
+//         // mtx_cloud.unlock();
+//         RCLCPP_INFO(node->get_logger(),"addPoint successfully.");
+//     }
 
-    void reset() {
-        mtx_cloud.lock();
-        RCLCPP_INFO(node->get_logger(),"reset cloud buffer.");
-        start_time=node->now();
-        cloud.clear();
-        mtx_cloud.unlock();
-    }
+//     void publishCloud(builtin_interfaces::msg::Time time_=rclcpp::Clock().now()) {
+//         sensor_msgs::msg::PointCloud2 cloud_msg;
+//         // mtx_cloud.lock();
+//         pcl::toROSMsg(cloud,cloud_msg);
+//         // mtx_cloud.unlock();
+//         this->reset();
+//         cloud_msg.header.frame_id=frame_id;
+//         cloud_msg.header.stamp=time_;
+//         point_cloud_pub_->publish(cloud_msg);
+//         RCLCPP_INFO(node->get_logger(),"publishCloud successfully.");
+//     }
 
-    bool isoutoftime() {
-        mtx_cloud.lock();
-        bool res=node->now()-start_time>rclcpp::Duration::from_seconds(duration);
-        mtx_cloud.unlock();
-        return res;
-    }
+//     void reset() {
+//         // mtx_cloud.lock();
+//         RCLCPP_INFO(node->get_logger(),"reset cloud buffer.");
+//         start_time=node->now();
+//         cloud.clear();
+//         // mtx_cloud.unlock();
+//     }
 
-private:
-    rclcpp::Time start_time;
-    float duration; // unit : second
-    pcl::PointCloud<pcl::PointXYZ> cloud;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
-    rclcpp::Node* node;
-    const std::string frame_id;
-    // mutex for cloud
-    std::mutex mtx_cloud;
-};
+//     bool isoutoftime() {
+//         // mtx_cloud.lock();
+//         bool res=node->now()-start_time>rclcpp::Duration::from_seconds(duration);
+//         // mtx_cloud.unlock();
+//         return res;
+//     }
+
+// private:
+//     rclcpp::Time start_time;
+//     float duration; // unit : second
+//     pcl::PointCloud<pcl::PointXYZ> cloud;
+//     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
+//     rclcpp::Node* node;
+//     const std::string frame_id;
+//     // mutex for cloud
+//     std::mutex mtx_cloud;
+// };
 
 class Mid360Driver : public rclcpp::Node {
 public:
@@ -129,10 +130,8 @@ public:
         }
         else RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
 
-        cloud_buffer_=std::make_shared<CloudPointBuffer>(1,"sensor/mid360",point_cloud_pub_,this);
-
-        cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(100),[&](){
-            if(cloud_buffer_->isoutoftime())  cloud_buffer_->reset();
+        cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(200),[&](){
+            // if(isoutoftime())  publishCloud();
         });
 
         point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud", 10);
@@ -141,8 +140,11 @@ public:
         imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>("sensor/mid360/imu", 10, std::bind(&Mid360Driver::synchronous_pose,this,_1));
 
         image_sub_=this->create_subscription<sensor_msgs::msg::Image>("sensor/image",10,[&](sensor_msgs::msg::Image::SharedPtr msg){
-            this->cloud_buffer_->publishCloud(msg->header.stamp);
+            this->publishCloud(msg->header.stamp);
         });
+        duration=0.3;
+        frame_id="sensor/mid360";
+        start_time=this->now();
 
     }
     ~Mid360Driver() {
@@ -162,7 +164,6 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     std::string configpath;
-    std::shared_ptr<CloudPointBuffer> cloud_buffer_;
     rclcpp::TimerBase::SharedPtr cloud_buffer_timer_;
     Eigen::Vector4d pose_rotate;
     Eigen::Vector3d pose_translate;
@@ -171,6 +172,74 @@ private:
     double g=9.80665;
     // 陀螺仪权重
     double alpha = 0.98;  
+
+
+    public:
+    void addPoint(const LivoxLidarEthernetPacket* data) {
+        if(this->now()-start_time>rclcpp::Duration::from_seconds(duration)){
+            #ifdef cloudelog
+            RCLCPP_INFO(this->get_logger(),"addPoint time out, this call will not publish cloud.");
+            #endif
+            return;
+        }
+        else {
+            #ifdef cloudelog
+            RCLCPP_INFO(this->get_logger(),"addPoint time in, this call will publish cloud.");
+            #endif
+        }
+        LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
+        // mtx_cloud.lock();
+        int cloud_siz=0;
+        for(size_t i=0;i<data->dot_num;i++){
+            if(p_point_data[i].tag != 0) continue;
+            cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
+            // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
+        }
+        cloud.width=cloud.size();
+        cloud.height=1;
+        cloud.is_dense=true;
+        // mtx_cloud.unlock();
+        #ifdef cloudelog
+        RCLCPP_INFO(this->get_logger(),"addPoint successfully.");
+        #endif
+    }
+
+    void publishCloud(builtin_interfaces::msg::Time time_=rclcpp::Clock().now()) {
+        sensor_msgs::msg::PointCloud2 cloud_msg;
+        // mtx_cloud.lock();
+        pcl::toROSMsg(cloud,cloud_msg);
+        // mtx_cloud.unlock();
+        this->reset();
+        cloud_msg.header.frame_id=frame_id;
+        cloud_msg.header.stamp=time_;
+        point_cloud_pub_->publish(cloud_msg);
+        RCLCPP_INFO(this->get_logger(),"publishCloud successfully.");
+    }
+
+    void reset() {
+        // mtx_cloud.lock();
+        #ifdef cloudelog
+        RCLCPP_INFO(this->get_logger(),"reset cloud buffer.");
+        #endif
+        start_time=this->now();
+        cloud.clear();
+        // mtx_cloud.unlock();
+    }
+
+    bool isoutoftime() {
+        // mtx_cloud.lock();
+        bool res=this->now()-start_time>rclcpp::Duration::from_seconds(duration);
+        // mtx_cloud.unlock();
+        return res;
+    }
+
+private:
+    rclcpp::Time start_time;
+    float duration; // unit : second
+    pcl::PointCloud<pcl::PointXYZ> cloud;
+    std::string frame_id;
+    // mutex for cloud
+    std::mutex mtx_cloud;
 };
 
 void PointCloudCallback(uint32_t handle, uint8_t dev_type, LivoxLidarEthernetPacket* data, void* client_data);
