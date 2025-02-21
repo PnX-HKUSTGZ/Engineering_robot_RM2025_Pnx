@@ -13,8 +13,8 @@ void PointCloudCallback(uint32_t handle, const uint8_t dev_type, LivoxLidarEther
   if (data == nullptr) {
       return;
     }
-    RCLCPP_INFO(rclcpp::get_logger("Mid360Driver:PointCloudCallback"),"point cloud handle: %u, data_num: %d, data_type: %d, length: %d, frame_counter: %d\n",
-        handle, data->dot_num, data->data_type, data->length, data->frame_cnt);
+    // RCLCPP_INFO(rclcpp::get_logger("Mid360Driver:PointCloudCallback"),"point cloud handle: %u, data_num: %d, data_type: %d, length: %d, frame_counter: %d\n",
+    //     handle, data->dot_num, data->data_type, data->length, data->frame_cnt);
     node->PublishPointCloud(data);
 }
 
@@ -120,7 +120,7 @@ void Mid360Driver::update_pose_translate(double dt,sensor_msgs::msg::Imu::Shared
   Eigen::Vector3d acc_world=Eigen::Quaterniond(this->pose_rotate)*acc_body;
   //减去重力
   RCLCPP_INFO(this->get_logger(),"acc_body: %f, %f, %f",acc_body(0),acc_body(1),acc_body(2));
-  acc_body(3)=acc_body(3)-1;
+  acc_body(2)=acc_body(2)-1;
   acc_body *=this->g;
   this->speed_translate=this->speed_translate+acc_world*dt;
   this->pose_translate=this->pose_translate+this->speed_translate*dt;
@@ -228,16 +228,18 @@ void ImuDataCallback(uint32_t handle, const uint8_t dev_type,  LivoxLidarEtherne
   node->PublishIMU(data);
 }
 
-
+void mid360_init(){
+  SetLivoxLidarPointCloudCallBack(PointCloudCallback, nullptr);
+  SetLivoxLidarImuDataCallback(ImuDataCallback, nullptr);
+  // SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, nullptr);
+  SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, nullptr);
+  RCLCPP_INFO(node->get_logger(), "SetCallBack successfully.");
+}
 
 int main (int argc, const char *argv[]) {
     rclcpp::init(argc, argv);
     node = std::make_shared<Mid360Driver>();
-    SetLivoxLidarPointCloudCallBack(PointCloudCallback, nullptr);
-    SetLivoxLidarImuDataCallback(ImuDataCallback, nullptr);
-    // SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, nullptr);
-    SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, nullptr);
-    RCLCPP_INFO(node->get_logger(), "SetCallBack successfully.");
+    mid360_init();
 
     rclcpp::spin(node);
     rclcpp::shutdown();

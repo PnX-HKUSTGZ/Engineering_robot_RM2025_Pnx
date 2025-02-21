@@ -92,24 +92,10 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
     cv::Mat imageRGB;
     cv::cvtColor(OriginalImage, imageRGB, cv::COLOR_BayerRG2RGB);
 
-    geometry_msgs::msg::TransformStamped t;
     auto image_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",imageRGB).toImageMsg();
-    auto time_=node->get_clock()->now();
-
-    t.header.stamp=time_;
-    t.header.frame_id="/sensor/mid360";
-    t.child_frame_id="/sensor/camera";
-    t.transform.translation.x=66.26/1000;
-    t.transform.translation.y=32.5/1000;
-    t.transform.translation.z=-32.55/1000;
-    t.transform.rotation.x=1;
-    t.transform.rotation.y=0;
-    t.transform.rotation.z=0;
-    t.transform.rotation.w=1;
-    tf_broadcaster_->sendTransform(t);
 
     image_ptr->header.frame_id="/sensor/camera";
-    image_ptr->header.stamp=time_;
+    image_ptr->header.stamp=node->get_clock()->now();
 
     publisher_->publish(*image_ptr);
     // cv::imshow("Camera",imageRGB);
@@ -300,9 +286,22 @@ int main (int argc,char ** argv){
     node->declare_parameter<double>("GainValue",5);
     node->declare_parameter<int>("VideoDriverModle",1);
     // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
+
+    geometry_msgs::msg::TransformStamped t;
+    tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
+    t.header.stamp=node->now();
+    t.header.frame_id="/sensor/mid360";
+    t.child_frame_id="/sensor/camera";
+    t.transform.translation.x=66.26/1000;
+    t.transform.translation.y=32.5/1000;
+    t.transform.translation.z=-32.55/1000;
+    t.transform.rotation.x=1;
+    t.transform.rotation.y=0;
+    t.transform.rotation.z=0;
+    t.transform.rotation.w=1;
+    tf_broadcaster_->sendTransform(t);
     if(node->get_parameter("VideoDriverModle").as_int()==1){
         publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
-        tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
         while(rclcpp::ok()) publish_video();
     }
     rclcpp::spin(node);

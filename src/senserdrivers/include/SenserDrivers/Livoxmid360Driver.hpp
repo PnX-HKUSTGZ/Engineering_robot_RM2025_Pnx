@@ -39,19 +39,19 @@ public:
         start_time=node->now();
     }
     void addPoint(const LivoxLidarEthernetPacket* data) {
-        LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
         if(node->now()-start_time>rclcpp::Duration::from_seconds(duration)){
             RCLCPP_INFO(node->get_logger(),"addPoint time out, this call will not publish cloud.");
             return;
         }
         else RCLCPP_INFO(node->get_logger(),"addPoint time in, this call will publish cloud.");
+        LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
         mtx_cloud.lock();
         int cloud_siz=0;
         for(size_t i=0;i<data->dot_num;i++) cloud_siz += (p_point_data[i].tag == 0);
         for(size_t i=0;i<cloud_siz;i++){
             if(p_point_data[i].tag != 0) continue;
             cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
-            RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
+            // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
         }
         cloud.width=cloud.size();
         cloud.height=1;
@@ -73,12 +73,18 @@ public:
     }
 
     void reset() {
+        mtx_cloud.lock();
+        RCLCPP_INFO(node->get_logger(),"reset cloud buffer.");
         start_time=node->now();
         cloud.clear();
+        mtx_cloud.unlock();
     }
 
     bool isoutoftime() {
-        return node->now()-start_time>rclcpp::Duration::from_seconds(duration);
+        mtx_cloud.lock();
+        bool res=node->now()-start_time>rclcpp::Duration::from_seconds(duration);
+        mtx_cloud.unlock();
+        return res;
     }
 
 private:
@@ -96,15 +102,6 @@ class Mid360Driver : public rclcpp::Node {
 public:
     Mid360Driver(const rclcpp::NodeOptions & options=rclcpp::NodeOptions())
     : Node("mid360_driver", options) {
-        point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud", 10);
-        imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("sensor/mid360/imu", 10);
-
-        imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>("sensor/mid360/imu", 10, std::bind(&Mid360Driver::synchronous_pose,this,_1));
-
-        image_sub_=this->create_subscription<sensor_msgs::msg::Image>("sensor/image",10,[&](sensor_msgs::msg::Image::SharedPtr msg){
-            this->cloud_buffer_->publishCloud(msg->header.stamp);
-        });
-
         // init pose
         pose_rotate=Eigen::Vector4d::Zero();
         pose_rotate(0)=1;
@@ -135,7 +132,16 @@ public:
         cloud_buffer_=std::make_shared<CloudPointBuffer>(1,"sensor/mid360",point_cloud_pub_,this);
 
         cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(100),[&](){
-            if(cloud_buffer_->isoutoftime())  cloud_buffer_->publishCloud();
+            if(cloud_buffer_->isoutoftime())  cloud_buffer_->reset();
+        });
+
+        point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud", 10);
+        imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("sensor/mid360/imu", 10);
+
+        imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>("sensor/mid360/imu", 10, std::bind(&Mid360Driver::synchronous_pose,this,_1));
+
+        image_sub_=this->create_subscription<sensor_msgs::msg::Image>("sensor/image",10,[&](sensor_msgs::msg::Image::SharedPtr msg){
+            this->cloud_buffer_->publishCloud(msg->header.stamp);
         });
 
     }
