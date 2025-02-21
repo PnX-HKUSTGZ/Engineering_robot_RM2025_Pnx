@@ -9,6 +9,11 @@ def generate_launch_description():
             package='senserdrivers',
             executable='camera_driver',
             name='camera_driver',
+            parameters=[
+                {"ExposureTimeLower":15000},
+                {"ExposureTimeUpper":15000},
+                {"Gain":15}
+            ]
         ),
         Node(
             package='senserdrivers',

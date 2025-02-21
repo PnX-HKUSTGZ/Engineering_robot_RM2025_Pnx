@@ -38,7 +38,7 @@ class DepthFusion : public rclcpp::Node {
 public:
 
 DepthFusion() : Node("depth_fusion"){
-    cloud_sub_.subscribe(this,"sensor/pointcloud");
+    cloud_sub_.subscribe(this,"/sensor/mid360/point_cloud");
     image_sub_.subscribe(this,"sensor/image");
     RCLCPP_INFO_EXPRESSION(this->get_logger(),1,"sub_ create!.");
 
@@ -98,10 +98,13 @@ private:
 
     void callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
               const sensor_msgs::msg::Image::ConstSharedPtr& image_msg) {
+        if(this->colored_point.size()>100000){
+            return;
+        }
         try{
             tf2::TimePoint image_time_point = tf2::TimePoint(std::chrono::seconds(image_msg->header.stamp.sec)+std::chrono::nanoseconds(image_msg->header.stamp.nanosec));
             tf2::TimePoint cloud_time_point = tf2::TimePoint(std::chrono::seconds(cloud_msg->header.stamp.sec)+std::chrono::nanoseconds(cloud_msg->header.stamp.nanosec));
-            geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform("/sensor/camera", image_time_point, "/sensor/mid360/point_cloud", cloud_time_point, "odom");
+            geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform("sensor/camera", image_time_point, "sensor/mid360", cloud_time_point, "map");
             // 定义四元数 [w, x, y, z]
             Eigen::Quaternion rotate(transform.transform.rotation.w,transform.transform.rotation.x,transform.transform.rotation.y,transform.transform.rotation.z);
             Eigen::Matrix3d rotation_matrix = rotate.toRotationMatrix();
@@ -125,7 +128,8 @@ private:
             cv::Mat cv_image=cv_bridge::toCvCopy(image_msg,"bgr8")->image;
             cv::Mat cv_depth(cv_image.size(),CV_32FC1),cv_image_undistort;
             cv::undistort(cv_image,cv_image_undistort,camera_matrix_Mat,dist_coeffs_);
-
+            cv::imshow("???",cv_image_undistort);
+            cv::waitKey(30);
             // 遍历点云，将每个点投影到图像上
             for (int i = 0,len=pcl_cloud_transformed.points.size(); i < len; ++i) {
                 // 将点云坐标转换为像素坐标
@@ -139,7 +143,10 @@ private:
                 if(point_camera(2,0)<cv_depth.at<float>(point_camera(1,0),point_camera(0,0))||std::abs(cv_depth.at<float>(point_camera(1,0),point_camera(0,0)))<=eps){
                     cv::Point2d targ=cv::Point2d(point_camera(1,0),point_camera(0,0));
                     this->colored_point.push_back(pcl::PointXYZRGB(point.x,point.y,point.z,
-                        cv_image_undistort.at<cv::Vec3b>(targ)[2],cv_image_undistort.at<cv::Vec3b>(targ)[1],cv_image_undistort.at<cv::Vec3b>(targ)[0]));
+                        cv_image_undistort.at<cv::Vec3i>(targ)[2],cv_image_undistort.at<cv::Vec3i>(targ)[1],cv_image_undistort.at<cv::Vec3i>(targ)[0]));
+                    std::stringstream ss;
+                    ss<<targ<<" "<<cv_image_undistort.at<cv::Vec3i>(targ)[2]<<" "<<cv_image_undistort.at<cv::Vec3i>(targ)[1]<<" "<<cv_image_undistort.at<cv::Vec3i>(targ)[0];
+                    RCLCPP_INFO(this->get_logger(),"rgb : %s",ss.str().c_str());
                     cv_depth.at<float>(point_camera(1,0),point_camera(0,0))=point_camera(2,0);
                 }
             }
@@ -156,8 +163,8 @@ private:
             double max_depth=0;
             cv::minMaxLoc(cv_depth,NULL,&max_depth,NULL);
             cv::convertScaleAbs(cv_depth,cv_depth_normalized,255.0/max_depth);
-            cv::imshow("depth",cv_depth_normalized);
-            cv::waitKey(30);
+            // cv::imshow("depth",cv_depth_normalized);
+            // cv::waitKey(30);
             // 发布深度图
             sensor_msgs::msg::Image::SharedPtr depth_msg=cv_bridge::CvImage(image_msg->header,sensor_msgs::image_encodings::TYPE_32FC1,cv_depth_normalized).toImageMsg();
             depth_pub_->publish(*depth_msg);

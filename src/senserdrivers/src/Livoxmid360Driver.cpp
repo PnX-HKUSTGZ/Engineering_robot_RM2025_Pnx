@@ -153,7 +153,9 @@ void Mid360Driver::pub_pose(rclcpp::Time time){
   t.transform.rotation.z = this->pose_rotate(3);
   t.transform.rotation.w = this->pose_rotate(0);
   tf_broadcaster_->sendTransform(t);
+  #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(), "tf broadcaster successfully.");
+  #endif
 }
 
 void LidarInfoChangeCallback(const uint32_t handle, const LivoxLidarInfo* info, void* client_data) {
