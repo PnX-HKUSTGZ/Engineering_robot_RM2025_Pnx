@@ -293,6 +293,7 @@ int main (int argc,char ** argv){
         RCLCPP_ERROR(node->get_logger(),"YAML fail! code : %s",e.what());
         return 0;
     }
+    RCLCPP_INFO(node->get_logger(),"YAML success!");
 
     geometry_msgs::msg::TransformStamped t;
     tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
@@ -309,5 +310,9 @@ int main (int argc,char ** argv){
     tf_broadcaster_->sendTransform(t);
     
     publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
+
+    rclcpp::TimerBase::SharedPtr timer_=node->create_wall_timer(20ms,std::bind(&publish_video));
+
     rclcpp::spin(node);
+    rclcpp::shutdown();
 }

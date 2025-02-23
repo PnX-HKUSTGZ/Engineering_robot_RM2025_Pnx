@@ -14,8 +14,7 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
-#define DeBug
-#define DeBugHough
+#define arrow_draw
 
 using namespace std::chrono;
 using namespace std::placeholders;

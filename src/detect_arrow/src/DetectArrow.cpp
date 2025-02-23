@@ -186,7 +186,10 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     cv::circle(OriginalImage_,cv::Point(Center(0)/Center(2),Center(1)/Center(2)),1,cv::Scalar(223,225,133),-1);
     cv::putText(OriginalImage_,"2",cv::Point(Center(0)/Center(2),Center(1)/Center(2)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     
-    this->label_image_pub_->publish(*cv_bridge::CvImage(msg->header,sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg());
+    auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
+    lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
+    lable_msg_ptr->header.stamp=this->get_clock()->now();
+    this->label_image_pub_->publish(*lable_msg_ptr);
 
     # endif
 
@@ -607,12 +610,13 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
 
     this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
     YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
-
+    // RCLCPP_INFO(this->get_logger(),"1");
     cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
     distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
     for(int i=0;i<9;i++){
         cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
     }
+    RCLCPP_INFO(this->get_logger(),"1");
     for(int i=0;i<6;i++){
         const std::vector<double> & arrowPoints=config["arrow"]["arrowPoints"][i].as<std::vector<double>>();
         objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
@@ -627,29 +631,38 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
         const std::vector<double> & line=config["redeem_box"]["line"][i].as<std::vector<double>>();
         Object2cornersEigen.push_back(Eigen::Vector4d(line[0],line[1],line[2],1));
     }
+    RCLCPP_INFO(this->get_logger(),"1");
     for(int i=0;i<9;i++){
-        CenterToArrowvec(i/3,i%3)=config["redeem_box"]["CenterToArrowvec"][i].as<double>();
+        CenterToArrowvec(i/3,i%3)=config["redeem_box"]["CenterToArrow"][i].as<double>();
     }
     signMat<<1,0,0,0,
         0,1,0,0,
         0,0,1,0;
+    RCLCPP_INFO(this->get_logger(),"2");
     
-    ArrowDetectorPixelNumMax=config["arrow_detect"]["ArrowDetectorPixelNumMax"].as<double>();
-    ArrowDetectorPixelNumMin=config["arrow_detect"]["ArrowDetectorPixelNumMin"].as<double>();
+    ArrowDetectorPixelNumMax=config["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
+    ArrowDetectorPixelNumMin=config["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
     ArrowDetectorLengthWidthRatioMax=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
     ArrowDetectorLengthWidthRatioMin=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
     ArrowDetectorApproxSizeMax=config["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
     ArrowDetectorApproxSizeMin=config["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
     ArrowDetectorCannyThreshold1=config["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
+    RCLCPP_INFO(this->get_logger(),"1");
     ArrowDetectorCannyThreshold2=config["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
+    RCLCPP_INFO(this->get_logger(),"1");
     ArrowDetectorHoughRho=config["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
+    RCLCPP_INFO(this->get_logger(),"1");
     ArrowDetectorHoughTheta=config["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
+    RCLCPP_INFO(this->get_logger(),"1");
     ArrowDetectorHoughThreshold=config["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
+    RCLCPP_INFO(this->get_logger(),"1");
     ArrowDetectParallelThreshold=config["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
+    RCLCPP_INFO(this->get_logger(),"1");
     ArrowDetectorThresholdThresh=config["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
     ArrowDetectorThresholdMaxval=config["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();
     ArrowDetectorThresholdThreshold=config["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
     ArrowDetectorIterations=config["arrow_detect"]["ArrowDetectorIterations"].as<double>();
+    RCLCPP_INFO(this->get_logger(),"1");
     ArrowDetectorapproxPolyDPEpsilon=config["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
 
     }
