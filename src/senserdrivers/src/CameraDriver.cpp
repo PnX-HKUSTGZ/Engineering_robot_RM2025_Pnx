@@ -13,6 +13,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2/utils.hpp>
+#include <yaml-cpp/yaml.h>
 
 using namespace std::chrono;
 
@@ -281,10 +282,11 @@ do{
 int main (int argc,char ** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("CameraDriver");
-    node->declare_parameter<int>("ExposureTimeLower",10000);
-    node->declare_parameter<int>("ExposureTimeUpper",10000);
-    node->declare_parameter<double>("GainValue",5);
-    node->declare_parameter<int>("VideoDriverModle",1);
+    node->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
+    YAML::Node config=YAML::LoadFile(node->get_parameter("Location").as_string()+"/src/config.yaml");
+    node->declare_parameter<int>("ExposureTimeLower",config["camera"]["ExposureTimeLower"].as<int>());
+    node->declare_parameter<int>("ExposureTimeUpper",config["camera"]["ExposureTimeUpper"].as<int>());
+    node->declare_parameter<double>("GainValue",config["camera"]["GainValue"].as<double>());
     // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
 
     geometry_msgs::msg::TransformStamped t;
@@ -300,9 +302,7 @@ int main (int argc,char ** argv){
     t.transform.rotation.z=0;
     t.transform.rotation.w=1;
     tf_broadcaster_->sendTransform(t);
-    if(node->get_parameter("VideoDriverModle").as_int()==1){
-        publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
-        while(rclcpp::ok()) publish_video();
-    }
+    
+    publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
     rclcpp::spin(node);
 }

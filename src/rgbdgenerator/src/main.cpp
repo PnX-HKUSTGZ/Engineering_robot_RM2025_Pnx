@@ -82,12 +82,12 @@ DepthFusion() : Node("depth_fusion"){
 
     camera_matrix_ = config["camera"]["camera_matrix"].as<std::vector<double>>();
     dist_coeffs_ = config["camera"]["dist_coeffs"].as<std::vector<double>>();
-    Eigen::Matrix3d lin_dist_coeffs_=Eigen::Matrix3d::Zero();
-    lin_dist_coeffs_<<dist_coeffs_[0],dist_coeffs_[1],dist_coeffs_[4],
-                      dist_coeffs_[2],dist_coeffs_[3],dist_coeffs_[5],
-                      dist_coeffs_[6],dist_coeffs_[7],dist_coeffs_[8];
+    Eigen::Matrix3d lin_camera_matrix_=Eigen::Matrix3d::Zero();
+    lin_camera_matrix_<<camera_matrix_[0],camera_matrix_[1],camera_matrix_[4],
+                      camera_matrix_[2],camera_matrix_[3],camera_matrix_[5],
+                      camera_matrix_[6],camera_matrix_[7],camera_matrix_[8];
     camera_matrix_eigen_=Eigen::Matrix4d::Zero();
-    camera_matrix_eigen_.block<3,3>(0,0)=lin_dist_coeffs_;
+    camera_matrix_eigen_.block<3,3>(0,0)=lin_camera_matrix_;
     camera_matrix_Mat=cv::Mat(3,3,CV_64FC1,camera_matrix_.data());
     height = config["camera"]["height"].as<int>();
     width = config["camera"]["width"].as<int>();
@@ -98,9 +98,9 @@ private:
 
     void callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
               const sensor_msgs::msg::Image::ConstSharedPtr& image_msg) {
-        if(this->colored_point.size()>100000){
-            return;
-        }
+        // if(this->colored_point.size()>100000){
+        //     return;
+        // }
         try{
             tf2::TimePoint image_time_point = tf2::TimePoint(std::chrono::seconds(image_msg->header.stamp.sec)+std::chrono::nanoseconds(image_msg->header.stamp.nanosec));
             tf2::TimePoint cloud_time_point = tf2::TimePoint(std::chrono::seconds(cloud_msg->header.stamp.sec)+std::chrono::nanoseconds(cloud_msg->header.stamp.nanosec));
@@ -128,8 +128,9 @@ private:
             cv::Mat cv_image=cv_bridge::toCvCopy(image_msg,"bgr8")->image;
             cv::Mat cv_depth(cv_image.size(),CV_32FC1),cv_image_undistort;
             cv::undistort(cv_image,cv_image_undistort,camera_matrix_Mat,dist_coeffs_);
-            cv::imshow("???",cv_image_undistort);
-            cv::waitKey(30);
+            // cv::imshow("???",cv_image_undistort);
+            // cv::imshow("??",cv_image);
+            // cv::waitKey(30);
             // 遍历点云，将每个点投影到图像上
             for (int i = 0,len=pcl_cloud_transformed.points.size(); i < len; ++i) {
                 // 将点云坐标转换为像素坐标
@@ -139,13 +140,16 @@ private:
                 }
                 Eigen::Vector4d point_homogeneous(point.x, point.y, point.z, 1.0);
                 Eigen::Vector4d point_camera = camera_matrix_eigen_ * point_homogeneous;
-                if(!(point_camera(0,0)>=0 && point_camera(1,0)>=0 && point_camera(0,0)<width && point_camera(1,0)<height)) continue;
+                if(!(point_camera(0,0)>=0 && point_camera(1,0)>=0 && point_camera(0,0)<height && point_camera(1,0)<width)) continue;
                 if(point_camera(2,0)<cv_depth.at<float>(point_camera(1,0),point_camera(0,0))||std::abs(cv_depth.at<float>(point_camera(1,0),point_camera(0,0)))<=eps){
                     cv::Point2d targ=cv::Point2d(point_camera(1,0),point_camera(0,0));
                     this->colored_point.push_back(pcl::PointXYZRGB(point.x,point.y,point.z,
-                        cv_image_undistort.at<cv::Vec3i>(targ)[2],cv_image_undistort.at<cv::Vec3i>(targ)[1],cv_image_undistort.at<cv::Vec3i>(targ)[0]));
+                        cv_image_undistort.at<cv::Vec3b>(targ)[2],cv_image_undistort.at<cv::Vec3b>(targ)[1],cv_image_undistort.at<cv::Vec3b>(targ)[0]));
                     std::stringstream ss;
-                    ss<<targ<<" "<<cv_image_undistort.at<cv::Vec3i>(targ)[2]<<" "<<cv_image_undistort.at<cv::Vec3i>(targ)[1]<<" "<<cv_image_undistort.at<cv::Vec3i>(targ)[0];
+                    ss<<targ<<" "<<cv_image_undistort.at<cv::Vec3b>(targ)[2]<<" "<<cv_image_undistort.at<cv::Vec3b>(targ)[1]<<" "<<cv_image_undistort.at<cv::Vec3b>(targ)[0];
+                    ss<<std::endl<<point_homogeneous;
+                    ss<<std::endl<<"camera_matrix_eigen_ :\n"<<camera_matrix_eigen_;
+                    ss<<std::endl<<"point_camera :\n"<<point_camera;
                     RCLCPP_INFO(this->get_logger(),"rgb : %s",ss.str().c_str());
                     cv_depth.at<float>(point_camera(1,0),point_camera(0,0))=point_camera(2,0);
                 }

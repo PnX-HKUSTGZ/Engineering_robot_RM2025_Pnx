@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <sstream>
 #include <Eigen/Dense>
+#include <yaml-cpp/yaml.h>
 
 #define DeBug
 #define DeBugHough
@@ -21,42 +22,78 @@ using namespace std::placeholders;
 
 class Arrow_detector:public rclcpp::Node{
     public:
-    using Imagerequest=interfaces::srv::Imagerequest;
-    Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCorner(k)){
-        this->client_=this->create_client<Imagerequest>("OriginalVideo");
-        this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("OriginalVideo",10,std::bind(&Arrow_detector::GetImage,this,_1));
-        this->publisher_=this->create_publisher<interfaces::msg::RedeemBoxPosition>("RedeemBoxPosition",10);
-        RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
-    }
-    ~Arrow_detector(){
-        if(videowriter.isOpened()){
-            videowriter.release();
-        }
-    }
-    void InitialArrowDetector();
-    void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
-    static cv::Mat OOriginalImage;
+    // using Imagerequest=interfaces::srv::Imagerequest;
+    Arrow_detector(double k);
+
+    // static cv::Mat OOriginalImage;
     private:
-    rclcpp::Client<Imagerequest>::SharedPtr client_;
+    // rclcpp::Client<Imagerequest>::SharedPtr client_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+    rclcpp::Publisher<interfaces::msg::RedeemBoxPosition>::SharedPtr publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr label_image_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
-    rclcpp::Node::SharedPtr node_shred_ptr;
-    rclcpp::Publisher<interfaces::msg::RedeemBoxPosition>::SharedPtr publisher_;
-    cv::Mat PreProgress(const cv::Mat & OriginalImage);
-    bool MainDetectArrow(const cv::Mat & OriginalImage);
-    bool TargetArrow(const cv::Mat & BinaryImage);
-    cv::Mat OriginalImage;
+    // rclcpp::Node::SharedPtr node_shred_ptr;
+    cv::Mat OriginalImage_;
     std::vector<cv::Point2f> ArrowPeaks;
-
-    bool PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
-        cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
-    
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     cv::Mat rvec,tvec;
-    // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
-    cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
     FilterCorner filter_;
+
+    cv::Mat PreProgress(const cv::Mat & OriginalImage);
+    // void InitialArrowDetector();
+    void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
+    bool PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
+        cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
+    bool MainDetectArrow(const cv::Mat & OriginalImage);
+    bool TargetArrow(const cv::Mat & BinaryImage);
+
+    // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
+    // cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
+
+    // parameters setting
+
+    // detect params
+    int ArrowDetectorPixelNumMax;
+    int ArrowDetectorPixelNumMin;
+    double ArrowDetectorLengthWidthRatioMax;
+    double ArrowDetectorLengthWidthRatioMin;
+    int ArrowDetectorApproxSizeMax;
+    int ArrowDetectorApproxSizeMin;
+    double ArrowDetectorCannyThreshold1;
+    double ArrowDetectorCannyThreshold2;
+    double ArrowDetectorHoughRho;
+    double ArrowDetectorHoughTheta;
+    int ArrowDetectorHoughThreshold;
+    double ArrowDetectParallelThreshold;
+    double ArrowDetectorThresholdThresh;
+    double ArrowDetectorThresholdMaxval;
+    double ArrowDetectorThresholdThreshold;
+    int ArrowDetectorIterations;
+    double ArrowDetectorapproxPolyDPEpsilon;
+
+    // object params
+
+    // 相机外参
+    std::vector<double> cameraMatrix;
+    // 相机外参 Eigen
+    Eigen::Matrix<double,3,3> cameraMatrixEigen;
+    // 相机内参
+    std::vector<double> distCoeffs;
+    // 箭头上的点
+    std::vector<cv::Point3d> objpoints;
+    // 箭头上的点  Eigen
+    std::vector<Eigen::Matrix<double,4,1>> objpointsEigen;
+    //  redemption box 上的点 
+    std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint;
+    //  redemption box 上的点  Eigen
+    std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen;
+    // 箭头旁的直线
+    std::vector<Eigen::Matrix<double,4,1>> Object2cornersEigen;
+    // 兑换框正面到箭头的变换矩阵
+    Eigen::Matrix<double,4,4> CenterToArrowvec;
+    // 降维矩阵
+    Eigen::Matrix<double,3,4> signMat;
 };
 
 typedef std::pair<int,int> pii;

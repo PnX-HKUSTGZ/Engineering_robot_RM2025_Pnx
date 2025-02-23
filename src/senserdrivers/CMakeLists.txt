@@ -24,6 +24,7 @@ find_package(interfaces REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 add_executable(camera_driver src/CameraDriver.cpp)
 
@@ -40,6 +41,7 @@ ament_target_dependencies(camera_driver
 
 target_link_libraries(camera_driver
   MvCameraControl
+  yaml-cpp
 )
 
 add_executable(mid360_driver src/Livoxmid360Driver.cpp)

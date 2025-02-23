@@ -19,6 +19,7 @@ find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(yaml-cpp REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
 
@@ -33,6 +34,8 @@ ament_target_dependencies(detect_arrow
   interfaces
   Eigen3
 )
+
+target_link_libraries(detect_arrow yaml-cpp)
 
 install(TARGETS
   detect_arrow
