@@ -7,8 +7,8 @@ def generate_launch_description():
     Path = {"Location":"/home/lqx/code/Engineering_robot_RM2025_Pnx"}
     return LaunchDescription([
         Node(
-            package='videodriver',
-            executable='camera_dirver',
+            package='senserdrivers',
+            executable='camera_driver',
             name='camera_dirver',
             parameters=[Path],
         ),

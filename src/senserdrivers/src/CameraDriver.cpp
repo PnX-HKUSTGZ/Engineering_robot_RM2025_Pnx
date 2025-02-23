@@ -283,11 +283,16 @@ int main (int argc,char ** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("CameraDriver");
     node->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
-    YAML::Node config=YAML::LoadFile(node->get_parameter("Location").as_string()+"/src/config.yaml");
-    node->declare_parameter<int>("ExposureTimeLower",config["camera"]["ExposureTimeLower"].as<int>());
-    node->declare_parameter<int>("ExposureTimeUpper",config["camera"]["ExposureTimeUpper"].as<int>());
-    node->declare_parameter<double>("GainValue",config["camera"]["GainValue"].as<double>());
-    // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
+    try{
+        YAML::Node config=YAML::LoadFile(node->get_parameter("Location").as_string()+"/src/config.yaml");
+        node->declare_parameter<int>("ExposureTimeLower",config["camera"]["ExposureTimeLower"].as<int>());
+        node->declare_parameter<int>("ExposureTimeUpper",config["camera"]["ExposureTimeUpper"].as<int>());
+        node->declare_parameter<double>("GainValue",config["camera"]["Gain"].as<double>());
+    }
+    catch(const std::exception& e){
+        RCLCPP_ERROR(node->get_logger(),"YAML fail! code : %s",e.what());
+        return 0;
+    }
 
     geometry_msgs::msg::TransformStamped t;
     tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);

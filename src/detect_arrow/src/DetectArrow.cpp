@@ -603,6 +603,8 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
 
     //定义参数
+    try{
+
     this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
     YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
 
@@ -649,6 +651,12 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     ArrowDetectorThresholdThreshold=config["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
     ArrowDetectorIterations=config["arrow_detect"]["ArrowDetectorIterations"].as<double>();
     ArrowDetectorapproxPolyDPEpsilon=config["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
+
+    }
+    catch(const std::exception& e){
+        RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
+        rclcpp::shutdown();
+    }
 
 }
 
