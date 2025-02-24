@@ -21,7 +21,7 @@ void InitCalibrationParam(){
     CHECKERBOARD[0]=7;//宽度
     CHECKERBOARD[1]=7;//高度
     for(int i=0;i<CHECKERBOARD[1];i++) for(int j=0;j<CHECKERBOARD[0];j++){
-        objp.push_back(cv::Point3f(j,i,0));
+        objp.push_back(cv::Point3f(j*0.03,i*0.03,0));
     }
     node->declare_parameter<std::string>("PicturePath",std::string("/home/lqx/code/Engineering_robot_RM2025_Pnx/Pictures"));
 }
@@ -107,7 +107,7 @@ int main (int argc,char** argv){
     node=std::make_shared<rclcpp::Node>("calibrate_camera");
     InitCalibrationParam();
     node->declare_parameter<std::string>("parampath","");
-    subscriber_=node->create_subscription<sensor_msgs::msg::Image>("OriginalVideo",10,ImageCallback);
+    subscriber_=node->create_subscription<sensor_msgs::msg::Image>("/sensor/image",10,ImageCallback);
     rclcpp::spin(node);
     rclcpp::shutdown();
 }

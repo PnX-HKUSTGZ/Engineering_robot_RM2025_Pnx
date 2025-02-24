@@ -1,103 +1,144 @@
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/image.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/opencv.hpp>
-#include <pcl-1.12/pcl/point_cloud.h>
-#include <pcl-1.12/pcl/point_types.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
+// #include <ros/ros.h>
+// #include <sensor_msgs/Imu.h>
+// #include <geometry_msgs/Quaternion.h>
+// #include <geometry_msgs/Vector3.h>
+// #include <Eigen/Dense>
 
-using namespace std::chrono_literals;
-
-class DepthFusion : public rclcpp::Node {
-public:
-    DepthFusion() : Node("depth_fusion"), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_) {
-        // 订阅同步话题
-        cloud_sub_.subscribe(this, "/lidar/points");
-        image_sub_.subscribe(this, "/camera/image_raw");
+// class IMUOrientationEstimator {
+// public:
+//     IMUOrientationEstimator() {
+//         ros::NodeHandle nh;
         
-        sync_.reset(new Sync(SyncPolicy(10), cloud_sub_, image_sub_));
-        sync_->registerCallback(&DepthFusion::callback, this);
+//         // 初始化四元数 (w, x, y, z)
+//         q = Eigen::Vector4d(1.0, 0.0, 0.0, 0.0);
+//         last_time = ros::Time::now();
+        
+//         // 互补滤波参数
+//         alpha = 0.98;  // 陀螺仪权重
+        
+//         // 订阅和发布
+//         imu_sub = nh.subscribe("/imu/data", 10, &IMUOrientationEstimator::imuCallback, this);
+//         ori_pub = nh.advertise<geometry_msgs::Quaternion>("/filtered_orientation", 10);
+//         euler_pub = nh.advertise<geometry_msgs::Vector3>("/euler_angles", 10);
+//     }
 
-        // 发布深度图
-        depth_pub_ = image_transport::create_publisher(this, "/depth/image");
-    }
+// private:
+//     void imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
+//         // 计算时间间隔
+//         ros::Time current_time = msg->header.stamp;
+//         double dt = (current_time - last_time).toSec();
+//         last_time = current_time;
 
-private:
-    void callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
-                  const sensor_msgs::msg::Image::ConstSharedPtr& image_msg) {
-        try {
-            // 获取坐标变换
-            geometry_msgs::msg::TransformStamped transform = tf_buffer_.lookupTransform(
-                "camera_frame", cloud_msg->header.frame_id, cloud_msg->header.stamp);
+//         if (dt <= 0) return;
 
-            // 转换点云到相机坐标系
-            pcl::PointCloud<pcl::PointXYZ> pcl_cloud;
-            pcl::fromROSMsg(*cloud_msg, pcl_cloud);
-            
-            Eigen::Matrix4f tf_matrix = Eigen::Matrix4f::Identity();
-            // 填充旋转矩阵和平移向量（根据实际TF数据）
-            // ...
+//         // 获取陀螺仪数据 (rad/s)
+//         double gx = msg->angular_velocity.x;
+//         double gy = msg->angular_velocity.y;
+//         double gz = msg->angular_velocity.z;
 
-            pcl::transformPointCloud(pcl_cloud, pcl_cloud, tf_matrix);
+//         // 四元数积分
+//         updateQuaternion(gx, gy, gz, dt);
 
-            // 转换为OpenCV图像
-            cv::Mat image = cv_bridge::toCvCopy(image_msg, "bgr8")->image;
-            cv::Mat depth_map = cv::Mat::zeros(image.size(), CV_32FC1);
+//         // 使用加速度计补偿
+//         double ax = msg->linear_acceleration.x;
+//         double ay = msg->linear_acceleration.y;
+//         double az = msg->linear_acceleration.z;
+        
+//         complementaryFilter(ax, ay, az, dt);
 
-            // 相机内参（需根据实际相机标定填写）
-            float fx = 525.0;  // 焦距x
-            float fy = 525.0;  // 焦距y
-            float cx = 319.5;  // 光心x
-            float cy = 239.5;  // 光心y
+//         // 发布结果
+//         publishOrientation();
+//         publishEulerAngles();
+//     }
 
-            // 投影点云到图像平面
-            for (const auto& point : pcl_cloud) {
-                if (point.z <= 0) continue;
+//     void updateQuaternion(double gx, double gy, double gz, double dt) {
+//         // 四元数微分方程
+//         Eigen::Vector4d omega(0, gx, gy, gz);
+//         Eigen::Vector4d q_dot = 0.5 * quaternionMultiply(q, omega);
+        
+//         // 一阶积分
+//         q += q_dot * dt;
+//         normalizeQuaternion();
+//     }
 
-                // 投影计算
-                int u = static_cast<int>((fx * point.x / point.z) + cx);
-                int v = static_cast<int>((fy * point.y / point.z) + cy);
+//     void complementaryFilter(double ax, double ay, double az, double dt) {
+//         // 加速度计测量的重力向量
+//         Eigen::Vector3d accel(ax, ay, az);
+//         if (accel.norm() < 1e-6) return;
+        
+//         // 归一化加速度计测量值
+//         accel.normalize();
 
-                // 检查边界
-                if (u >= 0 && u < image.cols && v >= 0 && v < image.rows) {
-                    float depth = point.z;  // 使用Z轴作为深度
-                    if (depth < depth_map.at<float>(v, u) || depth_map.at<float>(v, u) == 0) {
-                        depth_map.at<float>(v, u) = depth;
-                    }
-                }
-            }
+//         // 从当前四元数计算预测重力方向
+//         Eigen::Vector3d grav_pred(
+//             2*(q[1]*q[3] - q[0]*q[2]),
+//             2*(q[0]*q[1] + q[2]*q[3]),
+//             q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]
+//         );
 
-            // 转换并发布深度图
-            auto depth_msg = cv_bridge::CvImage(
-                std_msgs::msg::Header(), "32FC1", depth_map).toImageMsg();
-            depth_pub_.publish(depth_msg);
+//         // 计算误差向量
+//         Eigen::Vector3d error = accel.cross(grav_pred);
 
-        } catch (tf2::TransformException &ex) {
-            RCLCPP_WARN(this->get_logger(), "TF error: %s", ex.what());
-        }
-    }
+//         // 互补滤波校正陀螺仪偏差
+//         Eigen::Vector3d correction = (1 - alpha) * error;
+//         Eigen::Vector3d gyro_corrected(
+//             gx + correction.x(),
+//             gy + correction.y(),
+//             gz + correction.z()
+//         );
 
-    // 成员变量
-    tf2_ros::Buffer tf_buffer_;
-    tf2_ros::TransformListener tf_listener_;
-    message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
-    message_filters::Subscriber<sensor_msgs::msg::Image> image_sub_;
-    typedef message_filters::sync_policies::ApproximateTime<
-        sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
-    typedef message_filters::Synchronizer<SyncPolicy> Sync;
-    std::shared_ptr<Sync> sync_;
-    image_transport::Publisher depth_pub_;
-};
+//         // 使用修正后的角速度更新四元数
+//         updateQuaternion(gyro_corrected.x(), gyro_corrected.y(), gyro_corrected.z(), dt);
+//     }
 
-int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<DepthFusion>());
-    rclcpp::shutdown();
-    return 0;
-}
+//     Eigen::Vector4d quaternionMultiply(const Eigen::Vector4d& q1, const Eigen::Vector4d& q2) {
+//         return Eigen::Vector4d(
+//             q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3],
+//             q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2],
+//             q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1],
+//             q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
+//         );
+//     }
+
+//     void normalizeQuaternion() {
+//         q.normalize();
+//     }
+
+//     void publishOrientation() {
+//         geometry_msgs::Quaternion q_msg;
+//         q_msg.w = q[0];
+//         q_msg.x = q[1];
+//         q_msg.y = q[2];
+//         q_msg.z = q[3];
+//         ori_pub.publish(q_msg);
+//     }
+
+//     void publishEulerAngles() {
+//         geometry_msgs::Vector3 euler;
+        
+//         // 四元数转欧拉角 (ZYX顺序)
+//         double roll = atan2(2*(q[0]*q[1] + q[2]*q[3]), 1 - 2*(q[1]*q[1] + q[2]*q[2]));
+//         double pitch = asin(2*(q[0]*q[2] - q[3]*q[1]));
+//         double yaw = atan2(2*(q[0]*q[3] + q[1]*q[2]), 1 - 2*(q[2]*q[2] + q[3]*q[3]));
+        
+//         euler.x = roll;
+//         euler.y = pitch;
+//         euler.z = yaw;
+//         euler_pub.publish(euler);
+//     }
+
+//     ros::Subscriber imu_sub;
+//     ros::Publisher ori_pub, euler_pub;
+//     Eigen::Vector4d q;
+//     ros::Time last_time;
+//     double alpha;
+// };
+
+// int main(int argc, char** argv) {
+//     ros::init(argc, argv, "imu_orientation_estimator");
+//     IMUOrientationEstimator estimator;
+//     ros::spin();
+//     return 0;
+// }
+
+

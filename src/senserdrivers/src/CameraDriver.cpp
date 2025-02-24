@@ -1,5 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
+#include <tf2/utils.hpp>
+#include <tf2_ros/transform_broadcaster.h>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
@@ -7,11 +9,16 @@
 #include <string>
 #include "interfaces/srv/imagerequest.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "VideoDriver/MvCameraControl.h"
+#include "SenserDrivers/MvCameraControl.h"
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2/utils.hpp>
+#include <yaml-cpp/yaml.h>
 
 using namespace std::chrono;
 
 std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> publisher_;
+std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_broadcaster_;
 std::shared_ptr<rclcpp::Node> node;
 std::shared_ptr<rclcpp::Service<interfaces::srv::Imagerequest>> service_;
 int nRet = MV_OK;
@@ -88,10 +95,13 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
 
     auto image_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",imageRGB).toImageMsg();
 
+    image_ptr->header.frame_id="/sensor/camera";
+    image_ptr->header.stamp=node->get_clock()->now();
+
     publisher_->publish(*image_ptr);
-    cv::imshow("Camera",imageRGB);
+    // cv::imshow("Camera",imageRGB);
     // cv::imshow("Camera1",OriginalImage);
-    cv::waitKey(22);
+    // cv::waitKey(22);
     RCLCPP_INFO(node->get_logger(),"publish video");
 }
 
@@ -272,14 +282,37 @@ do{
 int main (int argc,char ** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("CameraDriver");
-    node->declare_parameter<int>("ExposureTimeLower",10000);
-    node->declare_parameter<int>("ExposureTimeUpper",10000);
-    node->declare_parameter<double>("GainValue",5);
-    node->declare_parameter<int>("VideoDriverModle",1);
-    // std::shared_ptr<rclcpp::TimerBase> timer_=node->create_wall_timer(22ms,publish_video);
-    if(node->get_parameter("VideoDriverModle").as_int()==1){
-        publisher_=node->create_publisher<sensor_msgs::msg::Image>("OriginalVideo",10);
-        while(rclcpp::ok()) publish_video();
+    node->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
+    try{
+        YAML::Node config=YAML::LoadFile(node->get_parameter("Location").as_string()+"/src/config.yaml");
+        node->declare_parameter<int>("ExposureTimeLower",config["camera"]["ExposureTimeLower"].as<int>());
+        node->declare_parameter<int>("ExposureTimeUpper",config["camera"]["ExposureTimeUpper"].as<int>());
+        node->declare_parameter<double>("GainValue",config["camera"]["Gain"].as<double>());
     }
+    catch(const std::exception& e){
+        RCLCPP_ERROR(node->get_logger(),"YAML fail! code : %s",e.what());
+        return 0;
+    }
+    RCLCPP_INFO(node->get_logger(),"YAML success!");
+
+    geometry_msgs::msg::TransformStamped t;
+    tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
+    t.header.stamp=node->now();
+    t.header.frame_id="/sensor/mid360";
+    t.child_frame_id="/sensor/camera";
+    t.transform.translation.x=66.26/1000;
+    t.transform.translation.y=32.5/1000;
+    t.transform.translation.z=-32.55/1000;
+    t.transform.rotation.x=1;
+    t.transform.rotation.y=0;
+    t.transform.rotation.z=0;
+    t.transform.rotation.w=1;
+    tf_broadcaster_->sendTransform(t);
+    
+    publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
+
+    rclcpp::TimerBase::SharedPtr timer_=node->create_wall_timer(20ms,std::bind(&publish_video));
+
     rclcpp::spin(node);
+    rclcpp::shutdown();
 }

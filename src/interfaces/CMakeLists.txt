@@ -5,6 +5,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+include_directories("/opt/ros/humble/include/**")
+include_directories("/usr/include/pcl-1.12/")
+include_directories("/usr/include/eigen3/")
+include_directories("/usr/include/opencv4/")
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
