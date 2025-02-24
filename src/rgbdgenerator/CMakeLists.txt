@@ -5,6 +5,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+include_directories("/usr/include/pcl-1.12/")
+include_directories("/opt/ros/humble/include/pcl_conversions")
+include_directories("/opt/ros/humble/include/pcl_msgs")
+include_directories("/opt/ros/humble/include/tf2")
+include_directories("/opt/ros/humble/include/tf2_ros")tf2_msgs
+include_directories("/opt/ros/humble/include/tf2")
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -12,7 +19,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(OpenCV REQUIRED)
-add_executable(rgbdgenerator src/rgbdgenerator.cpp)
+add_executable(rgbdgenerator src/main.cpp)
 ament_target_dependencies(rgbdgenerator rclcpp sensor_msgs cv_bridge image_transport OpenCV)
 
 install(DIRECTORY
