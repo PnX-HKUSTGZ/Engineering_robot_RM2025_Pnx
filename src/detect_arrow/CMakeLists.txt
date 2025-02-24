@@ -22,6 +22,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(yaml-cpp REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
+include_directories(/usr/include/eigen3)
 
 add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp)
 
