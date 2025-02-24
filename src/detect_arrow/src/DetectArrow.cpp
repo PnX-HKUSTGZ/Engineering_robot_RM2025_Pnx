@@ -263,8 +263,27 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
             approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
         if(!(pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num))) continue;
-        cv::minEnclosingCircle(counter_,center,radius);
+        std::stringstream ss;
+        ss<<center<<" "<<radius<<std::endl;
+        RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
+        cv::drawContours(OriginalImage_,Counters{counter_},-1,cv::Scalar(225,0,0),1);
+        cv::imshow("?",OriginalImage_);
+        cv::waitKey(0);
+        try{
+        std::vector<cv::Point2f> lin;
+        for(auto & i : counter_){
+            lin.push_back(cv::Point2f(i.x,i.y));
+        }
+        cv::minEnclosingCircle(lin,center,radius);
+        }
+        catch (cv::Exception & e){
+            RCLCPP_WARN(this->get_logger(),"fail to find circle by minEnclosingCircle : %s",e.what());
+
+            continue;
+        }
         cv::minEnclosingTriangle(counter_,TrianglePeaks);
+        RCLCPP_INFO(this->get_logger(),"narrow down to arrow by circle and triangle");
+
 
         slopes.clear();
         for(int i=approxcurve.size()-1,siz=approxcurve.size();i>=0;i--){
