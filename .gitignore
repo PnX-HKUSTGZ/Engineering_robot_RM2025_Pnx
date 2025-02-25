@@ -9,3 +9,6 @@ log/
 video.avi
 Pictures/
 *.png
+__pycache__/
+MvSdkLog/
+record/

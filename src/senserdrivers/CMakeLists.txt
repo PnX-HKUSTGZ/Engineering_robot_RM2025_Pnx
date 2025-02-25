@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(detect_arrow)
+project(senserdrivers)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,6 +10,9 @@ include_directories("/usr/include/pcl-1.12/")
 include_directories("/usr/include/eigen3/")
 include_directories("/usr/include/opencv4/")
 
+include_directories(${PROJECT_SOURCE_DIR}/include)
+link_directories(${PROJECT_SOURCE_DIR}/lib)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -18,35 +21,54 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(pcl_conversions REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
-include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
-include_directories(/usr/include/eigen3)
+add_executable(camera_driver src/CameraDriver.cpp)
 
-add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp)
-
-ament_target_dependencies(detect_arrow
+ament_target_dependencies(camera_driver
   rclcpp
   OpenCV
   sensor_msgs
   cv_bridge
   rclcpp_components
   interfaces
-  Eigen3
+  tf2
+  tf2_ros
 )
 
-target_link_libraries(detect_arrow yaml-cpp)
-
-install(TARGETS
-  detect_arrow
-  DESTINATION lib/${PROJECT_NAME}
+target_link_libraries(camera_driver
+  MvCameraControl
+  yaml-cpp
 )
+
+add_executable(mid360_driver src/Livoxmid360Driver.cpp)
+
+ament_target_dependencies(mid360_driver
+  rclcpp
+  sensor_msgs
+  pcl_conversions
+  tf2
+  tf2_ros
+)
+
+target_link_libraries(mid360_driver livox_lidar_sdk_static)
+
+install(TARGETS 
+  camera_driver
+  mid360_driver
+  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY
   config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+install(DIRECTORY
   launch
-  DESTINATION share/${PROJECT_NAME}
+  DESTINATION share/${PROJECT_NAME}/
 )
 
 if(BUILD_TESTING)
