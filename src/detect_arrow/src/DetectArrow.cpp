@@ -72,17 +72,29 @@
 // double ArrowDetectorapproxPolyDPEpsilon;
 
 // template<typename T,typename G>
-bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
+bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
     cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags){
     cv::Mat cameraMatrixCV=cv::Mat(3,3,CV_64F,const_cast<double *>(cameraMatrix.data())).clone();
     cv::Mat distCoeffsCV=cv::Mat(1,5,CV_64F,const_cast<double *>(distCoeffs.data())).clone();
     Eigen::Matrix<double,4,4> rtvecEigen;
 
+    std::stringstream ss_;
+
+    // ss_<<"cameraMatrixCV\n"<<cameraMatrixCV;
+    // ss_<<"distCoeffsCV\n"<<distCoeffsCV;
+    // RCLCPP_INFO(this->get_logger(),"%s",ss_.str().c_str());
+    // RCLCPP_INFO(this->get_logger(),"%d",ObjectPoints3D.size());
+    // RCLCPP_INFO(this->get_logger(),"%d",ImagePoints2D.size());
+
+    RCLCPP_INFO(this->get_logger(),"start pnp");
     bool PnPsuccess=cv::solvePnP(ObjectPoints3D,ImagePoints2D,cameraMatrixCV,distCoeffsCV,rvec,tvec,useExtrinsicGuess,flags);
 
     if(!PnPsuccess){
         RCLCPP_WARN(this->get_logger(),"PnP fail");
         return 0;
+    }
+    else{
+        RCLCPP_INFO(this->get_logger(),"PnP success");
     }
 
     std::stringstream ss;
@@ -152,16 +164,16 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     for(int i=0;i<3;i++) for(int e=0;e<3;e++) RedeemtVec33.at<float>(e,i)=RedeemVec(e,i);
 
     cv::Rodrigues(RedeemtVec33,RedeemtVec31);
-    RCLCPP_INFO(this->get_logger(),"1");
+    // RCLCPP_INFO(this->get_logger(),"1");
 
     interfaces::msg::RedeemBoxPosition::SharedPtr msg=std::make_shared<interfaces::msg::RedeemBoxPosition>();
 
-    RCLCPP_INFO(this->get_logger(),"2");
+    // RCLCPP_INFO(this->get_logger(),"2");
     msg->center.x=Center3D(0)/Center3D(3);
     msg->center.y=Center3D(1)/Center3D(3);
     msg->center.z=Center3D(2)/Center3D(3);
 
-    RCLCPP_INFO(this->get_logger(),"3");
+    // RCLCPP_INFO(this->get_logger(),"3");
 
     msg->rvec=std::vector<double>{RedeemtVec31.at<float>(0),RedeemtVec31.at<float>(1),RedeemtVec31.at<float>(2)};
     msg->tvec=std::vector<double>{RedeemVec(0,3),RedeemVec(1,3),RedeemVec(2,3)};
@@ -180,6 +192,8 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,c
     RCLCPP_INFO(this->get_logger(),"%s",ssss.str().c_str());
 
     # ifdef arrow_draw
+
+    
 
     cv::circle(OriginalImage_,cv::Point(Center2(0)/Center2(2),Center2(1)/Center2(2)),1,cv::Scalar(223,225,133),-1);
     cv::putText(OriginalImage_,"1",cv::Point(Center2(0)/Center2(2),Center2(1)/Center2(2)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
@@ -263,25 +277,24 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
             approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
         if(!(pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num))) continue;
-        std::stringstream ss;
-        ss<<center<<" "<<radius<<std::endl;
-        RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
-        cv::drawContours(OriginalImage_,Counters{counter_},-1,cv::Scalar(225,0,0),1);
-        cv::imshow("?",OriginalImage_);
-        cv::waitKey(0);
+        // std::stringstream ss;
+        // ss<<center<<" "<<radius<<std::endl;
+        // RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
+        // cv::drawContours(OriginalImage_,Counters{counter_},-1,cv::Scalar(225,0,0),1);
+        // cv::imshow("?",OriginalImage_);
+        // cv::waitKey(0);
         try{
-        std::vector<cv::Point2f> lin;
-        for(auto & i : counter_){
-            lin.push_back(cv::Point2f(i.x,i.y));
-        }
-        cv::minEnclosingCircle(lin,center,radius);
+            std::vector<cv::Point2f> lin;
+            for(auto & i : counter_){
+                lin.push_back(cv::Point2f(i.x,i.y));
+            }
+            cv::minEnclosingCircle(lin,center,radius);
+            cv::minEnclosingTriangle(lin,TrianglePeaks);
         }
         catch (cv::Exception & e){
             RCLCPP_WARN(this->get_logger(),"fail to find circle by minEnclosingCircle : %s",e.what());
-
             continue;
         }
-        cv::minEnclosingTriangle(counter_,TrianglePeaks);
         RCLCPP_INFO(this->get_logger(),"narrow down to arrow by circle and triangle");
 
 
@@ -551,8 +564,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     else RCLCPP_INFO(this->get_logger(),"find all peaks successfully");
 
     // filter_.Update(ArrowPeaks_);
-
-    this->ArrowPeaks=ArrowPeaks_;
+    this->ArrowPeaks.clear();
+    for(auto & i : ArrowPeaks_) this->ArrowPeaks.push_back(i);
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
     return 1;
 }
@@ -636,7 +649,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
         cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
     }
     RCLCPP_INFO(this->get_logger(),"1");
-    for(int i=0;i<6;i++){
+    for(int i=0;i<8;i++){
         const std::vector<double> & arrowPoints=config["arrow"]["arrowPoints"][i].as<std::vector<double>>();
         objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
         objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));

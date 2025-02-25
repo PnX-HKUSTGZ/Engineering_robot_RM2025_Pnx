@@ -34,7 +34,7 @@ class Arrow_detector:public rclcpp::Node{
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
     // rclcpp::Node::SharedPtr node_shred_ptr;
     cv::Mat OriginalImage_;
-    std::vector<cv::Point2f> ArrowPeaks;
+    std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     cv::Mat rvec,tvec;
     FilterCorner filter_;
@@ -42,7 +42,7 @@ class Arrow_detector:public rclcpp::Node{
     cv::Mat PreProgress(const cv::Mat & OriginalImage);
     // void InitialArrowDetector();
     void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
-    bool PnPsolver(const std::vector<cv::Point2f > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
+    bool PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
         cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
     bool MainDetectArrow(const cv::Mat & OriginalImage);
     bool TargetArrow(const cv::Mat & BinaryImage);
