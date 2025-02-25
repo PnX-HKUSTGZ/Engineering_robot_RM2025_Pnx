@@ -151,6 +151,10 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
     cv::putText(OriginalImage_,ss.str().c_str(),cv::Point(0,0),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,0,0));
 
+    cv::imshow("pnp result",OriginalImage_);
+
+    cv::waitKey(22);
+
     #endif
     // static int CntVideo=0;
     // CntVideo++;
