@@ -161,7 +161,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     // videowriter<<OriginalImage;
     // RCLCPP_INFO(this->get_logger(),"wirte video %d",CntVideo);
 
-    Eigen::Matrix<double,4,1> corn={120,120,0,1};
+    Eigen::Matrix<double,4,1> corn={0.120,0.120,0,1};
     auto RedeemVec=rtvecEigen*CenterToArrowvec;
     auto Center3D=RedeemVec*corn;
     cv::Mat RedeemtVec33(cv::Size(3,3),CV_32F),RedeemtVec31(cv::Size(3,1),CV_32F);
@@ -181,6 +181,12 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
     msg->rvec=std::vector<double>{RedeemtVec31.at<float>(0),RedeemtVec31.at<float>(1),RedeemtVec31.at<float>(2)};
     msg->tvec=std::vector<double>{RedeemVec(0,3),RedeemVec(1,3),RedeemVec(2,3)};
+    msg->homogeneous_transformation_matrix=std::vector<double>{
+        RedeemVec(0,0),RedeemVec(0,1),RedeemVec(0,2),RedeemVec(0,3),
+        RedeemVec(1,0),RedeemVec(1,1),RedeemVec(1,2),RedeemVec(1,3),
+        RedeemVec(2,0),RedeemVec(2,1),RedeemVec(2,2),RedeemVec(2,3),
+        RedeemVec(3,0),RedeemVec(3,1),RedeemVec(3,2),RedeemVec(3,3)
+    };
     publisher_->publish(*msg);
     RCLCPP_INFO(this->get_logger(),"Publish RedemptionBox Pos");
 
