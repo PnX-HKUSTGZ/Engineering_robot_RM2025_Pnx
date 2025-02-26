@@ -13,11 +13,16 @@ find_package(tf2 REQUIRED)
 find_package(serial_driver REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+
+include_directories(${PROJECT_SOURCE_DIR}/include)
+
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-add_executable(c_strake_conmunication src/main.cpp)
+add_executable(c_strake_conmunication src/main.cpp src/crc.cpp)
 
 ament_target_dependencies(c_strake_conmunication
   rclcpp
@@ -26,6 +31,8 @@ ament_target_dependencies(c_strake_conmunication
   serial_driver
   std_msgs
   geometry_msgs
+  tf2_geometry_msgs
+  std_srvs
 )
 
 install(TARGETS

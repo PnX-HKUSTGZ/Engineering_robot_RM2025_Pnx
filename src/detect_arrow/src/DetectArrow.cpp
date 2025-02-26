@@ -187,6 +187,8 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
         RedeemVec(2,0),RedeemVec(2,1),RedeemVec(2,2),RedeemVec(2,3),
         RedeemVec(3,0),RedeemVec(3,1),RedeemVec(3,2),RedeemVec(3,3)
     };
+    msg->header.frame_id="/arrow_detect";
+    msg->header.stamp=this->get_clock()->now();
     publisher_->publish(*msg);
     RCLCPP_INFO(this->get_logger(),"Publish RedemptionBox Pos");
 

@@ -29,7 +29,7 @@
 class RMSerialDriver : public rclcpp::Node
 {
 public:
-    explicit RMSerialDriver(const rclcpp::NodeOptions & options);
+    explicit RMSerialDriver(const rclcpp::NodeOptions & options=rclcpp::NodeOptions());
 
     ~RMSerialDriver() override;
 
@@ -72,10 +72,12 @@ private:
     rclcpp::Subscription<interfaces::msg::RedeemBoxPosition>::SharedPtr target_sub_;
 
     // For debug usage
-    // rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr latency_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr latency_pub_;
     // rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
     std::thread receive_thread_;
+
+    rclcpp::TimerBase::SharedPtr clock_;
 };
 
 

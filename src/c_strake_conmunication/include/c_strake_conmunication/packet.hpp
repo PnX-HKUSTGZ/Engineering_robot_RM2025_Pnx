@@ -12,7 +12,7 @@
 struct target_location{
     uint8_t Header = 0xA5;
     uint8_t reserved : 8;
-    float a[16];
+    float a[12];
     uint16_t crc16 = 0;
 };
 #pragma pack(pop)

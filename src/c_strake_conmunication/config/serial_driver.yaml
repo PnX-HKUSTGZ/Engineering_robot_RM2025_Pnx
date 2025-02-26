@@ -1,4 +1,4 @@
-/rm_serial_driver:
+/c_strake_conmunication:
   ros__parameters:
     device_name: /dev/ttyACM0
     baud_rate: 115200
