@@ -114,6 +114,7 @@ private:
             transform_matrix.block<3, 3>(0, 0) = rotation_matrix;
             transform_matrix.block<3, 1>(0, 3) = translation;
             std::stringstream ss;ss << transform_matrix;
+            RCLCPP_INFO(get_logger(),"1");
             RCLCPP_INFO(this->get_logger(),"transform_matrix: %s",ss.str().c_str());
 
             pcl::PointCloud<pcl::PointXYZ> pcl_cloud,pcl_cloud_transformed;
@@ -122,8 +123,15 @@ private:
             // fromMsgPointCloud2toPointCloud2(*cloud_msg,ros_cloud);
             pcl::fromROSMsg<pcl::PointXYZ>(*cloud_msg,pcl_cloud);
             
+            RCLCPP_INFO(get_logger(),"fromROSMsg");
             // transform
+            RCLCPP_INFO(this->get_logger(),"size: %d %d %d",pcl_cloud.size(),pcl_cloud.width,pcl_cloud.height);
+            if(pcl_cloud.size()==0) return;
+            for (int i = 0,len=pcl_cloud.points.size(); i < len; ++i) {
+                RCLCPP_INFO(this->get_logger(),"point: %f, %f, %f, %f",pcl_cloud.points[i].x,pcl_cloud.points[i].y,pcl_cloud.points[i].z);
+            }
             pcl::transformPointCloud(pcl_cloud,pcl_cloud_transformed,transform_matrix);
+            RCLCPP_INFO(get_logger(),"transformPointCloud");
 
             //转换得到opencv::Mat 并处理畸变
             cv::Mat cv_image=cv_bridge::toCvCopy(image_msg,"bgr8")->image;
@@ -133,6 +141,7 @@ private:
             // cv::imshow("??",cv_image);
             // cv::waitKey(30);
             // 遍历点云，将每个点投影到图像上
+            RCLCPP_INFO(get_logger(),"undistort");
             for (int i = 0,len=pcl_cloud_transformed.points.size(); i < len; ++i) {
                 // 将点云坐标转换为像素坐标
                 const pcl::PointXYZ &point = pcl_cloud_transformed.points[i];
@@ -158,11 +167,13 @@ private:
             this->colored_point.height=1;
             this->colored_point.width=colored_point.points.size();
             this->colored_point.is_dense=true;
+            RCLCPP_INFO(get_logger(),"setting");
             sensor_msgs::msg::PointCloud2 colored_point_msg;
             pcl::toROSMsg(this->colored_point,colored_point_msg);
             colored_point_msg.header.frame_id="/sensor/colored_pointcloud";
             colored_point_msg.header.stamp=image_msg->header.stamp;
             point_colored_cloud_pub_->publish(colored_point_msg);
+            RCLCPP_INFO(get_logger(),"publish");
 
             cv::Mat cv_depth_normalized;
             double max_depth=0;
@@ -173,6 +184,7 @@ private:
             // 发布深度图
             sensor_msgs::msg::Image::SharedPtr depth_msg=cv_bridge::CvImage(image_msg->header,sensor_msgs::image_encodings::TYPE_32FC1,cv_depth_normalized).toImageMsg();
             depth_pub_->publish(*depth_msg);
+            RCLCPP_INFO(get_logger(),"CvImage");
         }
         catch (tf2::TransformException &ex) {
             RCLCPP_WARN(this->get_logger(), "Transform error: %s", ex.what());
