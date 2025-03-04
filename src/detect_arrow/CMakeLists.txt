@@ -36,7 +36,7 @@ ament_target_dependencies(detect_arrow
   Eigen3
 )
 
-target_link_libraries(detect_arrow yaml-cpp)
+target_link_libraries(detect_arrow yaml-cpp::yaml-cpp)
 
 install(TARGETS
   detect_arrow

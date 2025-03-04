@@ -2,9 +2,12 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch_ros.actions import PushRosNamespace
 from launch.substitutions import LaunchConfiguration
+import os
+from ament_index_python import get_package_share_directory
 
 def generate_launch_description():
-    Path = {"Location":"/home/lqx/code/Engineering_robot_RM2025_Pnx"}
+    Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
+    # Path = {"Location":"/home/pnx/code/Engineering_robot_RM2025_Pnx/"}
     return LaunchDescription([
         Node(
             package='senserdrivers',
