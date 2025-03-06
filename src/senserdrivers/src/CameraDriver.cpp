@@ -91,7 +91,7 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
 
     cv::Mat OriginalImage(pFrameInfo->nExtendHeight, pFrameInfo->nExtendWidth,CV_8UC1,pData);
     cv::Mat imageRGB;
-    cv::cvtColor(OriginalImage, imageRGB, cv::COLOR_BayerRG2RGB);
+    cv::cvtColor(OriginalImage, imageRGB, cv::COLOR_BayerBG2BGR);
 
     auto image_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",imageRGB).toImageMsg();
 
@@ -99,9 +99,9 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
     image_ptr->header.stamp=node->get_clock()->now();
 
     publisher_->publish(*image_ptr);
-    // cv::imshow("Camera",imageRGB);
-    // cv::imshow("Camera1",OriginalImage);
-    // cv::waitKey(22);
+    cv::imshow("Camera",imageRGB);
+    cv::imshow("Camera1",OriginalImage);
+    cv::waitKey(22);
     RCLCPP_INFO(node->get_logger(),"publish video");
 }
 
@@ -311,7 +311,7 @@ int main (int argc,char ** argv){
     
     publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
 
-    rclcpp::TimerBase::SharedPtr timer_=node->create_wall_timer(20ms,std::bind(&publish_video));
+    rclcpp::TimerBase::SharedPtr timer_=node->create_wall_timer(1ms,std::bind(&publish_video));
 
     rclcpp::spin(node);
     rclcpp::shutdown();

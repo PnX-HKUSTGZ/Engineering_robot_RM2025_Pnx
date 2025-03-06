@@ -87,6 +87,20 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     // RCLCPP_INFO(this->get_logger(),"%d",ImagePoints2D.size());
 
     RCLCPP_INFO(this->get_logger(),"start pnp");
+    // bool PnPsuccess=cv::solvePnPRansac(
+    //     ObjectPoints3D,
+    //     ImagePoints2D,
+    //     cameraMatrixCV,
+    //     distCoeffsCV,
+    //     rvec,
+    //     tvec,
+    //     false,
+    //     200,
+    //     8.0,
+    //     0.99,
+    //     cv::noArray(),
+    //     cv::SOLVEPNP_EPNP
+    // );
     bool PnPsuccess=cv::solvePnP(ObjectPoints3D,ImagePoints2D,cameraMatrixCV,distCoeffsCV,rvec,tvec,useExtrinsicGuess,flags);
 
     if(!PnPsuccess){
@@ -148,13 +162,9 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     cv::drawContours(OriginalImage_,Counters{corners},-1,cv::Scalar(225,0,0),5);
 
     cv::drawContours(OriginalImage_,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),3);
+    cv::circle(OriginalImage_,cv::Point(100,100),100,(0,225,225),-1);
 
     cv::putText(OriginalImage_,ss.str().c_str(),cv::Point(0,0),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,0,0));
-
-    cv::imshow("pnp result",OriginalImage_);
-
-    cv::waitKey(22);
-
     #endif
     // static int CntVideo=0;
     // CntVideo++;
@@ -205,7 +215,17 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
     # ifdef arrow_draw
 
-    
+    std::vector<cv::Point> reput_arrow;
+
+    std::vector<int> index={0,2,3,1,5,4};
+
+    for(auto i : index){
+        auto new_i=cameraMatrixEigen*signMat*rtvecEigen*objpointsEigen[i];
+        reput_arrow.push_back(cv::Point(new_i(0)/new_i(2),new_i(1)/new_i(2)));
+        RCLCPP_INFO(this->get_logger(),"reput_arrow %ld %ld",reput_arrow.back().x,reput_arrow.back().y);
+    }
+
+    cv::drawContours(OriginalImage_,Counters{reput_arrow},-1,cv::Scalar(225,0,0),3);
 
     cv::circle(OriginalImage_,cv::Point(Center2(0)/Center2(2),Center2(1)/Center2(2)),1,cv::Scalar(223,225,133),-1);
     cv::putText(OriginalImage_,"1",cv::Point(Center2(0)/Center2(2),Center2(1)/Center2(2)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
@@ -216,6 +236,10 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
     this->label_image_pub_->publish(*lable_msg_ptr);
+
+    cv::imshow("pnp result",OriginalImage_);
+
+    cv::waitKey(22);
 
     # endif
 
@@ -470,12 +494,12 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     std::vector<std::pair<cv::Point,cv::Point> > Endpoints;
     std::vector<std::pair<int,int>> EndpointsIndex;
 
-    // #ifdef DeBugHough
+    #ifdef Imageshow
 
-    // cv::imshow("CannyImage",CannyImage);
-    // cv::waitKey(33);
+    cv::imshow("CannyImage",CannyImage);
+    cv::waitKey(33);
 
-    // #endif
+    #endif
 
     FindPolygonCounterPointsSets(CannyImage,LinesPoints,
         ArrowPeaks,
@@ -569,6 +593,13 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     }
     # endif
 
+    # ifdef Imageshow
+
+    cv::imshow("finish one",OriginalImage_);
+    cv::waitKey(33);
+
+    #endif
+
     if(ArrowPeaks_.size()!=8){
         RCLCPP_ERROR(this->get_logger(),"Fail to find all peaks, size of ArrowPeaks_ : %ld",ArrowPeaks_.size());
         return 0;
@@ -591,7 +622,7 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
         return 0;
     }
 
-    PnPsolver(ArrowPeaks,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_ITERATIVE);
+    PnPsolver(ArrowPeaks,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
 
     return 1;
 }
@@ -634,7 +665,13 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
     // cv::imshow("Binary_en",Binary_en);
 
     // cv::imshow("GreyImage",GreyImage);
-    // cv::imshow("BinaryImage",BinaryImage);
+
+    # ifdef Imageshow
+
+    cv::imshow("BinaryImage",Binary_en);
+    cv::waitKey(30);
+
+    # endif
     // cv::imshow("DilatedImage",DilatedImage);
 
     // return DilatedImage;

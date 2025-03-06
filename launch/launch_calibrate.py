@@ -5,7 +5,7 @@ from launch.substitutions import LaunchConfiguration
 import os
 from ament_index_python import get_package_share_directory
 def generate_launch_description():
-    Path = {"Location":get_package_share_directory("interfaces")+"../../../../"}
+    Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
     return LaunchDescription([
         Node(
             package='senserdrivers',
