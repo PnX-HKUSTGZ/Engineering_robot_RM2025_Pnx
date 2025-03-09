@@ -213,12 +213,6 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         int pixel_num=cv::contourArea(counter_);
         cv::approxPolyDP(counter_,approxcurve,ArrowDetectorapproxPolyDPEpsilon,1);
 
-        // cv::putText(OriginalImage,std::to_string(approxcurve.size()),rotatedrect_.center,cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(223,123,43));
-
-        RCLCPP_INFO(this->get_logger(),"LengthWidthRatio : %lf",LengthWidthRatio);
-        RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
-        RCLCPP_INFO(this->get_logger(),"approxcurve size : %ld",approxcurve.size());
-
         bool pixel_in=(pixel_num>=ArrowDetectorPixelNumMin&&
             pixel_num<=ArrowDetectorPixelNumMax);
         bool lwratio=(ArrowDetectorLengthWidthRatioMin<=LengthWidthRatio&&
@@ -226,13 +220,47 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         bool approxsize=(std::size_t(ArrowDetectorApproxSizeMin)<=approxcurve.size()&&
             approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
+        #ifdef TargetArrowtest
+
+        cv::Mat copy_;
+        OriginalImage_.copyTo(copy_);
+
+        cv::Point2f* rotatedrect_points_ptr;
+        std::vector<cv::Point2f> rotatedrect_points;
+        rotatedrect_.points(rotatedrect_points_ptr);
+        for(int i=0;i<4;i++){
+            rotatedrect_points.push_back(rotatedrect_points_ptr[i]);
+        }
+
+        RCLCPP_INFO(this->get_logger(),"LengthWidthRatio : %lf",LengthWidthRatio);
+        RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
+        RCLCPP_INFO(this->get_logger(),"approxcurve size : %ld",approxcurve.size());
+
+        std::stringstream center_ss;
+        center_ss<<center<<" "<<radius;
+        RCLCPP_INFO(this->get_logger(),"center_ss: %s",center_ss.str().c_str());
+
+        RCLCPP_INFO(this->get_logger(),((pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num)) ? "pass" : "not pass"));
+
+        std::stringstream rotate_ss;
+        for(int i=0;i<4;i++){
+            rotate_ss<<rotatedrect_points[i]<<" ";
+        }
+        RCLCPP_INFO(this->get_logger(),"rotate_ss: \n%s",rotate_ss.str().c_str());
+
+        cv::drawContours(copy_,
+            std::vector<std::vector<cv::Point>>{{cv::Point(rotatedrect_points[0].x,rotatedrect_points[0].y),cv::Point(rotatedrect_points[1].x,rotatedrect_points[1].y),cv::Point(rotatedrect_points[2].x,rotatedrect_points[2].y),cv::Point(rotatedrect_points[3].x,rotatedrect_points[3].y)}},
+            -1,
+            cv::Scalar(225,0,0),2);
+        cv::drawContours(copy_,Counters{counter_},-1,cv::Scalar(225,0,0),1);
+
+        cv::imshow("TargetArrow rotatedrect_", copy_);
+        RCLCPP_INFO(this->get_logger(),"rotate_ss: \n%s",rotate_ss.str().c_str());
+        cv::waitKey(0);
+        #endif
+
         if(!(pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num))) continue;
-        // std::stringstream ss;
-        // ss<<center<<" "<<radius<<std::endl;
-        // RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
-        // cv::drawContours(OriginalImage_,Counters{counter_},-1,cv::Scalar(225,0,0),1);
-        // cv::imshow("?",OriginalImage_);
-        // cv::waitKey(0);
+
         try{
             std::vector<cv::Point2f> lin;
             for(auto & i : counter_){

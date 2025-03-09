@@ -45,7 +45,7 @@ arrow:
 # 存一些箭头检测的参数
 arrow_detect:
   ArrowDetectorPixelNumMax: 80000
-  ArrowDetectorPixelNumMin: 15000
+  ArrowDetectorPixelNumMin: 10000
   ArrowDetectorLengthWidthRatioMax: 2.8284271247461900976033774484194
   ArrowDetectorLengthWidthRatioMin: 1.1
   ArrowDetectorApproxSizeMax: 10.
