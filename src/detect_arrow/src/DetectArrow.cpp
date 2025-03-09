@@ -237,6 +237,9 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         bool approxsize=(std::size_t(ArrowDetectorApproxSizeMin)<=approxcurve.size()&&
             approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
+
+        // if(approxcurve.size()<500) continue;
+
         #ifdef TargetArrowtest
 
         cv::Mat copy_;
