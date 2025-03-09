@@ -16,6 +16,7 @@
 
 #define arrow_draw
 #define Imageshow
+// #define twopath_inoneline
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -29,7 +30,7 @@ class Arrow_detector:public rclcpp::Node{
     private:
     // rclcpp::Client<Imagerequest>::SharedPtr client_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
-    rclcpp::Publisher<interfaces::msg::RedeemBoxPosition>::SharedPtr publisher_;
+    rclcpp::Publisher<interfaces::msg::RedeemBoxPosition>::SharedPtr RedeemBoxPosition_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr label_image_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -90,8 +91,10 @@ class Arrow_detector:public rclcpp::Node{
     std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen;
     // 箭头旁的直线
     std::vector<Eigen::Matrix<double,4,1>> Object2cornersEigen;
+    //frontface center of redemption 
+    Eigen::Matrix<double,4,1> frontfacecenter;
     // 兑换框正面到箭头的变换矩阵
-    Eigen::Matrix<double,4,4> CenterToArrowvec;
+    // Eigen::Matrix<double,4,4> CenterToArrowvec;
     // 降维矩阵
     Eigen::Matrix<double,3,4> signMat;
 };
