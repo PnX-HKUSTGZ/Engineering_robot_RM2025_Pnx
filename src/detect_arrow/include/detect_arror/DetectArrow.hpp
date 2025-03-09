@@ -14,6 +14,10 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/utils.hpp>
+
 #define arrow_draw
 #define Imageshow
 // #define TargetArrowtest
@@ -98,6 +102,14 @@ class Arrow_detector:public rclcpp::Node{
     // Eigen::Matrix<double,4,4> CenterToArrowvec;
     // 降维矩阵
     Eigen::Matrix<double,3,4> signMat;
+
+    // box to camera
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_box_to_camera;
+
+    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_arm;
+
+    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_map;
+
 };
 
 typedef std::pair<int,int> pii;
@@ -163,5 +175,8 @@ void GetLinesIntersections(const std::vector<LineVP> & lines,std::vector<cv::Poi
 cv::Point2f GetLineIntersections(const LineVP & line1,const LineVP & line2);
 
 bool operator < (const cv::Point & a,const cv::Point & b);
+
+cv::Vec4d rotationMatrixToQuaternion(const cv::Mat& R);
+
 
 #endif

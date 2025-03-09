@@ -295,3 +295,44 @@ cv::Point2f GetLineIntersections(const LineVP & line1,const LineVP & line2){
     
     return cv::Point2f(x,y);
 }
+
+cv::Vec4d rotationMatrixToQuaternion(const cv::Mat& R) {
+    // 确保输入是3x3的浮点矩阵
+    CV_Assert(R.size() == cv::Size(3, 3) && (R.type() == CV_64F || R.type() == CV_32F));
+
+    double trace = R.at<double>(0,0) + R.at<double>(1,1) + R.at<double>(2,2);
+    cv::Vec4d q;
+
+    if (trace > 0) {
+        double s = 0.5 / sqrt(trace + 1.0);
+        q[0] = 0.25 / s;
+        q[1] = (R.at<double>(2,1) - R.at<double>(1,2)) * s;
+        q[2] = (R.at<double>(0,2) - R.at<double>(2,0)) * s;
+        q[3] = (R.at<double>(1,0) - R.at<double>(0,1)) * s;
+    } else {
+        if (R.at<double>(0,0) > R.at<double>(1,1) && R.at<double>(0,0) > R.at<double>(2,2)) {
+            double s = 2.0 * sqrt(1.0 + R.at<double>(0,0) - R.at<double>(1,1) - R.at<double>(2,2));
+            q[0] = (R.at<double>(2,1) - R.at<double>(1,2)) / s;
+            q[1] = 0.25 * s;
+            q[2] = (R.at<double>(0,1) + R.at<double>(1,0)) / s;
+            q[3] = (R.at<double>(0,2) + R.at<double>(2,0)) / s;
+        } else if (R.at<double>(1,1) > R.at<double>(2,2)) {
+            double s = 2.0 * sqrt(1.0 + R.at<double>(1,1) - R.at<double>(0,0) - R.at<double>(2,2));
+            q[0] = (R.at<double>(0,2) - R.at<double>(2,0)) / s;
+            q[1] = (R.at<double>(0,1) + R.at<double>(1,0)) / s;
+            q[2] = 0.25 * s;
+            q[3] = (R.at<double>(1,2) + R.at<double>(2,1)) / s;
+        } else {
+            double s = 2.0 * sqrt(1.0 + R.at<double>(2,2) - R.at<double>(0,0) - R.at<double>(1,1));
+            q[0] = (R.at<double>(1,0) - R.at<double>(0,1)) / s;
+            q[1] = (R.at<double>(0,2) + R.at<double>(2,0)) / s;
+            q[2] = (R.at<double>(1,2) + R.at<double>(2,1)) / s;
+            q[3] = 0.25 * s;
+        }
+    }
+
+    // 归一化
+    double norm = sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+    q /= norm;
+    return q;
+}

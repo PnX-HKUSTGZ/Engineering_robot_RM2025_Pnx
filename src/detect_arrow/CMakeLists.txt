@@ -17,6 +17,7 @@ find_package(OpenCV REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(interfaces REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(yaml-cpp REQUIRED)
@@ -34,6 +35,7 @@ ament_target_dependencies(detect_arrow
   rclcpp_components
   interfaces
   Eigen3
+  tf2_ros
 )
 
 target_link_libraries(detect_arrow yaml-cpp::yaml-cpp)

@@ -16,6 +16,10 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(OpenCV REQUIRED)
+
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 # uncomment the following section in order to fill in
@@ -33,6 +37,8 @@ ament_target_dependencies(c_strake_conmunication
   geometry_msgs
   tf2_geometry_msgs
   std_srvs
+  Eigen3
+  OpenCV
 )
 
 install(TARGETS
