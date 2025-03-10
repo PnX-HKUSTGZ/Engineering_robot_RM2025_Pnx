@@ -103,8 +103,8 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
     this->sendData(std::make_shared<interfaces::msg::RedeemBoxPosition>(msg));
     RCLCPP_INFO_STREAM(this->get_logger(),"debug send"); });
 
-  tf_buffer=std::make_shared<tf2_ros::Buffer>(this->get_clock());
-  tf_listener=std::make_shared<tf2_ros::TransformListener>(*tf_buffer, this);
+  tf_buffer = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+  tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer, this);
 
   RCLCPP_INFO(get_logger(), "c_strake_conmunication init finish");
 }
@@ -187,9 +187,10 @@ RMSerialDriver::~RMSerialDriver()
 //   }
 // }
 
-Eigen::Matrix3d quaternionToRotationMatrix(const cv::Vec4d& q) {
+Eigen::Matrix3d quaternionToRotationMatrix(const cv::Vec4d &q)
+{
   // 归一化四元数（确保单位长度）
-  double norm = sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+  double norm = sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
   cv::Vec4d q_norm = q / norm;
 
   double w = q_norm[0], x = q_norm[1], y = q_norm[2], z = q_norm[3];
@@ -197,15 +198,14 @@ Eigen::Matrix3d quaternionToRotationMatrix(const cv::Vec4d& q) {
   // 计算旋转矩阵元素
   Eigen::Matrix3d R;
 
-  R<<
-  1 - 2*y*y - 2*z*z,  2*x*y - 2*w*z,    2*x*z + 2*w*y,
-  2*x*y + 2*w*z,      1 - 2*x*x - 2*z*z, 2*y*z - 2*w*x,
-  2*x*z - 2*w*y,      2*y*z + 2*w*x,    1 - 2*x*x - 2*y*y;
+  R << 1 - 2 * y * y - 2 * z * z, 2 * x * y - 2 * w * z, 2 * x * z + 2 * w * y,
+      2 * x * y + 2 * w * z, 1 - 2 * x * x - 2 * z * z, 2 * y * z - 2 * w * x,
+      2 * x * z - 2 * w * y, 2 * y * z + 2 * w * x, 1 - 2 * x * x - 2 * y * y;
 
   return R;
 }
 
-bool send1=0;
+bool send1 = 0;
 
 void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPtr msg)
 {
@@ -213,24 +213,26 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
       {"", 0}, {"outpost", 0}, {"1", 1}, {"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"guard", 6}, {"base", 7}};
 
   geometry_msgs::msg::TransformStamped transform_box_to_arm;
-  try{
-    transform_box_to_arm=tf_buffer->lookupTransform("object/box","object/arm",this->now(),rclcpp::Duration::from_seconds(1));
+  try
+  {
+    transform_box_to_arm = tf_buffer->lookupTransform("object/box", "object/arm", this->now(), rclcpp::Duration::from_seconds(1));
   }
-  catch (tf2::TransformException & ex){
-    RCLCPP_ERROR(this->get_logger(),"transform_box_to_arm eeror: %s",ex.what());
+  catch (tf2::TransformException &ex)
+  {
+    RCLCPP_ERROR(this->get_logger(), "transform_box_to_arm eeror: %s", ex.what());
     return;
   }
 
-  cv::Vec4d r_vec31={transform_box_to_arm.transform.rotation.w,transform_box_to_arm.transform.rotation.x,transform_box_to_arm.transform.rotation.y,transform_box_to_arm.transform.rotation.z};
-  Eigen::Matrix3d R_eigen=quaternionToRotationMatrix(r_vec31);
+  cv::Vec4d r_vec31 = {transform_box_to_arm.transform.rotation.w, transform_box_to_arm.transform.rotation.x, transform_box_to_arm.transform.rotation.y, transform_box_to_arm.transform.rotation.z};
+  Eigen::Matrix3d R_eigen = quaternionToRotationMatrix(r_vec31);
 
-  Eigen::Matrix<double,3,4> result;
+  Eigen::Matrix<double, 3, 4> result;
 
-  result.block<3,3>(0,0)=R_eigen;
-  result.block<3,1>(0,3)=Eigen::Matrix<double,3,1>{1000*transform_box_to_arm.transform.translation.x,
-    1000*transform_box_to_arm.transform.translation.y,
-    1000*transform_box_to_arm.transform.translation.z};
-  result(1,3)=500;
+  result.block<3, 3>(0, 0) = R_eigen;
+  result.block<3, 1>(0, 3) = Eigen::Matrix<double, 3, 1>{1000 * transform_box_to_arm.transform.translation.x,
+                                                         1000 * transform_box_to_arm.transform.translation.y,
+                                                         1000 * transform_box_to_arm.transform.translation.z};
+  result(1, 3) = 450;
 
   // result<<1,0,0,0,
   // 0,1,0,0,
@@ -240,28 +242,26 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
   {
     target_location packet;
 
-    std::stringstream ss_result,ss_pack;
-    ss_result<<result;
-    std::ofstream file("/home/pnx/code/Engineering_robot_RM2025_Pnx/target.txt",std::ios::app);
-    file<<result<<std::endl;
+    std::stringstream ss_result, ss_pack;
+    ss_result << result;
+    std::ofstream file("/home/pnx/code/Engineering_robot_RM2025_Pnx/target.txt", std::ios::app);
+    file << result << std::endl;
     file.close();
 
-    RCLCPP_INFO(rclcpp::get_logger("send"),"result: %s",ss_result.str().c_str());
-
+    RCLCPP_INFO(rclcpp::get_logger("send"), "result: %s", ss_result.str().c_str());
 
     for (int i = 0; i < 12; i++)
     {
-      packet.a[i] = float(result(i/4,i%4));
-      RCLCPP_INFO(rclcpp::get_logger("a[]"),"%f",float(result(i/4,i%4)));
+      packet.a[i] = float(result(i / 4, i % 4));
+      RCLCPP_INFO(rclcpp::get_logger("a[]"), "%f", float(result(i / 4, i % 4)));
     }
 
     uint16_t crc16 = Get_CRC16_Check_Sum(reinterpret_cast<uint8_t *>(&packet), 52, 0xFFFF);
     packet.crc16 = crc16;
     std::vector<uint8_t> data = toVector(packet);
 
-    ss_pack<<"crc16 : "<<crc16;
-    RCLCPP_INFO(rclcpp::get_logger("send"),"crc16: %s",ss_pack.str().c_str());
-
+    ss_pack << "crc16 : " << crc16;
+    RCLCPP_INFO(rclcpp::get_logger("send"), "crc16: %s", ss_pack.str().c_str());
 
     serial_driver_->port()->send(data);
 
