@@ -12,3 +12,4 @@ Pictures/
 __pycache__/
 MvSdkLog/
 record/
+ros_bag/
