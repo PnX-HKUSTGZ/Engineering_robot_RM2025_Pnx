@@ -670,6 +670,10 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
     cv::Mat Binary_en;
     cv::threshold(blurred,Binary_en,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
+    // cv::Mat GreyImage_GaussianBlur;
+    // cv::adaptiveThreshold(GreyImage_GaussianBlur,BinaryImage,ArrowDetectorThresholdMaxval,cv::ADAPTIVE_THRESH_MEAN_C,cv::THRESH_BINARY,7,0);
+
+
     // cv::imshow("Sharpened",Sharpened);
     // cv::imshow("enhance",enhance);
     // cv::imshow("Binary_en",Binary_en);

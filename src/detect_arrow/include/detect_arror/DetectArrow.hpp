@@ -21,7 +21,7 @@
 #define arrow_draw
 #define Imageshow
 // #define TargetArrowtest
-// #define twopath_inoneline
+#define twopath_inoneline
 
 using namespace std::chrono;
 using namespace std::placeholders;
