@@ -62,4 +62,8 @@ arrow_detect:
   ArrowDetectorIterations: 5.
   ArrowDetectorapproxPolyDPEpsilon: 10.
 
-  
+rotate:
+  w: -0.5
+  x: -0.5
+  y: -0.5
+  z: -0.5

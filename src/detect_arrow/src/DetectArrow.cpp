@@ -33,6 +33,13 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     // );
     bool PnPsuccess=cv::solvePnP(ObjectPoints3D,ImagePoints2D,cameraMatrixCV,distCoeffsCV,rvec,tvec,useExtrinsicGuess,flags);
 
+    for(int i=0;i<3;i++){
+        if(std::isnan(rvec.at<double>(i))||std::isnan(tvec.at<double>(i))){
+            RCLCPP_WARN(this->get_logger(),"PNP get NAN!!!!!");
+            return 0;
+        }
+    }
+
     if(!PnPsuccess){
         RCLCPP_WARN(this->get_logger(),"PnP fail");
         return 0;
@@ -764,12 +771,6 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     ArrowDetectorIterations=config["arrow_detect"]["ArrowDetectorIterations"].as<double>();
     ArrowDetectorapproxPolyDPEpsilon=config["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
 
-    }
-    catch(const std::exception& e){
-        RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
-        rclcpp::shutdown();
-    }
-
     tf_broadcaster_box_to_camera=std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
     static_tf_broadcaster_camera_to_arm=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
@@ -783,12 +784,18 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     camera_to_arm.transform.translation.x=0;
     camera_to_arm.transform.translation.y=0;
     camera_to_arm.transform.translation.z=0;
-    camera_to_arm.transform.rotation.w=0.5;
-    camera_to_arm.transform.rotation.x=0.5;
-    camera_to_arm.transform.rotation.y=0.5;
-    camera_to_arm.transform.rotation.z=0.5;
+    camera_to_arm.transform.rotation.w=config["rotate"]["w"].as<double>();
+    camera_to_arm.transform.rotation.x=config["rotate"]["x"].as<double>();
+    camera_to_arm.transform.rotation.y=config["rotate"]["y"].as<double>();
+    camera_to_arm.transform.rotation.z=config["rotate"]["z"].as<double>();
 
     static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
+
+    }
+    catch(const std::exception& e){
+        RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
+        rclcpp::shutdown();
+    }
 
     geometry_msgs::msg::TransformStamped to_map;
 

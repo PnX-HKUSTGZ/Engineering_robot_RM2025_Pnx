@@ -229,10 +229,11 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
   Eigen::Matrix<double, 3, 4> result;
 
   result.block<3, 3>(0, 0) = R_eigen;
-  result.block<3, 1>(0, 3) = Eigen::Matrix<double, 3, 1>{1000 * transform_box_to_arm.transform.translation.x,
-                                                         1000 * transform_box_to_arm.transform.translation.y,
+  result.block<3, 1>(0, 3) = Eigen::Matrix<double, 3, 1>{1000 * transform_box_to_arm.transform.translation.y,
+                                                         1000 * transform_box_to_arm.transform.translation.x,
                                                          1000 * transform_box_to_arm.transform.translation.z};
   result(1, 3) = 450;
+  // result(0, 3) = 150;
 
   // result<<1,0,0,0,
   // 0,1,0,0,
@@ -246,6 +247,7 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
     ss_result << result;
     std::ofstream file("/home/pnx/code/Engineering_robot_RM2025_Pnx/target.txt", std::ios::app);
     file << result << std::endl;
+    file<<"original"<<transform_box_to_arm.transform.translation.x <<" "<<transform_box_to_arm.transform.translation.y<<" "<<transform_box_to_arm.transform.translation.z<<std::endl;
     file.close();
 
     RCLCPP_INFO(rclcpp::get_logger("send"), "result: %s", ss_result.str().c_str());
