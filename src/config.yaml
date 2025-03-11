@@ -60,6 +60,6 @@ arrow_detect:
   ArrowDetectorThresholdMaxval: 300.
   ArrowDetectorThresholdThreshold: 5.
   ArrowDetectorIterations: 5.
-  ArrowDetectorapproxPolyDPEpsilon: 20.
+  ArrowDetectorapproxPolyDPEpsilon: 10.
 
   

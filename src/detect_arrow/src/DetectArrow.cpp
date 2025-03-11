@@ -220,9 +220,18 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     double HorizonThreshold=5,RThreshold=10,LThreshold=0;
     int NowMaxSize=0;
 
+    RCLCPP_INFO(this->get_logger(),"%ld",counters_.size());
     for(auto &counter_ :counters_){
-
-        cv::RotatedRect rotatedrect_=cv::minAreaRect(counter_);
+        cv::RotatedRect rotatedrect_;
+        try{
+            RCLCPP_INFO(this->get_logger(),"%ld",counter_.size());
+            rotatedrect_=cv::minAreaRect(counter_);
+            RCLCPP_INFO(this->get_logger(),"%ld",counter_.size());
+        }
+        catch (cv::Exception & e){
+            RCLCPP_WARN(this->get_logger(),"fail to find circle by minEnclosingCircle : %s",e.what());
+            continue;
+        }
         Counter approxcurve;
 
         double LengthWidthRatio= (std::min(rotatedrect_.size.width,rotatedrect_.size.height)<=eps ? 
@@ -245,7 +254,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         cv::Mat copy_;
         OriginalImage_.copyTo(copy_);
 
-        cv::Point2f* rotatedrect_points_ptr;
+        cv::Point2f rotatedrect_points_ptr[4];
         std::vector<cv::Point2f> rotatedrect_points;
         rotatedrect_.points(rotatedrect_points_ptr);
         for(int i=0;i<4;i++){
@@ -256,9 +265,9 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
         RCLCPP_INFO(this->get_logger(),"approxcurve size : %ld",approxcurve.size());
 
-        std::stringstream center_ss;
-        center_ss<<center<<" "<<radius;
-        RCLCPP_INFO(this->get_logger(),"center_ss: %s",center_ss.str().c_str());
+        // std::stringstream center_ss;
+        // center_ss<<center<<" "<<radius;
+        // RCLCPP_INFO(this->get_logger(),"center_ss: %s",center_ss.str().c_str());
 
         RCLCPP_INFO(this->get_logger(),((pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num)) ? "pass" : "not pass"));
 
@@ -277,6 +286,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         cv::imshow("TargetArrow rotatedrect_", copy_);
         RCLCPP_INFO(this->get_logger(),"rotate_ss: \n%s",rotate_ss.str().c_str());
         cv::waitKey(0);
+
         #endif
 
         if(!(pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num))) continue;
@@ -703,7 +713,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     //定义参数
     try{
 
-    this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx");
+    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx");
     YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
     cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
     distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
