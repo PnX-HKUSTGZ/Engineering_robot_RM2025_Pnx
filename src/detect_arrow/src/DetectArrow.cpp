@@ -408,6 +408,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     最外侧直角顶点，最内侧直角顶点，从中心线外接圆顺时针方向第一个尾处的两顶点(外侧在前)，从中心线外接圆顺时针方向第二尾处的两顶点(外侧在前)
     */
     std::vector<cv::Point> ArrowPeaks;
+    std::vector<cv::Point2d> subArrowPeaks;
 
     ArrowPeaks.push_back(arrowapproxcurve[RightAnglePeaks[0]]);
     ArrowPeaks.push_back(arrowapproxcurve[RightAnglePeaks[1]]);
@@ -466,7 +467,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     std::vector<std::vector<cv::Point>> LinesPoints;
     std::vector<LineVP> FittedLines;
-    std::vector<std::pair<cv::Point,cv::Point> > Endpoints;
+    std::vector<std::pair<cv::Point2d,cv::Point2d> > Endpoints;
     std::vector<std::pair<int,int>> EndpointsIndex;
 
     #ifdef Imageshow
@@ -476,16 +477,29 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     #endif
 
-    FindPolygonCounterPointsSets(CannyImage,LinesPoints,
+    // begine SubPix
+    subArrowPeaks=subopix(this->GreyImage,
         ArrowPeaks,
+        cv::Size(10,10),
+        cv::Size(-1,-1),
+        cv::TermCriteria(
+            cv::TermCriteria::EPS+cv::TermCriteria::COUNT,
+            150,
+            0.001
+            ),
+        Mask);
+    
+
+    FindPolygonCounterPointsSets(CannyImage,LinesPoints,
+        subArrowPeaks,
         ArrowDetectorThresholdThreshold,
         Endpoints);
 
     for(auto &p : Endpoints){
         std::pair<int,int> index=std::make_pair(-1,-1);
         for(int i=0;i<6;i++){
-            if(p.first==ArrowPeaks[i]) index.first=i;
-            if(p.second==ArrowPeaks[i]) index.second=i;
+            if(IsPointSame(p.first,subArrowPeaks[i])) index.first=i;
+            if(IsPointSame(p.second,subArrowPeaks[i])) index.second=i;
         }
         if(index.first==-1||index.second==-1){
             RCLCPP_ERROR(this->get_logger(),"ArrowPeaks mismatch");
@@ -660,16 +674,15 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
             0,0,
             1,0
     });
-    cv::threshold(GreyImage,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
-    cv::Mat BinaryImage__;
-    cv::GaussianBlur(BinaryImage,
-        BinaryImage__,
+    this->GreyImage=GreyImage;
+
+    cv::Mat GaussBinaryImage;
+    cv::GaussianBlur(GreyImage,
+        GaussBinaryImage,
         cv::Size(5,5),
         1.5
     );
-
-    // cv::erode(BinaryImage__,DilatedImage,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)),cv::Point(-1,-1),ArrowDetectorIterations);
 
     cv::Mat sharpening_kenel=(cv::Mat_<float>(3,3)<<
         0,-1,0,
@@ -677,37 +690,18 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
         0,-1,0
     );
     cv::Mat Sharpened;
-    cv::filter2D(GreyImage,Sharpened,-1,sharpening_kenel);
+    cv::filter2D(GaussBinaryImage,Sharpened,-1,sharpening_kenel);
 
-    cv::Mat blurred;
-    cv::GaussianBlur(GreyImage,blurred,cv::Size(7,7),0);
-    cv::Mat high=GreyImage-blurred;
-    cv::Mat enhance=Sharpened+1.5*high;
-
-    cv::Mat Binary_en;
-    cv::threshold(blurred,Binary_en,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
-
-    // cv::Mat GreyImage_GaussianBlur;
-    // cv::adaptiveThreshold(GreyImage_GaussianBlur,BinaryImage,ArrowDetectorThresholdMaxval,cv::ADAPTIVE_THRESH_MEAN_C,cv::THRESH_BINARY,7,0);
-
-
-    // cv::imshow("Sharpened",Sharpened);
-    // cv::imshow("enhance",enhance);
-    // cv::imshow("Binary_en",Binary_en);
-
-    // cv::imshow("GreyImage",GreyImage);
+    cv::threshold(Sharpened,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
     # ifdef Imageshow
 
-    cv::imshow("BinaryImage",Binary_en);
+    cv::imshow("BinaryImage",BinaryImage);
     cv::waitKey(30);
 
     # endif
-    // cv::imshow("DilatedImage",DilatedImage);
 
-    // return DilatedImage;
-    // return BinaryImage;
-    return Binary_en;
+    return BinaryImage;
 }
 
 Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCorner(k)){

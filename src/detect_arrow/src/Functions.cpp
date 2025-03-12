@@ -174,6 +174,7 @@ bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
 }
 template bool FindContinuePart<int>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<int> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<int>,cv::Point_<int> > & endpoints);
 template bool FindContinuePart<double>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<double> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<double>,cv::Point_<double> > & endpoints);
+template bool FindContinuePart<float>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<float> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<float>,cv::Point_<float> > & endpoints);
 
 
 template<typename T> 
@@ -336,3 +337,27 @@ cv::Vec4d rotationMatrixToQuaternion(const cv::Mat& R) {
     q /= norm;
     return q;
 }
+
+std::vector<cv::Point2d> subopix(const cv::Mat& GrayImage, std::vector<cv::Point> int_pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask){
+    CV_Assert(GrayImage.type()==CV_32F||GrayImage.type()==CV_32FC1||GrayImage.type()==CV_64F||GrayImage.type()==CV_64FC1);
+
+    cv::Mat masked;
+    cv::copyTo(GrayImage,masked,mask);
+
+    std::vector<cv::Point2d> resultPointSet;
+
+    for(auto & i : int_pointset) resultPointSet.push_back(i);
+
+    cv::cornerSubPix(masked,resultPointSet,winSize,zeroZone,criteria);
+
+    return resultPointSet;
+}
+
+template<typename T,typename G>
+bool IsPointSame(cv::Point_<T> point1,cv::Point_<G> point2){
+    cv::Point2d diff=cv::Point2d(point1.x-point2.x,point1.y-point2.y);
+    return (diff.x*diff.x+diff.y*diff.y) <= 1e-9;
+}
+
+template bool IsPointSame<double, double>(cv::Point_<double> point1,cv::Point_<double> point2);
+template bool IsPointSame<double, int>(cv::Point_<double> point1,cv::Point_<int> point2);

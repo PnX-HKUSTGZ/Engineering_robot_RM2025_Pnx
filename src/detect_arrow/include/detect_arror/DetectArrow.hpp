@@ -41,6 +41,7 @@ class Arrow_detector:public rclcpp::Node{
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
     // rclcpp::Node::SharedPtr node_shred_ptr;
     cv::Mat OriginalImage_;
+    cv::Mat GreyImage;
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     cv::Mat rvec,tvec;
@@ -178,5 +179,9 @@ bool operator < (const cv::Point & a,const cv::Point & b);
 
 cv::Vec4d rotationMatrixToQuaternion(const cv::Mat& R);
 
+std::vector<cv::Point2d> subopix(const cv::Mat& GrayImage, std::vector<cv::Point> int_pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask=cv::noArray());
+
+template<typename T,typename G>
+bool IsPointSame(cv::Point_<T> point1,cv::Point_<G> point2);
 
 #endif
