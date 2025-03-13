@@ -339,7 +339,8 @@ cv::Vec4d rotationMatrixToQuaternion(const cv::Mat& R) {
 }
 
 std::vector<cv::Point2d> subopix(const cv::Mat& GrayImage, std::vector<cv::Point> int_pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask){
-    CV_Assert(GrayImage.type()==CV_32F||GrayImage.type()==CV_32FC1||GrayImage.type()==CV_64F||GrayImage.type()==CV_64FC1);
+    RCLCPP_INFO(rclcpp::get_logger("subopix"), "%d", GrayImage.type());
+    CV_Assert(GrayImage.type()==CV_8U||GrayImage.type()==CV_32F||GrayImage.type()==CV_32FC1||GrayImage.type()==CV_64F||GrayImage.type()==CV_64FC1);
 
     cv::Mat masked;
     cv::copyTo(GrayImage,masked,mask);
@@ -347,6 +348,12 @@ std::vector<cv::Point2d> subopix(const cv::Mat& GrayImage, std::vector<cv::Point
     std::vector<cv::Point2d> resultPointSet;
 
     for(auto & i : int_pointset) resultPointSet.push_back(i);
+
+    return resultPointSet;
+
+    
+    RCLCPP_INFO(rclcpp::get_logger("subopix"), "%ld", resultPointSet.size());
+    // cv::goodFeaturesToTrack()
 
     cv::cornerSubPix(masked,resultPointSet,winSize,zeroZone,criteria);
 

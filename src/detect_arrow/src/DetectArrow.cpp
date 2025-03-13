@@ -51,8 +51,8 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     std::stringstream ss;
     ss<<"cameraMatrixCV\n"<<cameraMatrixCV;
     ss<<"distCoeffsCV\n"<<distCoeffsCV;
-    ss<<"rvec:\n"<<rvec<<std::endl;
-    ss<<"tvec:\n"<<tvec<<std::endl;
+    ss<<"rvec: "<<rvec.at<double>(0)<<" "<<rvec.at<double>(1)<<" "<<rvec.at<double>(2)<<" "<<std::endl;
+    ss<<"tvec: "<<tvec.at<double>(0)<<" "<<tvec.at<double>(1)<<" "<<tvec.at<double>(2)<<" "<<std::endl;
     RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
     RCLCPP_INFO(this->get_logger(),"finish pnp");
 
@@ -116,7 +116,10 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     //fill msg
 
     Eigen::Matrix<double,4,1> Center3D=rtvecEigen*frontfacecenter;
+    Eigen::Matrix<double,4,1> CenterVectorz3D=rtvecEigen*Eigen::Matrix<double,4,1>(0,0,-1,1);
     Center3D/=Center3D(3);
+    CenterVectorz3D/=CenterVectorz3D(3);
+
 
     interfaces::msg::RedeemBoxPosition::SharedPtr msg=std::make_shared<interfaces::msg::RedeemBoxPosition>();
 
@@ -166,7 +169,12 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
     // cv::drawContours(OriginalImage_,Counters{reput_arrow},-1,cv::Scalar(225,0,0),3);
     Eigen::Matrix<double,3,1> Center2D=cameraMatrixEigen*signMat*Center3D;
+    Eigen::Matrix<double,3,1> CenterVectorz2D=cameraMatrixEigen*signMat*CenterVectorz3D;
     Center2D/=Center2D(2);
+    CenterVectorz2D/=CenterVectorz2D(2);
+
+    cv::line(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),cv::Scalar(225,200,100));
+
     cv::circle(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),1,cv::Scalar(223,225,133),-1);
     cv::putText(OriginalImage_,"center",cv::Point(Center2D(0),Center2D(1)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     

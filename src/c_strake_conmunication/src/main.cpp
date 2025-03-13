@@ -28,7 +28,6 @@
 
 #include "c_strake_conmunication/serial_driver.hpp"
 #include "c_strake_conmunication/packet.hpp"
-#include "c_strake_conmunication/serial_driver.hpp"
 #include "c_strake_conmunication/crc.hpp"
 #include <interfaces/msg/redeem_box_position.hpp>
 
@@ -215,7 +214,7 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
   geometry_msgs::msg::TransformStamped transform_box_to_arm;
   try
   {
-    transform_box_to_arm = tf_buffer->lookupTransform("object/box", "object/arm", this->now(), rclcpp::Duration::from_seconds(1));
+    transform_box_to_arm = tf_buffer->lookupTransform("object/arm", "object/box", this->now(), rclcpp::Duration::from_seconds(1));
   }
   catch (tf2::TransformException &ex)
   {
@@ -229,10 +228,10 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
   Eigen::Matrix<double, 3, 4> result;
 
   result.block<3, 3>(0, 0) = R_eigen;
-  result.block<3, 1>(0, 3) = Eigen::Matrix<double, 3, 1>{1000 * transform_box_to_arm.transform.translation.y,
-                                                         1000 * transform_box_to_arm.transform.translation.x,
+  result.block<3, 1>(0, 3) = Eigen::Matrix<double, 3, 1>{1000 * transform_box_to_arm.transform.translation.x,
+                                                         1000 * transform_box_to_arm.transform.translation.y,
                                                          1000 * transform_box_to_arm.transform.translation.z};
-  result(1, 3) = 450;
+  // result(1, 3) = 450;
   // result(0, 3) = 150;
 
   // result<<1,0,0,0,
@@ -248,7 +247,6 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
     std::ofstream file("/home/pnx/code/Engineering_robot_RM2025_Pnx/target.txt", std::ios::app);
     file << result << std::endl;
     file<<"original"<<transform_box_to_arm.transform.translation.x <<" "<<transform_box_to_arm.transform.translation.y<<" "<<transform_box_to_arm.transform.translation.z<<std::endl;
-    file.close();
 
     RCLCPP_INFO(rclcpp::get_logger("send"), "result: %s", ss_result.str().c_str());
 
@@ -258,9 +256,14 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
       RCLCPP_INFO(rclcpp::get_logger("a[]"), "%f", float(result(i / 4, i % 4)));
     }
 
-    uint16_t crc16 = Get_CRC16_Check_Sum(reinterpret_cast<uint8_t *>(&packet), 52, 0xFFFF);
+    packet.reserved=0;
+    uint16_t crc16 = Get_CRC16_Check_Sum(reinterpret_cast<uint8_t *>(&packet), sizeof(target_location), 0xFFFF);
     packet.crc16 = crc16;
     std::vector<uint8_t> data = toVector(packet);
+
+    file<<"crc "<<crc16 <<std::endl;
+    file.close();
+
 
     ss_pack << "crc16 : " << crc16;
     RCLCPP_INFO(rclcpp::get_logger("send"), "crc16: %s", ss_pack.str().c_str());
@@ -269,7 +272,7 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
 
     std_msgs::msg::Float64 latency;
     latency.data = (this->now() - msg->header.stamp).seconds() * 1000.0;
-    RCLCPP_DEBUG_STREAM(get_logger(), "Total latency: " + std::to_string(latency.data) + "ms");
+    RCLCPP_INFO(rclcpp::get_logger("send"), "send ok!");
     latency_pub_->publish(latency);
   }
   catch (const std::exception &ex)

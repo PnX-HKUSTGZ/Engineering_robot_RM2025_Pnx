@@ -42,6 +42,7 @@ uint16_t Get_CRC16_Check_Sum(const uint8_t *pchMessage, uint32_t dwLength, uint1
 
   if (pchMessage == nullptr)
     return 0xFFFF;
+  dwLength-=2;
   while (dwLength--)
   {
     ch_data = *pchMessage++;
