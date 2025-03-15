@@ -99,9 +99,9 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
     image_ptr->header.stamp=node->get_clock()->now();
 
     publisher_->publish(*image_ptr);
-    cv::imshow("Camera",imageRGB);
-    cv::imshow("Camera1",OriginalImage);
-    cv::waitKey(22);
+    // cv::imshow("Camera",imageRGB);
+    // cv::imshow("Camera1",OriginalImage);
+    // cv::waitKey(22);
     RCLCPP_INFO(node->get_logger(),"publish video");
 }
 

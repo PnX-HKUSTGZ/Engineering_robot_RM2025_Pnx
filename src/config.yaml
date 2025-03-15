@@ -46,9 +46,9 @@ arrow:
 arrow_detect:
   ArrowDetectorPixelNumMax: 80000
   ArrowDetectorPixelNumMin: 5000
-  ArrowDetectorLengthWidthRatioMax: 2.8284271247461900976033774484194
+  ArrowDetectorLengthWidthRatioMax: 3
   ArrowDetectorLengthWidthRatioMin: 1.1
-  ArrowDetectorApproxSizeMax: 10.
+  ArrowDetectorApproxSizeMax: 8.
   ArrowDetectorApproxSizeMin: 6.
   ArrowDetectorCannyThreshold1: 100.
   ArrowDetectorCannyThreshold2: 200.
@@ -61,6 +61,8 @@ arrow_detect:
   ArrowDetectorThresholdThreshold: 5.
   ArrowDetectorIterations: 5.
   ArrowDetectorapproxPolyDPEpsilon: 10.
+  ArrowDetectorLongShortRateMax: 20.
+  ArrowDetectorLongShortRateMin: 5.
 
 rotate:
   w: 0.7071068

@@ -20,8 +20,8 @@
 
 #define arrow_draw
 #define Imageshow
-// #define TargetArrowtest
-#define twopath_inoneline
+#define TargetArrowtest
+// #define twopath_inoneline
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -78,6 +78,8 @@ class Arrow_detector:public rclcpp::Node{
     double ArrowDetectorThresholdThreshold;
     int ArrowDetectorIterations;
     double ArrowDetectorapproxPolyDPEpsilon;
+    double ArrowDetectorLongShortRateMax;
+    double ArrowDetectorLongShortRateMin;
 
     // object params
 

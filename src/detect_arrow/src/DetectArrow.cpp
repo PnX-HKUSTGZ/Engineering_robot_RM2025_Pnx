@@ -51,7 +51,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     std::stringstream ss;
     ss<<"cameraMatrixCV\n"<<cameraMatrixCV;
     ss<<"distCoeffsCV\n"<<distCoeffsCV;
-    ss<<"rvec: "<<rvec.at<double>(0)<<" "<<rvec.at<double>(1)<<" "<<rvec.at<double>(2)<<" "<<std::endl;
+    ss<<"rvec: "<<rvec.at<double>(0)/CV_PI*180<<" "<<rvec.at<double>(1)/CV_PI*180<<" "<<rvec.at<double>(2)/CV_PI*180<<" "<<std::endl;
     ss<<"tvec: "<<tvec.at<double>(0)<<" "<<tvec.at<double>(1)<<" "<<tvec.at<double>(2)<<" "<<std::endl;
     RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
     RCLCPP_INFO(this->get_logger(),"finish pnp");
@@ -62,7 +62,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     #ifdef arrow_draw
 
     std::stringstream rvecss;
-    rvecss<<rvec<<std::endl;
+    rvecss<<rvec.at<double>(0)/CV_PI*180<<" "<<rvec.at<double>(1)/CV_PI*180<<" "<<rvec.at<double>(2)/CV_PI*180<<std::endl;
     cv::putText(OriginalImage_,rvecss.str().c_str(),cv::Point(10,100),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(0,0,225));
 
     #endif
@@ -252,8 +252,39 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         double LengthWidthRatio= (std::min(rotatedrect_.size.width,rotatedrect_.size.height)<=eps ? 
             -1 : std::max(rotatedrect_.size.width,rotatedrect_.size.height)/std::min(rotatedrect_.size.width,rotatedrect_.size.height));
         int pixel_num=cv::contourArea(counter_);
-        cv::approxPolyDP(counter_,approxcurve,ArrowDetectorapproxPolyDPEpsilon,1);
+        std::vector<cv::Point2d> approxcurve2d;
+        cv::approxPolyDP(counter_,approxcurve2d,ArrowDetectorapproxPolyDPEpsilon,1);
 
+
+        for(auto i : approxcurve2d) approxcurve.push_back(cv::Point(i.x,i.y));
+
+        std::vector<double> approxcurve_length;
+        double Average_4=0,Average_rest=0,approxcurve_length_rate=-1;
+
+        RCLCPP_INFO(this->get_logger(),"approxcurve2d : %ld",approxcurve2d.size());
+        if(approxcurve2d.size()>=6){
+            RCLCPP_INFO(this->get_logger(),"turn into approxcurve2d");
+            for(int siz_approxcurve2d=approxcurve2d.size(),i=approxcurve2d.size()-1;i>=0;i--){
+                approxcurve_length.push_back(DistancePoints(approxcurve2d[i],approxcurve2d[(i+1)%siz_approxcurve2d]));
+                // RCLCPP_INFO(this->get_logger(),"length: %lf point: [%lf , %lf] [%lf , %lf]",DistancePoints(approxcurve2d[i],approxcurve2d[(i+1)%siz_approxcurve2d]),
+                // approxcurve2d[i].x,approxcurve2d[i].y,
+                // approxcurve2d[(i+1)%siz_approxcurve2d].x,approxcurve2d[(i+1)%siz_approxcurve2d].y);
+            }
+            sort(approxcurve_length.begin(),approxcurve_length.end(),[](auto a,auto b){
+                return a>b;
+            });
+            // for(auto i : approxcurve_length){
+            //     RCLCPP_INFO(this->get_logger(),"approxcurve_length[]:%lf",i);
+            // }
+            for(int i=0;i<4;i++) Average_4+=approxcurve_length[i]/4;
+            for(int i=4;i<approxcurve_length.size();i++) Average_rest+=approxcurve_length[i]/(approxcurve_length.size()-3);
+            approxcurve_length_rate=Average_4/Average_rest;
+        }
+
+        bool approxcurve_length_rate_check=(
+            ArrowDetectorLongShortRateMin<=approxcurve_length_rate&&
+            approxcurve_length_rate<=ArrowDetectorLongShortRateMax
+        );
         bool pixel_in=(pixel_num>=ArrowDetectorPixelNumMin&&
             pixel_num<=ArrowDetectorPixelNumMax);
         bool lwratio=(ArrowDetectorLengthWidthRatioMin<=LengthWidthRatio&&
@@ -276,15 +307,20 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
             rotatedrect_points.push_back(rotatedrect_points_ptr[i]);
         }
 
+        if(pixel_num<500) continue;
+
         RCLCPP_INFO(this->get_logger(),"LengthWidthRatio : %lf",LengthWidthRatio);
         RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
         RCLCPP_INFO(this->get_logger(),"approxcurve size : %ld",approxcurve.size());
+        RCLCPP_INFO(this->get_logger(),"approxcurve_length_rate : %lf",approxcurve_length_rate);
+        RCLCPP_INFO(this->get_logger(),"Average_4 : %lf",Average_4);
+        RCLCPP_INFO(this->get_logger(),"Average_rest : %lf",Average_rest);
 
         // std::stringstream center_ss;
         // center_ss<<center<<" "<<radius;
         // RCLCPP_INFO(this->get_logger(),"center_ss: %s",center_ss.str().c_str());
 
-        RCLCPP_INFO(this->get_logger(),((pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num)) ? "pass" : "not pass"));
+        RCLCPP_INFO(this->get_logger(),((pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num)&&approxcurve_length_rate_check) ? "pass" : "not pass"));
 
         std::stringstream rotate_ss;
         for(int i=0;i<4;i++){
@@ -304,7 +340,11 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
         #endif
 
-        if(!(pixel_in&&lwratio&&approxsize&&(NowMaxSize<pixel_num))) continue;
+        if(!(pixel_in&&
+            lwratio&&
+            approxsize&&
+            (NowMaxSize<pixel_num)&&
+            approxcurve_length_rate_check)) continue;
 
         try{
             std::vector<cv::Point2f> lin;
@@ -533,6 +573,10 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     for(std::size_t i=0;i<LinesPoints.size();i++){
         cv::Vec4d line;
         cv::fitLine(LinesPoints[i],line,cv::DIST_L2,0,0.01,0.01);
+        // if(EndpointsIndex[i]==std::make_pair(4,5)||
+        // EndpointsIndex[i]==std::make_pair(2,3)){
+        //     continue;
+        // }
         FittedLines.push_back(line);
         RCLCPP_INFO(this->get_logger(),"Line Info : %lf %lf %lf %lf",line[0],line[1],line[2],line[3]);
     }
@@ -650,6 +694,9 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     // filter_.Update(ArrowPeaks_);
     this->ArrowPeaks.clear();
+    // for(auto & i : ArrowPeaks) this->ArrowPeaks.push_back(i);
+    // this->ArrowPeaks.push_back(ArrowPeaks_[6]);
+    // this->ArrowPeaks.push_back(ArrowPeaks_[7]);
     for(auto & i : ArrowPeaks_) this->ArrowPeaks.push_back(i);
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
     return 1;
@@ -673,6 +720,12 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
     std::vector<cv::Mat> SplitImage;
     //通道顺序为BGR
     cv::split(OriginalImage,SplitImage);
+
+    #ifdef arrow_draw
+
+    cv::imshow("OriginalImage",OriginalImage);
+
+    #endif
     
     cv::Mat GreyImage(SplitImage[0].size(),SplitImage[0].type()),BinaryImage,DilatedImage;
     
@@ -772,6 +825,8 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     ArrowDetectorThresholdThreshold=config["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
     ArrowDetectorIterations=config["arrow_detect"]["ArrowDetectorIterations"].as<double>();
     ArrowDetectorapproxPolyDPEpsilon=config["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
+    ArrowDetectorLongShortRateMax=config["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
+    ArrowDetectorLongShortRateMin=config["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
 
     tf_broadcaster_box_to_camera=std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
