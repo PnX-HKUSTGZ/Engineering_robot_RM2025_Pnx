@@ -219,7 +219,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     std::vector<cv::Vec2f> lines;
     Counters counters_;
     Counter isarrow;
-    Counter arrowapproxcurve;
+    std::vector<cv::Point2d> arrowapproxcurve;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
     // cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),1);
@@ -247,7 +247,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
             RCLCPP_WARN(this->get_logger(),"fail to find circle by minEnclosingCircle : %s",e.what());
             continue;
         }
-        Counter approxcurve;
+        // Counter approxcurve;
 
         double LengthWidthRatio= (std::min(rotatedrect_.size.width,rotatedrect_.size.height)<=eps ? 
             -1 : std::max(rotatedrect_.size.width,rotatedrect_.size.height)/std::min(rotatedrect_.size.width,rotatedrect_.size.height));
@@ -256,7 +256,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         cv::approxPolyDP(counter_,approxcurve2d,ArrowDetectorapproxPolyDPEpsilon,1);
 
 
-        for(auto i : approxcurve2d) approxcurve.push_back(cv::Point(i.x,i.y));
+        // for(auto i : approxcurve2d) approxcurve.push_back(cv::Point(i.x,i.y));
 
         std::vector<double> approxcurve_length;
         double Average_4=0,Average_rest=0,approxcurve_length_rate=-1;
@@ -289,8 +289,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
             pixel_num<=ArrowDetectorPixelNumMax);
         bool lwratio=(ArrowDetectorLengthWidthRatioMin<=LengthWidthRatio&&
             LengthWidthRatio<=ArrowDetectorLengthWidthRatioMax);
-        bool approxsize=(std::size_t(ArrowDetectorApproxSizeMin)<=approxcurve.size()&&
-            approxcurve.size()<=std::size_t(ArrowDetectorApproxSizeMax));
+        bool approxsize=(std::size_t(ArrowDetectorApproxSizeMin)<=approxcurve2d.size()&&
+            approxcurve2d.size()<=std::size_t(ArrowDetectorApproxSizeMax));
 
 
         // if(approxcurve.size()<500) continue;
@@ -311,7 +311,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
         RCLCPP_INFO(this->get_logger(),"LengthWidthRatio : %lf",LengthWidthRatio);
         RCLCPP_INFO(this->get_logger(),"pixel_num : %d",pixel_num);
-        RCLCPP_INFO(this->get_logger(),"approxcurve size : %ld",approxcurve.size());
+        RCLCPP_INFO(this->get_logger(),"approxcurve size : %ld",approxcurve2d.size());
         RCLCPP_INFO(this->get_logger(),"approxcurve_length_rate : %lf",approxcurve_length_rate);
         RCLCPP_INFO(this->get_logger(),"Average_4 : %lf",Average_4);
         RCLCPP_INFO(this->get_logger(),"Average_rest : %lf",Average_rest);
@@ -362,10 +362,10 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
 
         slopes.clear();
-        for(int i=approxcurve.size()-1,siz=approxcurve.size();i>=0;i--){
+        for(int i=approxcurve2d.size()-1,siz=approxcurve2d.size();i>=0;i--){
             slopes.push_back(Slope{i,(i+1)%siz,[](cv::Point p1,cv::Point p2){
                 double angle=GetAngleAccordingToHorizon(p1,p2);
-                return abs(angle-180)<5 ? 0 : angle;}(approxcurve[i],approxcurve[(i+1)%siz])});
+                return abs(angle-180)<5 ? 0 : angle;}(approxcurve2d[i],approxcurve2d[(i+1)%siz])});
         }
         std::sort(slopes.begin(),slopes.end(),[](const Slope & a,const Slope & b){
             return a.slope<b.slope;
@@ -396,12 +396,18 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
         NowMaxSize=pixel_num;
         isarrow=std::move(counter_);
-        arrowapproxcurve=std::move(approxcurve);
+        arrowapproxcurve=std::move(approxcurve2d);
 
         # ifdef arrow_draw
+
+        Counter arrowapproxcurve2i;
+
+        for(auto & i : arrowapproxcurve){
+            arrowapproxcurve2i.push_back(cv::Point(i.x,i.y));
+        }
         
         cv::drawContours(OriginalImage_,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
-        cv::drawContours(OriginalImage_,Counters{arrowapproxcurve},-1,cv::Scalar(0,225,225),1);
+        cv::drawContours(OriginalImage_,Counters{arrowapproxcurve2i},-1,cv::Scalar(0,225,225),1);
 
         # endif
 
@@ -455,7 +461,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     储存规则：
     最外侧直角顶点，最内侧直角顶点，从中心线外接圆顺时针方向第一个尾处的两顶点(外侧在前)，从中心线外接圆顺时针方向第二尾处的两顶点(外侧在前)
     */
-    std::vector<cv::Point> ArrowPeaks;
+    std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2d> subArrowPeaks;
 
     ArrowPeaks.push_back(arrowapproxcurve[RightAnglePeaks[0]]);
@@ -465,13 +471,13 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     ArrowPeaks.push_back(cv::Point(0,0));
     ArrowPeaks.push_back(cv::Point(0,0));
 
-    cv::Point Centerline=ArrowPeaks[0]-cv::Point(center.x,center.y);
+    cv::Point2d Centerline=ArrowPeaks[0]-cv::Point2d(center.x,center.y);
     for(int i=0;i<=1;i++){
         std::pair<int,int> PointNumPair1=std::make_pair(HorizonLinePair[i].first.p1,HorizonLinePair[i].first.p2);
         std::pair<int,int> PointNumPair2=std::make_pair(HorizonLinePair[i].second.p1,HorizonLinePair[i].second.p2);
         if(PointNumPair1.first==RightAnglePeaks[0]||PointNumPair1.first==RightAnglePeaks[1]) std::swap(PointNumPair1.first,PointNumPair1.second);
         if(PointNumPair2.first==RightAnglePeaks[0]||PointNumPair2.first==RightAnglePeaks[1]) std::swap(PointNumPair2.first,PointNumPair2.second);
-        cv::Point TargetLine=arrowapproxcurve[PointNumPair1.first]-cv::Point(center.x,center.y);
+        cv::Point2d TargetLine=arrowapproxcurve[PointNumPair1.first]-cv::Point2d(center.x,center.y);
         if(TargetLine.cross(Centerline)<=0){
             if(DistancePoints(arrowapproxcurve[PointNumPair1.first],center)>DistancePoints(arrowapproxcurve[PointNumPair2.first],center)){
                 ArrowPeaks[2]=(arrowapproxcurve[PointNumPair1.first]);
@@ -494,7 +500,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         }
     }
 
-    if(ArrowPeaks[3]==cv::Point(0,0)||ArrowPeaks[2]==cv::Point(0,0)){
+    if(ArrowPeaks[3]==cv::Point2d(0,0)||ArrowPeaks[2]==cv::Point2d(0,0)){
         RCLCPP_ERROR(this->get_logger(),"Fail to find midpoint of other two sides");
         return 0;
     }
@@ -504,7 +510,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
         cv::circle(OriginalImage_,i,1,cv::Scalar(153,156,30),-1);
-        std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point(center)).cross(Centerline);PeaksCnt++;
+        std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point2d(center)).cross(Centerline);PeaksCnt++;
         cv::putText(OriginalImage_,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
 
@@ -526,7 +532,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     #endif
 
     // begine SubPix
-    subArrowPeaks=subopix(this->GreyImage,
+    subopix(this->GreyImage,
         ArrowPeaks,
         cv::Size(10,10),
         cv::Size(-1,-1),
@@ -538,16 +544,17 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         Mask);
     
 
-    FindPolygonCounterPointsSets(CannyImage,LinesPoints,
-        subArrowPeaks,
+    FindPolygonCounterPointsSets(CannyImage,
+        LinesPoints,
+        ArrowPeaks,
         ArrowDetectorThresholdThreshold,
         Endpoints);
 
     for(auto &p : Endpoints){
         std::pair<int,int> index=std::make_pair(-1,-1);
         for(int i=0;i<6;i++){
-            if(IsPointSame(p.first,subArrowPeaks[i])) index.first=i;
-            if(IsPointSame(p.second,subArrowPeaks[i])) index.second=i;
+            if(IsPointSame(p.first,ArrowPeaks[i])) index.first=i;
+            if(IsPointSame(p.second,ArrowPeaks[i])) index.second=i;
         }
         if(index.first==-1||index.second==-1){
             RCLCPP_ERROR(this->get_logger(),"ArrowPeaks mismatch");

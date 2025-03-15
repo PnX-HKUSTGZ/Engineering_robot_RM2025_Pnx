@@ -56,7 +56,7 @@ arrow_detect:
   ArrowDetectorHoughTheta: 0.00436332312998582394230922638889
   ArrowDetectorHoughThreshold: 35.
   ArrowDetectParallelThreshold: 0.523598775598298873077
-  ArrowDetectorThresholdThresh: 120.
+  ArrowDetectorThresholdThresh: 100.
   ArrowDetectorThresholdMaxval: 300.
   ArrowDetectorThresholdThreshold: 5.
   ArrowDetectorIterations: 5.

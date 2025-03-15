@@ -173,12 +173,22 @@ bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
 
 }
 template bool FindContinuePart<int>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<int> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<int>,cv::Point_<int> > & endpoints);
-template bool FindContinuePart<double>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<double> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<double>,cv::Point_<double> > & endpoints);
+template bool FindContinuePart<double>(const cv::Mat & BinaryImage,
+    std::vector<cv::Point> & Pointset,
+    const cv::Point & StartPoint,
+    const std::vector<cv::Point_<double> > & Peaks,
+    std::map<std::pair<int,int>,bool> &vis,
+    const double PeaksThreshold,
+    std::pair<cv::Point_<double>,cv::Point_<double> > & endpoints);
 template bool FindContinuePart<float>(const cv::Mat & BinaryImage,std::vector<cv::Point> & Pointset,const cv::Point & StartPoint,const std::vector<cv::Point_<float> > & Peaks,std::map<std::pair<int,int>,bool> &vis,const double PeaksThreshold,std::pair<cv::Point_<float>,cv::Point_<float> > & endpoints);
 
 
 template<typename T> 
-void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<T>> & Peaks,const double PeaksThreshold,std::vector<std::pair<cv::Point_<T>,cv::Point_<T>> >& Endpoints){
+void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,
+    std::vector<std::vector<cv::Point>> & Pointssets,
+    const std::vector<cv::Point_<T>> & Peaks,
+    const double PeaksThreshold,
+    std::vector<std::pair<cv::Point_<T>,cv::Point_<T>> >& Endpoints){
 
     std::map<std::pair<int,int>,bool> vis;
 
@@ -204,8 +214,16 @@ void FindPolygonCounterPointsSets(const cv::Mat & BinaryImage,std::vector<std::v
         }
     }
 }
-template void FindPolygonCounterPointsSets<int>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<int> > & Peaks,const double PeaksThreshold,std::vector<std::pair<cv::Point_<int>,cv::Point_<int>> > & Endpoints);
-template void FindPolygonCounterPointsSets<double>(const cv::Mat & BinaryImage,std::vector<std::vector<cv::Point>> & Pointssets,const std::vector<cv::Point_<double> > & Peaks,const double PeaksThreshold,std::vector<std::pair<cv::Point_<double>,cv::Point_<double>> > & Endpoints);
+template void FindPolygonCounterPointsSets<double>(const cv::Mat & BinaryImage,
+    std::vector<std::vector<cv::Point>> & Pointssets,
+    const std::vector<cv::Point_<double> > & Peaks,
+    const double PeaksThreshold,
+    std::vector<std::pair<cv::Point_<double>,cv::Point_<double>> > & Endpoints);
+template void FindPolygonCounterPointsSets<int>(const cv::Mat & BinaryImage,
+    std::vector<std::vector<cv::Point>> & Pointssets,
+    const std::vector<cv::Point_<int> > & Peaks,
+    const double PeaksThreshold,
+    std::vector<std::pair<cv::Point_<int>,cv::Point_<int>> > & Endpoints);
 
 LineABC GetLineABC(const Line & l){
     double r=l.val[0],theta=l.val[1];
@@ -338,26 +356,22 @@ cv::Vec4d rotationMatrixToQuaternion(const cv::Mat& R) {
     return q;
 }
 
-std::vector<cv::Point2d> subopix(const cv::Mat& GrayImage, std::vector<cv::Point> int_pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask){
+void subopix(const cv::Mat& GrayImage, std::vector<cv::Point2d>& pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask){
     RCLCPP_INFO(rclcpp::get_logger("subopix"), "%d", GrayImage.type());
     CV_Assert(GrayImage.type()==CV_8U||GrayImage.type()==CV_32F||GrayImage.type()==CV_32FC1||GrayImage.type()==CV_64F||GrayImage.type()==CV_64FC1);
+
+    return;
 
     cv::Mat masked;
     cv::copyTo(GrayImage,masked,mask);
 
-    std::vector<cv::Point2d> resultPointSet;
-
-    for(auto & i : int_pointset) resultPointSet.push_back(i);
-
-    return resultPointSet;
-
     
-    RCLCPP_INFO(rclcpp::get_logger("subopix"), "%ld", resultPointSet.size());
+    RCLCPP_INFO(rclcpp::get_logger("subopix"), "%ld", pointset.size());
     // cv::goodFeaturesToTrack()
 
-    cv::cornerSubPix(masked,resultPointSet,winSize,zeroZone,criteria);
+    cv::cornerSubPix(masked,pointset,winSize,zeroZone,criteria);
 
-    return resultPointSet;
+    return;
 }
 
 template<typename T,typename G>

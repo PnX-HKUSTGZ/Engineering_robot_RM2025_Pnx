@@ -20,7 +20,7 @@
 
 #define arrow_draw
 #define Imageshow
-#define TargetArrowtest
+// #define TargetArrowtest
 // #define twopath_inoneline
 
 using namespace std::chrono;
@@ -154,6 +154,8 @@ struct Slope{
 
 typedef std::vector<std::vector<cv::Point>> Counters;
 typedef std::vector<cv::Point> Counter;
+typedef std::vector<std::vector<cv::Point2d>> Counter2ds;
+typedef std::vector<cv::Point2d> Counter2d;
 
 double GetAngleAccordingToHorizon(cv::Point p1,cv::Point p2);
 
@@ -181,7 +183,8 @@ bool operator < (const cv::Point & a,const cv::Point & b);
 
 cv::Vec4d rotationMatrixToQuaternion(const cv::Mat& R);
 
-std::vector<cv::Point2d> subopix(const cv::Mat& GrayImage, std::vector<cv::Point> int_pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask=cv::noArray());
+// std::vector<cv::Point2d> subopix(const cv::Mat& GrayImage, std::vector<cv::Point> int_pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask=cv::noArray());
+void subopix(const cv::Mat& GrayImage, std::vector<cv::Point2d>& pointset, cv::Size winSize, cv::Size zeroZone, cv::TermCriteria criteria, cv::InputArray mask=cv::noArray());
 
 template<typename T,typename G>
 bool IsPointSame(cv::Point_<T> point1,cv::Point_<G> point2);
