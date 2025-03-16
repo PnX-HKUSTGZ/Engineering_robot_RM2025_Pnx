@@ -86,8 +86,8 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
     }
     if (!pFrameInfo) return;
     (void)pUser;
-    RCLCPP_INFO(node->get_logger(),"GetOneFrame, Width[%d], Height[%d], nFrameNum[%d]", 
-        pFrameInfo->nExtendWidth, pFrameInfo->nExtendHeight, pFrameInfo->nFrameNum);
+    // RCLCPP_INFO(node->get_logger(),"GetOneFrame, Width[%d], Height[%d], nFrameNum[%d]", 
+        // pFrameInfo->nExtendWidth, pFrameInfo->nExtendHeight, pFrameInfo->nFrameNum);
 
     cv::Mat OriginalImage(pFrameInfo->nExtendHeight, pFrameInfo->nExtendWidth,CV_8UC1,pData);
     cv::Mat imageRGB;
@@ -102,7 +102,7 @@ void __stdcall ImageCallBackEx(unsigned char * pData, MV_FRAME_OUT_INFO_EX* pFra
     // cv::imshow("Camera",imageRGB);
     // cv::imshow("Camera1",OriginalImage);
     // cv::waitKey(22);
-    RCLCPP_INFO(node->get_logger(),"publish video");
+    // RCLCPP_INFO(node->get_logger(),"publish video");
 }
 
 void GainAdjustment(void* handle){

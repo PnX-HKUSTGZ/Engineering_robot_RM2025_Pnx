@@ -17,5 +17,6 @@ def generate_launch_description():
             package='calibratecamera',
             executable='calibrate_camera',
             name='calibrate_camera',
+            parameters=[Path]
         )
     ])

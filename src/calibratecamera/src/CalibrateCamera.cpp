@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <yaml-cpp/yaml.h>
+
 using namespace std::chrono;
 
 std::shared_ptr<rclcpp::Node> node;
@@ -85,6 +87,30 @@ void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg){
         ss << "Translation vector : " << T << std::endl;
         RCLCPP_INFO(node->get_logger(),"finish!");
         RCLCPP_INFO(node->get_logger(),"%s",ss.str().c_str());
+
+        // RCLCPP_INFO(node->get_logger(),"finish111!");
+        // YAML::Node config;
+        // config=YAML::LoadFile(node->get_parameter("Location").as_string()+"/src/config.yaml");
+        // RCLCPP_INFO(node->get_logger(),"finis1111h! %s",(node->get_parameter("Location").as_string()+"src/config.yaml").c_str());
+
+        // YAML::Node cameraMatrixvec;
+        // YAML::Node distCoeffsvec;
+
+        // for(int i=0;i<9;i++){
+        //     cameraMatrixvec.push_back(cameraMatrix.at<double>(i));
+        // }
+        // for(int i=0;i<5;i++){
+        //     distCoeffsvec.push_back(distCoeffs.at<double>(i));
+        // }
+
+        // if (!config["camera"] || !config["camera"].IsMap()) {
+        //     config["camera"] = YAML::Node(YAML::NodeType::Map);
+        // }
+
+        // config["camera"]["dist_coeffs"]=distCoeffsvec;
+        // config["camera"]["camera_matrix"]=cameraMatrixvec;
+
+
         objpoints.clear();
         imgpoints.clear();
         // OUT.close();
@@ -106,7 +132,7 @@ int main (int argc,char** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("calibrate_camera");
     InitCalibrationParam();
-    node->declare_parameter<std::string>("parampath","");
+    node->declare_parameter<std::string>("Location","");
     subscriber_=node->create_subscription<sensor_msgs::msg::Image>("/sensor/image",10,ImageCallback);
     rclcpp::spin(node);
     rclcpp::shutdown();

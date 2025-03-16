@@ -116,7 +116,7 @@ bool FindContinuePart(const cv::Mat & BinaryImage,std::vector<cv::Point> & Point
     std::queue<cv::Point> NowPoints;
     NowPoints.push(StartPoint);
     endpoints=std::make_pair(cv::Point_<T>(-1,-1),cv::Point_<T>(-1,-1));
-    RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"StartPoint : [%d,%d]",StartPoint.x,StartPoint.y);
+    // RCLCPP_INFO(rclcpp::get_logger("FindContinuePart"),"StartPoint : [%d,%d]",StartPoint.x,StartPoint.y);
     while(!NowPoints.empty()){
         cv::Point NowPoint=NowPoints.front();
         NowPoints.pop();

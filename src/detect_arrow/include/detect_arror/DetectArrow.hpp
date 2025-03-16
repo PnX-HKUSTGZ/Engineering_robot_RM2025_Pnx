@@ -21,7 +21,7 @@
 #define arrow_draw
 #define Imageshow
 // #define TargetArrowtest
-// #define twopath_inoneline
+#define twopath_inoneline
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -54,6 +54,8 @@ class Arrow_detector:public rclcpp::Node{
         cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
     bool MainDetectArrow(const cv::Mat & OriginalImage);
     bool TargetArrow(const cv::Mat & BinaryImage);
+
+    void DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
 
     // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
     // cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
@@ -103,6 +105,7 @@ class Arrow_detector:public rclcpp::Node{
     Eigen::Matrix<double,4,1> frontfacecenter;
     // 兑换框正面到箭头的变换矩阵
     // Eigen::Matrix<double,4,4> CenterToArrowvec;
+
     // 降维矩阵
     Eigen::Matrix<double,3,4> signMat;
 

@@ -8,30 +8,37 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     //pnp homogeneous transfomration matrix
     Eigen::Matrix<double,4,4> rtvecEigen;
 
-    std::stringstream ss_;
-
-    // ss_<<"cameraMatrixCV\n"<<cameraMatrixCV;
-    // ss_<<"distCoeffsCV\n"<<distCoeffsCV;
-    // RCLCPP_INFO(this->get_logger(),"%s",ss_.str().c_str());
-    // RCLCPP_INFO(this->get_logger(),"%d",ObjectPoints3D.size());
-    // RCLCPP_INFO(this->get_logger(),"%d",ImagePoints2D.size());
-
     RCLCPP_INFO(this->get_logger(),"start pnp");
-    // bool PnPsuccess=cv::solvePnPRansac(
-    //     ObjectPoints3D,
-    //     ImagePoints2D,
-    //     cameraMatrixCV,
-    //     distCoeffsCV,
-    //     rvec,
-    //     tvec,
-    //     false,
-    //     200,
-    //     8.0,
-    //     0.99,
-    //     cv::noArray(),
-    //     cv::SOLVEPNP_EPNP
-    // );
-    bool PnPsuccess=cv::solvePnP(ObjectPoints3D,ImagePoints2D,cameraMatrixCV,distCoeffsCV,rvec,tvec,useExtrinsicGuess,flags);
+    bool PnPsuccess=cv::solvePnP(ObjectPoints3D,
+        ImagePoints2D,
+        cameraMatrixCV,
+        distCoeffsCV,
+        rvec,
+        tvec,
+        useExtrinsicGuess,
+        flags);
+
+    std::vector<cv::Mat> rvecs,tvecs;
+    bool PnPsuccessed=cv::solvePnPGeneric(
+        ObjectPoints3D,
+        ImagePoints2D,
+        cameraMatrixCV,
+        distCoeffsCV,
+        rvecs,
+        tvecs,
+        1,
+        cv::SOLVEPNP_IPPE
+    );
+
+    RCLCPP_INFO(this->get_logger(),"pnp solves num : %ld",rvecs.size());
+    std::stringstream ss_vecs;
+    for(int i=0;i<rvecs.size();i++){
+        ss_vecs<<"\n rvecs :"<< rvecs[i]<<std::endl;
+        ss_vecs<<"\n tvecs :"<< tvecs[i]<<std::endl;
+    }
+    RCLCPP_INFO(this->get_logger(),"pnp solves disp: %s",ss_vecs.str().c_str() );
+
+    //check pnp success
 
     for(int i=0;i<3;i++){
         if(std::isnan(rvec.at<double>(i))||std::isnan(tvec.at<double>(i))){
@@ -39,7 +46,6 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
             return 0;
         }
     }
-
     if(!PnPsuccess){
         RCLCPP_WARN(this->get_logger(),"PnP fail");
         return 0;
@@ -48,24 +54,17 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
         RCLCPP_INFO(this->get_logger(),"PnP success");
     }
 
-    std::stringstream ss;
-    ss<<"cameraMatrixCV\n"<<cameraMatrixCV;
-    ss<<"distCoeffsCV\n"<<distCoeffsCV;
-    ss<<"rvec: "<<rvec.at<double>(0)/CV_PI*180<<" "<<rvec.at<double>(1)/CV_PI*180<<" "<<rvec.at<double>(2)/CV_PI*180<<" "<<std::endl;
-    ss<<"tvec: "<<tvec.at<double>(0)<<" "<<tvec.at<double>(1)<<" "<<tvec.at<double>(2)<<" "<<std::endl;
-    RCLCPP_INFO(this->get_logger(),"%s",ss.str().c_str());
+    std::stringstream rtvecss;
+    rtvecss<<"rvec: "<<rvec.at<double>(0)/CV_PI*180<<" "<<rvec.at<double>(1)/CV_PI*180<<" "<<rvec.at<double>(2)/CV_PI*180<<" "<<std::endl;
+    rtvecss<<"tvec: "<<tvec.at<double>(0)<<" "<<tvec.at<double>(1)<<" "<<tvec.at<double>(2)<<" "<<std::endl;
+    RCLCPP_INFO(this->get_logger(),"%s",rtvecss.str().c_str());
     RCLCPP_INFO(this->get_logger(),"finish pnp");
+
+
+    //send message and position
 
     cv::Mat rmat(rvec.size(),rvec.type());
     cv::Rodrigues(rvec,rmat);
-
-    #ifdef arrow_draw
-
-    std::stringstream rvecss;
-    rvecss<<rvec.at<double>(0)/CV_PI*180<<" "<<rvec.at<double>(1)/CV_PI*180<<" "<<rvec.at<double>(2)/CV_PI*180<<std::endl;
-    cv::putText(OriginalImage_,rvecss.str().c_str(),cv::Point(10,100),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(0,0,225));
-
-    #endif
 
     //fill homogeneous transfomration matrix
     for(int i=0;i<3;i++){
@@ -74,68 +73,10 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
         }
         rtvecEigen(i,3)=tvec.at<double>(i);
     }
-    
     rtvecEigen(3, 0) = 0.0;
     rtvecEigen(3, 1) = 0.0;
     rtvecEigen(3, 2) = 0.0;
     rtvecEigen(3, 3) = 1.0;
-
-
-    std::stringstream sss;
-    sss<<rtvecEigen;
-    RCLCPP_INFO(this->get_logger(),"rtvecEigen: %s",sss.str().c_str());
-
-    ImageRedemptionBoxCornerPoints.clear();
-    for(const auto & i : ObjRedemptionBoxCornerPointEigen){
-        Eigen::Matrix<double,3,1> coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
-        coordination/=coordination(2);
-        ImageRedemptionBoxCornerPoints.push_back(cv::Point2i(coordination(0),coordination(1)));
-        
-        std::stringstream ss;
-        ss<<cameraMatrixEigen<<"\n"<<signMat<<"\n"<<rtvecEigen<<"\n"<<i<<"\n"<<coordination;
-        RCLCPP_INFO(this->get_logger(),"Node : %s",ss.str().c_str());
-
-    }
-
-    Counter corners;
-    for(const auto & i : Object2cornersEigen){
-        Eigen::Matrix<double,3,1> coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
-        coordination/=coordination(2);
-        corners.push_back(cv::Point2i(coordination(0),coordination(1)));
-    }
-
-    #ifdef arrow_draw
-    
-    cv::drawContours(OriginalImage_,Counters{corners},-1,cv::Scalar(225,0,0),5);
-
-    cv::drawContours(OriginalImage_,Counters{ImageRedemptionBoxCornerPoints},-1,cv::Scalar(225,0,0),3);
-
-    cv::putText(OriginalImage_,ss.str().c_str(),cv::Point(0,0),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,0,0));
-    #endif
-
-    //fill msg
-
-    Eigen::Matrix<double,4,1> Center3D=rtvecEigen*frontfacecenter;
-    Eigen::Matrix<double,4,1> CenterVectorz3D=rtvecEigen*Eigen::Matrix<double,4,1>(0,0,-1,1);
-    Center3D/=Center3D(3);
-    CenterVectorz3D/=CenterVectorz3D(3);
-
-
-    interfaces::msg::RedeemBoxPosition::SharedPtr msg=std::make_shared<interfaces::msg::RedeemBoxPosition>();
-
-    msg->center.x=Center3D(0);
-    msg->center.y=Center3D(1);
-    msg->center.z=Center3D(2);
-
-    for(int i=0;i<4;i++) for(int e=0;e<4;e++) msg->homogeneous_transformation_matrix.push_back(rtvecEigen(i,e));
-
-    msg->rvec=rvec;
-    msg->tvec=tvec;
-
-    msg->header.frame_id="/sensor/camera";
-    msg->header.stamp=this->now();
-
-    RedeemBoxPosition_publisher_->publish(*msg);
 
     geometry_msgs::msg::TransformStamped box_to_camera;
 
@@ -155,29 +96,8 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
 
     # ifdef arrow_draw
-
-    std::vector<cv::Point> reput_arrow;
-
-    std::vector<int> index={0,2,3,1,5,4};
-
-    for(auto i : index){
-        Eigen::Matrix<double,3,1> new_i=cameraMatrixEigen*signMat*rtvecEigen*objpointsEigen[i];
-        new_i(0)/=new_i(2);
-        reput_arrow.push_back(cv::Point(new_i(0),new_i(1)));
-        RCLCPP_INFO(this->get_logger(),"reput_arrow %ld %ld",reput_arrow.back().x,reput_arrow.back().y);
-    }
-
-    // cv::drawContours(OriginalImage_,Counters{reput_arrow},-1,cv::Scalar(225,0,0),3);
-    Eigen::Matrix<double,3,1> Center2D=cameraMatrixEigen*signMat*Center3D;
-    Eigen::Matrix<double,3,1> CenterVectorz2D=cameraMatrixEigen*signMat*CenterVectorz3D;
-    Center2D/=Center2D(2);
-    CenterVectorz2D/=CenterVectorz2D(2);
-
-    cv::line(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),cv::Scalar(225,200,100));
-
-    cv::circle(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),1,cv::Scalar(223,225,133),-1);
-    cv::putText(OriginalImage_,"center",cv::Point(Center2D(0),Center2D(1)),cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
-    
+    DrawPnPResult(rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,20));
+    DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(50,50));
     auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
@@ -185,13 +105,96 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
     cv::imshow("pnp result",OriginalImage_);
 
-    cv::waitKey(22);
-
+    cv::waitKey(10);
     # endif
 
     RCLCPP_INFO(this->get_logger(),"PnPsolver finish");
     return 1;
 }
+
+void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos){
+    //check_valide
+    assert(((rvec.rows==3&&rvec.rows==1)||(rvec.rows==1&&rvec.rows==3))&&
+    ((tvec.rows==3&&tvec.rows==1)||(tvec.rows==1&&tvec.rows==3)));
+
+    for(int i=0;i<3;i++){
+        if(std::isnan(rvec.at<double>(i))||
+        std::isnan(tvec.at<double>(i))){
+            RCLCPP_WARN(this->get_logger(),"DrawPnPResult : tvec or rvec have nan");
+            return;
+        }
+    }
+
+    cv::Mat rmat;
+    Eigen::Matrix<double,4,4> rtvecEigen;
+
+    std::stringstream rvecss;
+    std::stringstream tvecss; 
+
+    std::vector<cv::Point> RedemptionBox;
+    std::vector<cv::Point> Line;
+
+    cv::Rodrigues(rvec,rmat);
+    rvecss<<"rvec: "<<rvec.at<double>(0)/CV_PI*180<<" "<<rvec.at<double>(1)/CV_PI*180<<" "<<rvec.at<double>(2)/CV_PI*180<<std::endl;
+    tvecss<<"tvec: "<<tvec;
+
+    for(int i=0;i<3;i++){
+        for(int e=0;e<3;e++){
+            rtvecEigen(i,e)=rmat.at<double>(i,e);
+        }
+        rtvecEigen(i,3)=tvec.at<double>(i);
+    }
+    for(int i=0;i<3;i++) rtvecEigen(3, i) = 0.0;
+    rtvecEigen(3, 3) = 1.0;
+
+    for(const auto & i : ObjRedemptionBoxCornerPointEigen){
+        Eigen::Matrix<double,3,1> coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
+        coordination/=coordination(2);
+        RedemptionBox.push_back(cv::Point2i(coordination(0),coordination(1)));
+    }
+    for(const auto & i : Object2cornersEigen){
+        Eigen::Matrix<double,3,1> coordination=cameraMatrixEigen*signMat*rtvecEigen*i;
+        coordination/=coordination(2);
+        Line.push_back(cv::Point2i(coordination(0),coordination(1)));
+    }
+
+    Eigen::Matrix<double,4,1> Center3D=rtvecEigen*frontfacecenter;
+    Eigen::Matrix<double,4,1> CenterVectorz3D=rtvecEigen*Eigen::Matrix<double,4,1>(0,0,-1,1);
+    Center3D/=Center3D(3);
+    CenterVectorz3D/=CenterVectorz3D(3);
+    Eigen::Matrix<double,3,1> Center2D=cameraMatrixEigen*signMat*Center3D;
+    Eigen::Matrix<double,3,1> CenterVectorz2D=cameraMatrixEigen*signMat*CenterVectorz3D;
+    Center2D/=Center2D(2);
+    CenterVectorz2D/=CenterVectorz2D(2);
+
+    std::vector<cv::Point> reput_arrow;
+    std::vector<int> indexArrowPoint={0,2,3,1,5,4};
+    for(auto i : indexArrowPoint){
+        Eigen::Matrix<double,3,1> new_i=cameraMatrixEigen*signMat*rtvecEigen*objpointsEigen[i];
+        new_i(0)/=new_i(2);
+        reput_arrow.push_back(cv::Point(new_i(0),new_i(1)));
+    }
+
+    cv::line(OriginalImage_,
+        cv::Point(Center2D(0),Center2D(1)),
+        cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),
+        color);
+    cv::circle(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),1,color,-1);
+    cv::putText(OriginalImage_,"center",
+        cv::Point(Center2D(0),Center2D(1)),
+        cv::FONT_HERSHEY_SIMPLEX,
+        1.0,
+        color);
+
+    cv::drawContours(OriginalImage_,Counters{Line},-1,color,thickness);
+
+    cv::drawContours(OriginalImage_,Counters{RedemptionBox},-1,color,thickness);
+
+    cv::putText(OriginalImage_,rvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    cv::putText(OriginalImage_,tvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    return;
+}
+
 void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     if(!rclcpp::ok()){
         rclcpp::shutdown();
@@ -235,13 +238,11 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     double HorizonThreshold=5,RThreshold=10,LThreshold=0;
     int NowMaxSize=0;
 
-    RCLCPP_INFO(this->get_logger(),"%ld",counters_.size());
+    // RCLCPP_INFO(this->get_logger(),"%ld",counters_.size());
     for(auto &counter_ :counters_){
         cv::RotatedRect rotatedrect_;
         try{
-            RCLCPP_INFO(this->get_logger(),"%ld",counter_.size());
             rotatedrect_=cv::minAreaRect(counter_);
-            RCLCPP_INFO(this->get_logger(),"%ld",counter_.size());
         }
         catch (cv::Exception & e){
             RCLCPP_WARN(this->get_logger(),"fail to find circle by minEnclosingCircle : %s",e.what());
@@ -261,7 +262,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         std::vector<double> approxcurve_length;
         double Average_4=0,Average_rest=0,approxcurve_length_rate=-1;
 
-        RCLCPP_INFO(this->get_logger(),"approxcurve2d : %ld",approxcurve2d.size());
+        // RCLCPP_INFO(this->get_logger(),"approxcurve2d : %ld",approxcurve2d.size());
         if(approxcurve2d.size()>=6){
             RCLCPP_INFO(this->get_logger(),"turn into approxcurve2d");
             for(int siz_approxcurve2d=approxcurve2d.size(),i=approxcurve2d.size()-1;i>=0;i--){
@@ -585,7 +586,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         //     continue;
         // }
         FittedLines.push_back(line);
-        RCLCPP_INFO(this->get_logger(),"Line Info : %lf %lf %lf %lf",line[0],line[1],line[2],line[3]);
+        // RCLCPP_INFO(this->get_logger(),"Line Info : %lf %lf %lf %lf",line[0],line[1],line[2],line[3]);
     }
 
     if(FittedLines.size()!=6){

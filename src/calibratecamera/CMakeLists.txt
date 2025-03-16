@@ -21,6 +21,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 add_executable(calibrate_camera src/CalibrateCamera.cpp)
 
@@ -31,6 +32,9 @@ ament_target_dependencies(calibrate_camera
   sensor_msgs
   cv_bridge
 )
+
+target_link_libraries(calibrate_camera yaml-cpp::yaml-cpp)
+
 
 install(TARGETS
   calibrate_camera
