@@ -1,6 +1,6 @@
 #include "DetectArrow.hpp"
 
 
-void Arrow_detector::PointCloudeInit(){
+// void Arrow_detector::PointCloudeInit(){
     
-}
+// }
