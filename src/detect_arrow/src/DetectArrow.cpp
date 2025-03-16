@@ -96,8 +96,9 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
 
     # ifdef arrow_draw
-    DrawPnPResult(rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,20));
-    DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(50,50));
+    DrawPnPResult(rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(30,10));
+    DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(60,10));
+    DrawPnPResult(rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(60,10));
     auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
