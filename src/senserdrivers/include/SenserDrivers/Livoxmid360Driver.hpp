@@ -28,6 +28,8 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
+#include <yaml-cpp/yaml.h>
+
 // #define cloudelog
 
 using namespace std::placeholders;
@@ -109,6 +111,8 @@ public:
         pose_translate=Eigen::Vector3d::Zero();
         speed_translate=Eigen::Vector3d::Zero();
 
+        declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/src/config.yaml");
+        
         this->declare_parameter<double>("g",9.80665);
         g=this->get_parameter("g").as_double();
         

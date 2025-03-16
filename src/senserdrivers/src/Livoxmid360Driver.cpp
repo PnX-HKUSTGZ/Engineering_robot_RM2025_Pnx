@@ -141,17 +141,21 @@ void Mid360Driver::synchronous_pose(sensor_msgs::msg::Imu::SharedPtr msg){
 }
 
 void Mid360Driver::pub_pose(rclcpp::Time time){
+  YAML::Node config(this->get_parameter("Location").as_string()+"/src/config.yaml");
   geometry_msgs::msg::TransformStamped t;
+
+  YAML::Node mid360config=config["object_pos"]["mid360"];
+
   t.header.stamp =time;
   t.header.frame_id = "map";
   t.child_frame_id = "sensor/mid360";
-  t.transform.translation.x = this->pose_translate(0);
-  t.transform.translation.y = this->pose_translate(1);
-  t.transform.translation.z = this->pose_translate(2);
-  t.transform.rotation.x = this->pose_rotate(1);
-  t.transform.rotation.y = this->pose_rotate(2);
-  t.transform.rotation.z = this->pose_rotate(3);
-  t.transform.rotation.w = this->pose_rotate(0);
+  t.transform.translation.x = mid360config["translation"]["x"].as<double>();
+  t.transform.translation.y = mid360config["translation"]["y"].as<double>();
+  t.transform.translation.z = mid360config["translation"]["z"].as<double>();
+  t.transform.rotation.x = mid360config["rotate"]["x"].as<double>();
+  t.transform.rotation.y = mid360config["rotate"]["y"].as<double>();
+  t.transform.rotation.z = mid360config["rotate"]["z"].as<double>();
+  t.transform.rotation.w = mid360config["rotate"]["w"].as<double>();
   tf_broadcaster_->sendTransform(t);
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(), "tf broadcaster successfully.");
@@ -251,47 +255,3 @@ int main (int argc, const char *argv[]) {
     rclcpp::shutdown();
     return 0;
 }
-
-
-// test
-// int main (int argc, const char *argv[]) {
-//   rclcpp::init(argc, argv);
-//   auto pnode = std::make_shared<rclcpp::Node>("test");
-//   auto pub_=pnode->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/mid360/pointcloud",10);
-//   auto static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(pnode);
-//   geometry_msgs::msg::TransformStamped t;
-//   t.header.stamp =pnode->now();
-//   t.header.frame_id = "map";
-//   t.child_frame_id = "sensor/mid360";
-//   t.transform.translation.x = 0.0;
-//   t.transform.translation.y = 0.0;
-//   t.transform.translation.z = 0.0;
-//   t.transform.rotation.x = 0.0;
-//   t.transform.rotation.y = 0.0;
-//   t.transform.rotation.z = 0.0;
-//   t.transform.rotation.w = 1.0;
-//   static_tf_broadcaster_->sendTransform(t);
-//   RCLCPP_INFO(pnode->get_logger(), "tf broadcaster successfully.");
-//   pcl::PointCloud<pcl::PointXYZ> cloud_pcl;
-//   cloud_pcl.width=2;
-//   cloud_pcl.height=1;
-//   cloud_pcl.points.resize(cloud_pcl.width*cloud_pcl.height);
-//   cloud_pcl.points[0].x=1;
-//   cloud_pcl.points[0].y=1;
-//   cloud_pcl.points[0].z=0;
-//   cloud_pcl.points[1].x=-1;
-//   cloud_pcl.points[1].y=-1;
-//   cloud_pcl.points[1].z=0;
-//   sensor_msgs::msg::PointCloud2 cloud_msg;
-//   pcl::toROSMsg(cloud_pcl,cloud_msg);
-//   cloud_msg.header.frame_id="/sensor/mid360";
-//   cloud_msg.header.stamp=pnode->get_clock()->now();
-//   auto a=pnode->create_wall_timer(std::chrono::milliseconds(100),[&](){
-//     pub_->publish(cloud_msg);
-//     RCLCPP_INFO(pnode->get_logger(),"publish point cloud.");
-//   });
-//   a->call();
-//   rclcpp::spin(pnode);
-//   rclcpp::shutdown();
-//   return 0;
-// }

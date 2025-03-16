@@ -98,6 +98,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     # ifdef arrow_draw
     DrawPnPResult(rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,20));
     DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(50,50));
+    DrawPnPResult(rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(100,100));
     auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
@@ -856,26 +857,26 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
 
     static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
 
+    geometry_msgs::msg::TransformStamped to_map;
+
+    to_map.header.frame_id="map";
+    to_map.child_frame_id="sensor/camera";
+    to_map.header.stamp=this->now();
+    to_map.transform.rotation.w=config["object_pos"]["camera"]["rotate"]["w"].as<double>();
+    to_map.transform.rotation.x=config["object_pos"]["camera"]["rotate"]["x"].as<double>();
+    to_map.transform.rotation.y=config["object_pos"]["camera"]["rotate"]["y"].as<double>();
+    to_map.transform.rotation.z=config["object_pos"]["camera"]["rotate"]["z"].as<double>();
+    to_map.transform.translation.x=config["object_pos"]["camera"]["translation"]["x"].as<double>();
+    to_map.transform.translation.y=config["object_pos"]["camera"]["translation"]["y"].as<double>();
+    to_map.transform.translation.z=config["object_pos"]["camera"]["translation"]["z"].as<double>();
+
+    static_tf_broadcaster_camera_to_map->sendTransform(to_map);
+
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
         rclcpp::shutdown();
     }
-
-    geometry_msgs::msg::TransformStamped to_map;
-
-    to_map.child_frame_id="map";
-    to_map.header.frame_id="sensor/camera";
-    to_map.header.stamp=this->now();
-    to_map.transform.rotation.w=0.7071068;
-    to_map.transform.rotation.x=0.7071068;
-    to_map.transform.rotation.y=0;
-    to_map.transform.rotation.z=0;
-    to_map.transform.translation.x=0;
-    to_map.transform.translation.y=0;
-    to_map.transform.translation.z=0;
-
-    static_tf_broadcaster_camera_to_map->sendTransform(to_map);
 
 }
 
