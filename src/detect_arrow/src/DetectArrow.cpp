@@ -97,8 +97,8 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
     # ifdef arrow_draw
     DrawPnPResult(rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,20));
-    DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(50,50));
-    DrawPnPResult(rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(100,100));
+    DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(20,80));
+    DrawPnPResult(rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(20,140));
     auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
@@ -192,7 +192,7 @@ void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, c
     cv::drawContours(OriginalImage_,Counters{RedemptionBox},-1,color,thickness);
 
     cv::putText(OriginalImage_,rvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
-    cv::putText(OriginalImage_,tvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    cv::putText(OriginalImage_,tvecss.str().c_str(),cv::Point(textpos.x,textpos.y+25),cv::FONT_HERSHEY_SIMPLEX,1.0,color);
     return;
 }
 
