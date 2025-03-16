@@ -214,7 +214,7 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
   geometry_msgs::msg::TransformStamped transform_box_to_arm;
   try
   {
-    transform_box_to_arm = tf_buffer->lookupTransform("object/arm", "object/box", this->now(), rclcpp::Duration::from_seconds(1));
+    transform_box_to_arm = tf_buffer->lookupTransform("object/box", "object/arm", this->now(), rclcpp::Duration::from_seconds(1));
   }
   catch (tf2::TransformException &ex)
   {
