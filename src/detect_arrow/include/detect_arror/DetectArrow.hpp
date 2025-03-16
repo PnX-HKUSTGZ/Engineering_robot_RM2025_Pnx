@@ -26,14 +26,14 @@
 #include <tf2/time.h>
 #include <tf2_ros/buffer.h>
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/common/transforms.h>
+// #include <pcl/point_cloud.h>
+// #include <pcl/point_types.h>
+// #include <pcl_conversions/pcl_conversions.h>
+// #include <pcl/common/transforms.h>
 
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
+// #include <message_filters/subscriber.h>
+// #include <message_filters/synchronizer.h>
+// #include <message_filters/sync_policies/approximate_time.h>
 
 #define arrow_draw
 #define Imageshow
@@ -133,23 +133,23 @@ class Arrow_detector:public rclcpp::Node{
 
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_map;
 
-public: //pcl manage
-    template <typename PointT>
-    pcl::PointCloud<PointT> PointCloudTransformer(const pcl::PointCloud<PointT>& inputcloud,
-    std::string sourceframe,
-    std::string targetframe);
+// public: //pcl manage
+//     template <typename PointT>
+//     pcl::PointCloud<PointT> PointCloudTransformer(const pcl::PointCloud<PointT>& inputcloud,
+//     std::string sourceframe,
+//     std::string targetframe);
 
-private:
-    message_filters::Subscriber<sensor_msgs::msg::PointCloud2> msgfillter_cloudpoint_sub;
-    message_filters::Subscriber<sensor_msgs::msg::Image> msgfillter_image_sub;
+// private:
+//     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> msgfillter_cloudpoint_sub;
+//     message_filters::Subscriber<sensor_msgs::msg::Image> msgfillter_image_sub;
 
-    // set sync policy as Approximate
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
-    typedef message_filters::Synchronizer<SyncPolicy> Sync;
-    std::shared_ptr<Sync> sync_;
+//     // set sync policy as Approximate
+//     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
+//     typedef message_filters::Synchronizer<SyncPolicy> Sync;
+//     std::shared_ptr<Sync> sync_;
 
-    // Init Function for pointcloud part;
-    void PointCloudeInit();
+//     // Init Function for pointcloud part;
+//     void PointCloudeInit();
 };
 
 typedef std::pair<int,int> pii;

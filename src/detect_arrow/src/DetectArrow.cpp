@@ -878,7 +878,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
         rclcpp::shutdown();
     }
 
-    PointCloudeInit();
+    // PointCloudeInit();
 
 }
 
