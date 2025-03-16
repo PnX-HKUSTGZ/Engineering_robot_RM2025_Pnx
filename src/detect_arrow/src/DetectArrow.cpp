@@ -160,13 +160,20 @@ void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, c
     }
 
     Eigen::Matrix<double,4,1> Center3D=rtvecEigen*frontfacecenter;
-    Eigen::Matrix<double,4,1> CenterVectorz3D=rtvecEigen*Eigen::Matrix<double,4,1>(0,0,-1,1);
+    std::vector<Eigen::Matrix<double,4,1>> Vectorz3D={rtvecEigen*Eigen::Matrix<double,4,1>(1,0,0,1),
+        rtvecEigen*Eigen::Matrix<double,4,1>(0,1,0,1),
+        rtvecEigen*Eigen::Matrix<double,4,1>(0,0,1,1)};
     Center3D/=Center3D(3);
-    CenterVectorz3D/=CenterVectorz3D(3);
+    for(auto& i : Vectorz3D){
+        i/=i(3);
+    }
     Eigen::Matrix<double,3,1> Center2D=cameraMatrixEigen*signMat*Center3D;
-    Eigen::Matrix<double,3,1> CenterVectorz2D=cameraMatrixEigen*signMat*CenterVectorz3D;
+    std::vector<Eigen::Matrix<double,3,1>> CenterVectorz2D;
+    for(auto Vectorz3D_:Vectorz3D){
+        CenterVectorz2D.push_back(cameraMatrixEigen*signMat*Vectorz3D_);
+        CenterVectorz2D.back()/=CenterVectorz2D.back()(2);
+    }
     Center2D/=Center2D(2);
-    CenterVectorz2D/=CenterVectorz2D(2);
 
     std::vector<cv::Point> reput_arrow;
     std::vector<int> indexArrowPoint={0,2,3,1,5,4};
@@ -176,10 +183,27 @@ void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, c
         reput_arrow.push_back(cv::Point(new_i(0),new_i(1)));
     }
 
-    cv::line(OriginalImage_,
-        cv::Point(Center2D(0),Center2D(1)),
-        cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),
-        color);
+    std::vector<std::string> label_xyz={"X","Y","Z"};
+
+    for(int i=0;i<3;i++){
+        cv::line(OriginalImage_,
+            cv::Point(Center2D(0),Center2D(1)),
+            cv::Point(CenterVectorz2D[i](0),CenterVectorz2D[i](1)),
+            color);
+        
+        cv::putText(OriginalImage_,
+            label_xyz[i].c_str(),
+            cv::Point(Center2D(0),Center2D(1))+cv::Point(CenterVectorz2D[i](0),CenterVectorz2D[i](1))/70,
+            cv::FONT_HERSHEY_SIMPLEX,
+            1.0,
+            color);
+        
+    }
+
+    // cv::line(OriginalImage_,
+    //     cv::Point(Center2D(0),Center2D(1)),
+    //     cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),
+    //     color);
     cv::circle(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),1,color,-1);
     cv::putText(OriginalImage_,"center",
         cv::Point(Center2D(0),Center2D(1)),
