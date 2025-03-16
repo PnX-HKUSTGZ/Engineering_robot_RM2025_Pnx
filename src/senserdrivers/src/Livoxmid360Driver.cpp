@@ -12,12 +12,12 @@ void PointCloudCallback(uint32_t handle, const uint8_t dev_type, LivoxLidarEther
   #endif
   // void*(dev_type);
   // void*(client_data);
-  if (data == nullptr) {
-      return;
-    }
+  if(data == nullptr) {
+    return;
+  }
     // RCLCPP_INFO(rclcpp::get_logger("Mid360Driver:PointCloudCallback"),"point cloud handle: %u, data_num: %d, data_type: %d, length: %d, frame_counter: %d\n",
     //     handle, data->dot_num, data->data_type, data->length, data->frame_cnt);
-    node->PublishPointCloud(data);
+  node->PublishPointCloud(data);
 }
 
 void Mid360Driver::PublishPointCloud(const LivoxLidarEthernetPacket* data) {
@@ -26,29 +26,6 @@ void Mid360Driver::PublishPointCloud(const LivoxLidarEthernetPacket* data) {
         return;
     }
     node->addPoint(data);
-    // LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
-    // pcl::PointCloud<pcl::PointXYZ> cloud;
-    // sensor_msgs::msg::PointCloud2 cloud_msg;
-    // int cloud_siz=0;
-    // for(size_t i=0;i<data->dot_num;i++) cloud_siz += (p_point_data[i].tag == 0);
-    // cloud.height=1;
-    // cloud.width=cloud_siz;
-    // cloud.is_dense=true;
-    // cloud.points.resize(cloud.height*cloud.width);
-
-    // for(size_t i=0,j=0;i<data->dot_num;i++){
-    //     if(p_point_data[i].tag == 0){
-    //         cloud.points[j].x=p_point_data[i].x/1000.0;
-    //         cloud.points[j].y=p_point_data[i].y/1000.0;
-    //         cloud.points[j].z=p_point_data[i].z/1000.0;
-    //         RCLCPP_INFO(this->get_logger(),"point: %f, %f, %f, %f",cloud.points[j].x,cloud.points[j].y,cloud.points[j].z);
-    //         j++;
-    //     }
-    // }
-    // pcl::toROSMsg(cloud,cloud_msg);
-    // cloud_msg.header.frame_id="/sensor/mid360";
-    // cloud_msg.header.stamp=node->get_clock()->now();
-    // point_cloud_pub_->publish(cloud_msg);
 }
 
 void Mid360Driver::PublishIMU(const LivoxLidarEthernetPacket* data){
@@ -74,88 +51,33 @@ Eigen::Vector4d quaternionMultiply(const Eigen::Vector4d& q1, const Eigen::Vecto
   );
 }
 
-void Mid360Driver::update_pose_rotate(double dt,sensor_msgs::msg::Imu::SharedPtr msg){
-  double gx=msg->angular_velocity.x;
-  double gy=msg->angular_velocity.y;
-  double gz=msg->angular_velocity.z;
-  double ax=msg->linear_acceleration.x*g;
-  double ay=msg->linear_acceleration.y*g;
-  double az=msg->linear_acceleration.z*g;
-  Eigen::Vector3d accel(ax,ay,az);
-  Eigen::Vector4d omega_gyro(0,gx,gy,gz);
-  Eigen::Vector4d q_dot = 0.5 * quaternionMultiply(this->pose_rotate,omega_gyro);
-  // 一阶积分
-  this->pose_rotate = this->pose_rotate + q_dot * dt;
-  this->pose_rotate.normalize();
-
-  if (accel.norm() < 1e-6) return;
-
-  accel.normalize();
-  Eigen::Vector3d grav_pred(
-    2*(this->pose_rotate[1]*this->pose_rotate[3] - this->pose_rotate[0]*this->pose_rotate[2]),
-    2*(this->pose_rotate[0]*this->pose_rotate[1] + this->pose_rotate[2]*this->pose_rotate[3]),
-    this->pose_rotate[0]*this->pose_rotate[0] - this->pose_rotate[1]*this->pose_rotate[1] - this->pose_rotate[2]*this->pose_rotate[2] + this->pose_rotate[3]*this->pose_rotate[3]
-  );
-
-  Eigen::Vector3d error = accel.cross(grav_pred);
-
-  Eigen::Vector3d correction = (1 - this->alpha) * error;
-  Eigen::Vector3d gyro_corrected(
-    gx + correction.x(),
-    gy + correction.y(),
-    gz + correction.z()
-  );
-
-  Eigen::Vector4d omega_accl = Eigen::Vector4d(0,gyro_corrected.x(),gyro_corrected.y(),gyro_corrected.z());
-  q_dot = 0.5 * quaternionMultiply(this->pose_rotate,omega_accl);
-
-  this->pose_rotate = this->pose_rotate + q_dot * dt;
-
-  this->pose_rotate(1) /= this->pose_rotate(0);
-  this->pose_rotate(2) /= this->pose_rotate(0);
-  this->pose_rotate(3) /= this->pose_rotate(0);
-  this->pose_rotate(0) = 1;
-}
-
-void Mid360Driver::update_pose_translate(double dt,sensor_msgs::msg::Imu::SharedPtr msg){
-  Eigen::Vector3d acc_body=Eigen::Vector3d(msg->linear_acceleration.x,msg->linear_acceleration.y,msg->linear_acceleration.z);
-  Eigen::Vector3d acc_world=Eigen::Quaterniond(this->pose_rotate)*acc_body;
-  //减去重力
-  RCLCPP_INFO(this->get_logger(),"acc_body: %f, %f, %f",acc_body(0),acc_body(1),acc_body(2));
-  acc_body(2)=acc_body(2)-1;
-  acc_body *=this->g;
-  this->speed_translate=this->speed_translate+acc_world*dt;
-  this->pose_translate=this->pose_translate+this->speed_translate*dt;
-}
-
 
 void Mid360Driver::synchronous_pose(sensor_msgs::msg::Imu::SharedPtr msg){
   // RCLCPP_INFO(this->get_logger(),"synchronous_pose called.");
-  rclcpp::Time now_time=this->get_clock()->now();
+  // rclcpp::Time now_time=this->get_clock()->now();
   // double dt= (now_time-msg->header.stamp).seconds();
 
   // this->update_pose_rotate(dt,msg);
   // this->update_pose_translate(dt,msg);
-  this->pub_pose(now_time);
+  // this->pub_pose(now_time);
 
 }
 
 void Mid360Driver::pub_pose(rclcpp::Time time){
-  YAML::Node config(this->get_parameter("Location").as_string()+"/src/config.yaml");
   geometry_msgs::msg::TransformStamped t;
 
-  YAML::Node mid360config=config["object_pos"]["mid360"];
+  YAML::Node mid360posconfig=config["object_pos"]["mid360"];
 
   t.header.stamp =time;
   t.header.frame_id = "map";
   t.child_frame_id = "sensor/mid360";
-  t.transform.translation.x = mid360config["translation"]["x"].as<double>();
-  t.transform.translation.y = mid360config["translation"]["y"].as<double>();
-  t.transform.translation.z = mid360config["translation"]["z"].as<double>();
-  t.transform.rotation.x = mid360config["rotate"]["x"].as<double>();
-  t.transform.rotation.y = mid360config["rotate"]["y"].as<double>();
-  t.transform.rotation.z = mid360config["rotate"]["z"].as<double>();
-  t.transform.rotation.w = mid360config["rotate"]["w"].as<double>();
+  t.transform.translation.x = mid360posconfig["translation"]["x"].as<double>();
+  t.transform.translation.y = mid360posconfig["translation"]["y"].as<double>();
+  t.transform.translation.z = mid360posconfig["translation"]["z"].as<double>();
+  t.transform.rotation.x = mid360posconfig["rotate"]["x"].as<double>();
+  t.transform.rotation.y = mid360posconfig["rotate"]["y"].as<double>();
+  t.transform.rotation.z = mid360posconfig["rotate"]["z"].as<double>();
+  t.transform.rotation.w = mid360posconfig["rotate"]["w"].as<double>();
   tf_broadcaster_->sendTransform(t);
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(), "tf broadcaster successfully.");
@@ -231,10 +153,6 @@ void QueryInternalInfoCallback(livox_status status, uint32_t handle,
 void ImuDataCallback(uint32_t handle, const uint8_t dev_type,  LivoxLidarEthernetPacket* data, void* client_data){
   if(data==nullptr) return;
   if(data->data_type!=kLivoxLidarImuData) return;
-  #ifdef cloudelog
-  RCLCPP_INFO(rclcpp::get_logger("Mid360Driver:PointCloudCallback"),"ImuDataCallback called. imu handle: %u, data_num: %d, data_type: %d, length: %d, frame_counter: %d\n"
-    ,handle, data->dot_num, data->data_type, data->length, data->frame_cnt);
-  #endif
   node->PublishIMU(data);
 }
 
@@ -244,6 +162,122 @@ void mid360_init(){
   // SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, nullptr);
   SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, nullptr);
   RCLCPP_INFO(node->get_logger(), "SetCallBack successfully.");
+}
+
+Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
+: Node("mid360_driver", options) {
+    // init pose
+    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
+    config=YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
+    start_time=this->now();
+    buffertime=config["mid_360"]["buffertime"].as<int>();
+
+    if(config["camera"]){
+      RCLCPP_INFO(this->get_logger(),"okk");
+    }
+
+    std::ifstream iff(this->get_parameter("Location").as_string()+"/src/config.yaml");
+    configpath=this->get_parameter("Location").as_string()+"src/senserdrivers/config/mid360_config.json";
+    RCLCPP_INFO(this->get_logger(),"mid360_configpath:%s",configpath.c_str());
+    RCLCPP_INFO(this->get_logger(),"Location config : %s",(this->get_parameter("Location").as_string()+"/src/config.yaml").c_str());
+
+    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+    tf_static_transform_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+
+    geometry_msgs::msg::TransformStamped t;
+
+    
+    t.header.stamp =this->now();
+    t.header.frame_id = "map";
+    t.child_frame_id = "sensor/mid360";
+    t.transform.translation.x = config["object_pos"]["mid360"]["translation"]["x"].as<double>();
+    t.transform.translation.y = config["object_pos"]["mid360"]["translation"]["y"].as<double>();
+    t.transform.translation.z = config["object_pos"]["mid360"]["translation"]["z"].as<double>();
+    t.transform.rotation.x = config["object_pos"]["mid360"]["rotate"]["x"].as<double>();
+    t.transform.rotation.y = config["object_pos"]["mid360"]["rotate"]["y"].as<double>();
+    t.transform.rotation.z = config["object_pos"]["mid360"]["rotate"]["z"].as<double>();
+    t.transform.rotation.w = config["object_pos"]["mid360"]["rotate"]["w"].as<double>();
+    tf_static_transform_broadcaster->sendTransform(t);
+
+    RCLCPP_INFO(this->get_logger(), "tf broadcaster successfully.");
+
+    if (!LivoxLidarSdkInit(configpath.c_str())) {
+        RCLCPP_ERROR(this->get_logger(), "LivoxLidarSdkInit failed.");
+        LivoxLidarSdkUninit();
+        rclcpp::shutdown();
+    }
+    else RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
+
+    cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(buffertime),[&](){
+        publishCloud();
+    });
+
+    point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud", 10);
+    imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("sensor/mid360/imu", 10);
+    frame_id="sensor/mid360";
+
+}
+
+void Mid360Driver::addPoint(const LivoxLidarEthernetPacket* data) {
+  if((this->now()-start_time)>rclcpp::Duration::from_seconds(buffertime/1000.0)){
+    std::stringstream sss;
+    sss<<"now: "<<this->now().seconds()<<" "<<this->now().nanoseconds()<<
+      " start_time "<<start_time.seconds()<<" "<<start_time.nanoseconds()<<"  "
+      <<"buffertime "<<rclcpp::Duration::from_seconds(buffertime/1000).seconds()<<" "<<rclcpp::Duration::from_seconds(buffertime/1000).nanoseconds()
+      <<" (this->now()-start_time) "<<(this->now()-start_time).seconds()<<" "<<(this->now()-start_time).nanoseconds();
+      #ifdef cloudelog
+      RCLCPP_INFO(this->get_logger(),"addPoint time out, this call will not publish cloud. time %s",sss.str().c_str());
+      #endif
+      return;
+  }
+  else {
+      #ifdef cloudelog
+      RCLCPP_INFO(this->get_logger(),"addPoint time in, this call will publish cloud. size: %ld",data->dot_num);
+      #endif
+  }
+  LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
+  // mtx_cloud.lock();
+  for(size_t i=0;i<data->dot_num;i++){
+      if(p_point_data[i].tag != 0) continue;
+      cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
+      // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
+  }
+  cloud.width=cloud.size();
+  cloud.height=1;
+  cloud.is_dense=true;
+  // mtx_cloud.unlock();
+  #ifdef cloudelog
+  RCLCPP_INFO(this->get_logger(),"addPoint successfully.");
+  #endif
+}
+
+void Mid360Driver::publishCloud(builtin_interfaces::msg::Time time_) {
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  pcl::toROSMsg(cloud,cloud_msg);
+  cloud_msg.header.frame_id=frame_id;
+  cloud_msg.header.stamp=time_;
+  point_cloud_pub_->publish(cloud_msg);
+  #ifdef cloudelog
+  RCLCPP_INFO(this->get_logger(),"publishCloud successfully. size: %ld",cloud.size());
+  #endif
+  this->reset();
+}
+
+void Mid360Driver::reset() {
+  // mtx_cloud.lock();
+  #ifdef cloudelog
+  RCLCPP_INFO(this->get_logger(),"reset cloud buffer.");
+  #endif
+  start_time=this->now();
+  cloud.clear();
+  // mtx_cloud.unlock();
+}
+
+bool Mid360Driver::isoutoftime() {
+  // mtx_cloud.lock();
+  bool res=this->now()-start_time>rclcpp::Duration::from_seconds(buffertime/1000);
+  // mtx_cloud.unlock();
+  return res;
 }
 
 int main (int argc, const char *argv[]) {
