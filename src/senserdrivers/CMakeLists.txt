@@ -56,7 +56,10 @@ ament_target_dependencies(mid360_driver
   tf2_ros
 )
 
-target_link_libraries(mid360_driver livox_lidar_sdk_static)
+target_link_libraries(mid360_driver 
+  livox_lidar_sdk_static
+  yaml-cpp::yaml-cpp
+  )
 
 install(TARGETS 
   camera_driver

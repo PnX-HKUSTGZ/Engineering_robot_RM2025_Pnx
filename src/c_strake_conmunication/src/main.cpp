@@ -232,7 +232,7 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
                                                          1000 * transform_box_to_arm.transform.translation.y,
                                                          1000 * transform_box_to_arm.transform.translation.z};
   // result(1, 3) = 450;
-  // result(0, 3) = 150;
+  result(0, 3) = 450;
 
   // result<<1,0,0,0,
   // 0,1,0,0,
