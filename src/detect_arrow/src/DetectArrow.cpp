@@ -115,8 +115,8 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
 void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos){
     //check_valide
-    assert(((rvec.rows==3&&rvec.rows==1)||(rvec.rows==1&&rvec.rows==3))&&
-    ((tvec.rows==3&&tvec.rows==1)||(tvec.rows==1&&tvec.rows==3)));
+    assert(((rvec.rows==3&&rvec.cols==1)||(rvec.rows==1&&rvec.cols==3))&&
+    ((tvec.rows==3&&tvec.cols==1)||(tvec.rows==1&&tvec.cols==3)));
 
     for(int i=0;i<3;i++){
         if(std::isnan(rvec.at<double>(i))||
@@ -219,7 +219,7 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     MainDetectArrow(originalframe);
 }
 
-bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
+std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     std::vector<cv::Vec2f> lines;
     Counters counters_;
     Counter isarrow;
@@ -417,7 +417,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(isarrow.empty()){
         RCLCPP_WARN(this->get_logger(),"fail to find arrow!");
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"find arrow!");
 
@@ -448,7 +448,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(RightAnglePeaks.size()!=2){
         RCLCPP_WARN(this->get_logger(),"RightAnglePeaks.size != 2");
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"finish dichotomy and find two right angle peaks");
 
@@ -504,7 +504,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(ArrowPeaks[3]==cv::Point2d(0,0)||ArrowPeaks[2]==cv::Point2d(0,0)){
         RCLCPP_ERROR(this->get_logger(),"Fail to find midpoint of other two sides");
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"find midpoint of other two sides successfully");
 
@@ -568,13 +568,13 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(Endpoints.size()!=6){
         RCLCPP_WARN(this->get_logger(),"size of Endpoints : %ld which is not equal to 6",Endpoints.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"size of Endpoints : %ld",Endpoints.size());
 
     if(EndpointsIndex.size()!=6){
         RCLCPP_WARN(this->get_logger(),"size of Endpoints : %ld which is not equal to 6",EndpointsIndex.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"size of Endpoints : %ld",EndpointsIndex.size());
 
@@ -592,7 +592,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(FittedLines.size()!=6){
         RCLCPP_WARN(this->get_logger(),"size of FittedLines : %ld which is not equal to 6",FittedLines.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
     RCLCPP_INFO(this->get_logger(),"finish find lines");
@@ -604,7 +604,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     # endif
 
     //第二次迭代顶点储存
-    std::vector<cv::Point2f> ArrowPeaks_;
+    std::vector<cv::Point2d> ArrowPeaks_;
     
     static std::vector<std::pair<std::pair<int,int>,std::pair<int,int> > > MapOfIntersectionsLines={
         std::make_pair(std::make_pair(0,4),std::make_pair(0,2)),
@@ -644,7 +644,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         jjj++;
     }
 
-    if(index1.size()==0||index2.size()==0) return 0;
+    if(index1.size()==0||index2.size()==0) return std::vector<cv::Point2d>();
 
     std::vector<cv::Point> allindex=index1;
 
@@ -697,30 +697,30 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(ArrowPeaks_.size()!=8){
         RCLCPP_ERROR(this->get_logger(),"Fail to find all peaks, size of ArrowPeaks_ : %ld",ArrowPeaks_.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"find all peaks successfully");
 
     // filter_.Update(ArrowPeaks_);
-    this->ArrowPeaks.clear();
+    // this->ArrowPeaks.clear();
     // for(auto & i : ArrowPeaks) this->ArrowPeaks.push_back(i);
     // this->ArrowPeaks.push_back(ArrowPeaks_[6]);
     // this->ArrowPeaks.push_back(ArrowPeaks_[7]);
-    for(auto & i : ArrowPeaks_) this->ArrowPeaks.push_back(i);
+    // for(auto & i : ArrowPeaks_) this->ArrowPeaks.push_back(i);
+    return ArrowPeaks_;
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
-    return 1;
 }
 
 bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
     cv::Mat Binary=PreProgress(OriginalImage);
 
-    bool HaveArrow=TargetArrow(Binary);
-    if(!HaveArrow){
+    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary);
+    if(!TargetArrowResult.size()){
         RCLCPP_INFO(this->get_logger(),"fail to target arrow.");
         return 0;
     }
 
-    PnPsolver(ArrowPeaks,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
+    PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
 
     return 1;
 }
