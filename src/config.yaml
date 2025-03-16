@@ -64,8 +64,15 @@ arrow_detect:
   ArrowDetectorLongShortRateMax: 20.
   ArrowDetectorLongShortRateMin: 5.
 
-rotate:
-  w: 0.7071068
-  x: 0.7071068
-  y: 0
-  z: 0
+object_pos:
+  arm:
+    translation:
+      x: 0
+      y: 0
+      z: 0
+    rotate:
+      w: 0.7071068
+      x: 0
+      y: 0
+      z: 0.7071068
+
