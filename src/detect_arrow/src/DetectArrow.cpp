@@ -729,13 +729,17 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
 }
 
 cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
+
+    cv::Mat undis_Image;
+    cv::undistort(OriginalImage,undis_Image,cameraMatrix,distCoeffs);
+
     std::vector<cv::Mat> SplitImage;
     //通道顺序为BGR
-    cv::split(OriginalImage,SplitImage);
+    cv::split(undis_Image,SplitImage);
 
     #ifdef arrow_draw
 
-    cv::imshow("OriginalImage",OriginalImage);
+    cv::imshow("OriginalImage",undis_Image);
 
     #endif
     
@@ -788,7 +792,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     try{
 
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx");
-    YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
+    config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
     cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
     distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
     for(int i=0;i<9;i++){

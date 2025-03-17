@@ -3,6 +3,8 @@
 
 void Arrow_detector::PointCloudeInit(){
 
+    YAML::Node PCLManagerConfig=config["arrow_detect"]["PCLManager"];
+
     tf2_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_listener_=std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_,this);
 
@@ -18,6 +20,9 @@ void Arrow_detector::PointCloudeInit(){
     pcl_test_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10);
 
     # endif
+
+    ransacDistanceThreshold=PCLManagerConfig["ransacDistanceThreshold"].as<double>();
+    ransacMaxIterations=PCLManagerConfig["ransacMaxIterations"].as<int>();
 
     RCLCPP_INFO(this->get_logger(),"finish init PointCloudeInit");
 
@@ -113,6 +118,55 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
 
     # endif
 
+    
+
+}
+
+bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> & pointcloud, Counter2d CornerPoints, cv::Mat & tvec, cv::Mat & rvec){
+    
+    pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(
+        std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(pointcloud)));
+    pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model);
+    ransac.setDistanceThreshold(ransacDistanceThreshold);
+    ransac.setMaxIterations(ransacMaxIterations);
+    ransac.computeModel();
+
+    // useful index of pointcloud
+    std::vector<int> inliers;
+    // Ax+By+Cz+D=0
+    Eigen::VectorXf coefficient;
+    std::vector<cv::Point3d> Points3D;
+
+    ransac.getInliers(inliers);
+    ransac.getModelCoefficients(coefficient);
+
+    ImagePointTo3DPoint_Plant(CornerPoints,coefficient,Points3D);
+
+    RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant OK!");
+
+    
+
+}
+
+bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, Eigen::VectorXf plant, std::vector<cv::Point3d> Points3D){
+    Points3D.clear();
+
+    std::vector<Eigen::Matrix<double,3,1>> Points3DnoZEigen;
+
+    for(auto &i : Points2D){
+        Eigen::Matrix<double,3,1> Point2dlin,Point3dnoZlin;
+        Point2dlin<<i.x,i.y,1;
+        Point3dnoZlin=InverseCameraMatrixEigen*Point2dlin;
+        Point3dnoZlin/=Point3dnoZlin(2);
+        Points3DnoZEigen.push_back(std::move(Point3dnoZlin));
+    }
+
+    for(auto & i : Points3DnoZEigen){
+        double Z=CalculatePlantEquality(plant,std::vector<double>{i(0),i(1)},2);
+        Points3D.push_back(cv::Point3d(i(0),i(1),Z));
+    }
+
+    return 0;
 }
 
 bool Arrow_detector::inCircle(const cv::Point2f & Center,

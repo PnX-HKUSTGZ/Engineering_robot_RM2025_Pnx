@@ -32,6 +32,8 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/common/transforms.h>
+#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -139,6 +141,8 @@ class Arrow_detector:public rclcpp::Node{
 
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_map;
 
+    YAML::Node config;
+
 public: //pcl manage
     template <typename PointT>
     pcl::PointCloud<PointT> PointCloudTransformer(const pcl::PointCloud<PointT>& inputcloud,
@@ -174,11 +178,28 @@ private:
         const float & CornerPointsRadius,
         const Eigen::Matrix<double,3,1>& TestPoint);
 
+    // idea1 get plant first and using the limit of plant to get the possition of corner points and then get the trvec
+    bool GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> &pointcloud, 
+        Counter2d CornerPoints, 
+        cv::Mat & tvec, 
+        cv::Mat & rvec);
+    
+    // kown a plant and know the 2D points are on that plant
+    // get the 3D points according to these
+    // @param Points2D 2D point on plant
+    // @param plant Eigen::VectorXf plant Ax+By+Cz+D=0
+    // @param Points3D 
+    bool ImagePointTo3DPoint_Plant(const Counter2d& Points2D, Eigen::VectorXf plant, std::vector<cv::Point3d> Points3D);
+
+
     # ifdef test_pcl_manage
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_test_point_cloud_pub;
 
     # endif
+
+    double ransacDistanceThreshold;
+    int ransacMaxIterations;
 
 };
 
@@ -255,5 +276,11 @@ void subopix(const cv::Mat& GrayImage, std::vector<cv::Point2d>& pointset, cv::S
 
 template<typename T,typename G>
 bool IsPointSame(cv::Point_<T> point1,cv::Point_<G> point2);
+
+
+// @param plant plant equality is Ax+By+Cz+D=0
+// @param coff two of X,Y,Z in order
+// @param emptyplace UN need to get index begin with 0
+double CalculatePlantEquality(Eigen::VectorXf plant,std::vector<double> coff,int emptyplace);
 
 #endif

@@ -65,6 +65,9 @@ arrow_detect:
   ArrowDetectorapproxPolyDPEpsilon: 10.
   ArrowDetectorLongShortRateMax: 20.
   ArrowDetectorLongShortRateMin: 5.
+  PCLManager:
+    ransacDistanceThreshold: 0.001
+    ransacMaxIterations: 100
 
 mid_360:
   buffertime: 200 # ms int
