@@ -126,3 +126,13 @@ bool Arrow_detector::inCircle(const cv::Point2f & Center,
     
     return distance_2<=CornerPointsRadius*CornerPointsRadius;
 }
+
+/*
+接下来的思路：
+
+我们发现以确定的坐标轴和原点得到准确坐标的路径有两个
+
+1. 先拟合平面，然后再根据拟合出来的平面，算出得到的角点的空间位置
+2. 直接通过选择的角点，得到的直线，从已知的点云中选择点来组成坐标系
+3. 直接边缘拟合，得到边框的确切边缘，然后用数学关系直接求得兑换框中心点位置
+*/

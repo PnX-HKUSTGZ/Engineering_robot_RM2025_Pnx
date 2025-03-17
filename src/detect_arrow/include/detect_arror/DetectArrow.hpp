@@ -110,6 +110,8 @@ class Arrow_detector:public rclcpp::Node{
     std::vector<double> cameraMatrix;
     // 相机外参 Eigen
     Eigen::Matrix<double,3,3> cameraMatrixEigen;
+    // 相机外参 Eigen Inverse
+    Eigen::Matrix<double,3,3> InverseCameraMatrixEigen;
     // 相机内参
     std::vector<double> distCoeffs;
     // 箭头上的点

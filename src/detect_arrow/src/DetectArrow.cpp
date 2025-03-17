@@ -794,6 +794,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     for(int i=0;i<9;i++){
         cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
     }
+    InverseCameraMatrixEigen=cameraMatrixEigen.inverse();
     for(int i=0;i<8;i++){
         const std::vector<double> & arrowPoints=config["arrow"]["arrowPoints"][i].as<std::vector<double>>();
         objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
@@ -818,7 +819,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     );
     signMat<<1,0,0,0,
         0,1,0,0,
-        0,0,1,0;
+        0,0,0,1;
     
     ArrowDetectorPixelNumMax=config["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
     ArrowDetectorPixelNumMin=config["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
