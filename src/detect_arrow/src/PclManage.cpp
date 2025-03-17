@@ -127,7 +127,7 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     cv::Mat tvec,rvec;
     GetTRvecPointCloud_PC(CloudPointOnArrow,CornerPoints,tvec,rvec);
 
-    DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,20));
+    DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,40));
 
     cv::imshow("OriginalImage_pcl",OriginalImage_pcl);
     cv::waitKey(20);
@@ -153,8 +153,8 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
     ransac.getModelCoefficients(coefficient);
 
     ImagePointTo3DPoint_Plant(CornerPoints,coefficient,Points3D);
-    RCLCPP_INFO(this->get_logger(),"Points3D size %d",Points3D.size());
-    RCLCPP_INFO(this->get_logger(),"CornerPoints size %d",CornerPoints.size());
+    // RCLCPP_INFO(this->get_logger(),"Points3D size %d",Points3D.size());
+    // RCLCPP_INFO(this->get_logger(),"CornerPoints size %d",CornerPoints.size());
 
 
     KabschAlgorithm(Points3D,objpoints,tvec,rvec);
@@ -173,7 +173,7 @@ bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const 
         Point3dnoZlin=InverseCameraMatrixEigen*Point2dlin;
         Point3dnoZlin/=Point3dnoZlin(2);
         Points3DnoZEigen.push_back(std::move(Point3dnoZlin));
-        RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant Count!");
+        // RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant Count!");
     }
     RCLCPP_INFO(this->get_logger(),"Points3DnoZEigen size %ld",Points3DnoZEigen.size());
 
@@ -181,7 +181,7 @@ bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const 
         double Z=CalculatePlantEquality(plant,std::vector<double>{i(0),i(1)},2);
         Points3D.push_back(cv::Point3d(i(0),i(1),Z));
     }
-    RCLCPP_INFO(this->get_logger(),"Points3D size %ld",Points3D.size());
+    // RCLCPP_INFO(this->get_logger(),"Points3D size %ld",Points3D.size());
 
     RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant OK!");
     return 0;

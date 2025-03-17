@@ -193,7 +193,7 @@ void Arrow_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, const c
     cv::drawContours(Image,Counters{RedemptionBox},-1,color,thickness);
 
     cv::putText(Image,rvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
-    cv::putText(Image,tvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    cv::putText(Image,tvecss.str().c_str(),cv::Point(textpos.x,textpos.y+20),cv::FONT_HERSHEY_SIMPLEX,1.0,color);
     return;
 }
 
