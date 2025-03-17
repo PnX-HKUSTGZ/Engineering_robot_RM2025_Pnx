@@ -283,4 +283,10 @@ bool IsPointSame(cv::Point_<T> point1,cv::Point_<G> point2);
 // @param emptyplace UN need to get index begin with 0
 double CalculatePlantEquality(Eigen::VectorXf plant,std::vector<double> coff,int emptyplace);
 
+// KabschAlgorithm
+bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
+    const std::vector<cv::Point3d>& Target,
+    cv::Mat & tvec,
+    cv::Mat & rvec);
+
 #endif

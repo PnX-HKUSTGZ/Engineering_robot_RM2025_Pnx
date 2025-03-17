@@ -398,3 +398,69 @@ double CalculatePlantEquality(Eigen::VectorXf plant,std::vector<double> coff,int
 
     return ans;
 }
+
+bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
+    const std::vector<cv::Point3d>& Target,
+    cv::Mat & tvec,
+    cv::Mat & rvec){
+
+    assert(Source.size()==Target.size());
+    tvec=cv::Mat(cv::Size(3,1),CV_64F);
+    rvec=cv::Mat(cv::Size(3,1),CV_64F);
+
+    std::vector<Eigen::Matrix<double,3,1>> SourceEigen(Source.size());
+    std::vector<Eigen::Matrix<double,3,1>> TargetEigen(Target.size());
+    Eigen::Matrix<double,3,1> source_centroid;
+    Eigen::Matrix<double,3,1> target_centroid;
+    std::vector<Eigen::Matrix<double,3,1>> centered_source(Source.size());
+    std::vector<Eigen::Matrix<double,3,1>> centered_target(Source.size());
+
+    for(int siz=Source.size(),i=0;i<siz;i++){
+        SourceEigen[i]<<Source[i].x,Source[i].y,Source[i].z;
+        TargetEigen[i]<<Target[i].x,Target[i].y,Target[i].z;
+        source_centroid+=SourceEigen[i]/siz;
+        target_centroid+=TargetEigen[i]/siz;
+    }
+
+    for(int siz=Source.size(),i=0;i<siz;i++){
+        centered_source[i]=SourceEigen[i]-source_centroid;
+        centered_target[i]=TargetEigen[i]-target_centroid;
+    }
+
+    Eigen::Matrix<double,3,3> H=Eigen::Matrix<double,3,3>::Zero();
+
+    for(int siz=Source.size(),i=0;i<siz;i++){
+        H+=centered_source[i]*centered_source[i].transpose();
+    }
+
+    // SVD
+    Eigen::JacobiSVD<Eigen::Matrix<double,3,3>> SVD(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d U = SVD.matrixU();
+    Eigen::Matrix3d V = SVD.matrixV();
+
+    // Handle reflection (ensure proper rotation)
+    Eigen::Matrix3d S = Eigen::Matrix3f::Identity();
+    if (U.determinant() * V.determinant() < 0) {
+        S(2, 2) = -1; // Flip the sign of the last column of V
+    }
+
+    Eigen::Matrix<double,3,3> rotation;
+    Eigen::Matrix<double,3,1> translation;
+    cv::Mat rotation33(cv::Size(3,3),CV_64F);
+
+    // Compute rotation matrix
+    rotation = V * S * U.transpose();
+
+    // Compute translation vector
+    translation = target_centroid - rotation * source_centroid;
+
+    for(int i=0;i<3;i++){
+        for(int e=0;e<3;e++){
+            rotation33.at<double>(i,e)=rotation(i,e);
+        }
+        tvec.at<double>(i)=translation(i);
+    }
+    cv::Rodrigues(rotation33,rvec);
+
+    return 1;
+}

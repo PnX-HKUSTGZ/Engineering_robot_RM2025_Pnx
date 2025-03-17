@@ -118,7 +118,10 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
 
     # endif
 
-    
+    cv::Mat tvec,rvec;
+    GetTRvecPointCloud_PC(CloudPointOnArrow,CornerPoints,tvec,rvec);
+
+    DrawPnPResult(rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,20));
 
 }
 
@@ -144,7 +147,7 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
 
     RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant OK!");
 
-    
+    KabschAlgorithm(Points3D,objpoints,tvec,rvec);
 
 }
 
