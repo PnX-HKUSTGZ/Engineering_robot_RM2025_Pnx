@@ -75,33 +75,33 @@ mid_360:
 object_pos:
   arm: # arm to map
     translation:
-      x: 0
-      y: 0
-      z: 0
+      x: 0.
+      y: 0.
+      z: 0.
     rotate:
       w: 0.7071068
-      x: 0
-      y: 0
+      x: 0.
+      y: 0.
       z: 0.7071068
   camera: # camera to map
     translation:
-      x: 0
-      y: 0
+      x: 0.
+      y: 0.
       z: 0.01443
     rotate:
       w: 0.7071068
       x: -0.7071068
-      y: 0
-      z: 0
+      y: 0.
+      z: 0.
   mid360: # mid360 to map
     translation:
       x: 0.06623
       y: -0.03333
       z: 0.047
     rotate:
-      w: 0
-      x: 0
-      y: 0
-      z: 1
+      w: 0.
+      x: 0.
+      y: 0.
+      z: 1.
   
 

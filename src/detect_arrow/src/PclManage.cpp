@@ -36,11 +36,31 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     geometry_msgs::msg::TransformStamped transform;
 
     try{
-        transform=tf2_buffer_->lookupTransform("sensor/mid360",
-            cloud_time_point,
+        // transform=tf2_buffer_->lookupTransform(
+        //     "sensor/mid360",
+        //     cloud_time_point,
+        //     "sensor/camera",
+        //     image_time_point,
+        //     "map");
+        transform=tf2_buffer_->lookupTransform(
+            "sensor/mid360",
             "sensor/camera",
-            image_time_point,
-            "map");
+            this->now()
+            );
+
+        #ifdef test_pcl_manage
+        std::stringstream transformsss;
+        transformsss<<"rotation: "<<
+        transform.transform.rotation.x<<" "<<
+        transform.transform.rotation.y<<" "<<
+        transform.transform.rotation.z<<" "<<
+        transform.transform.rotation.w<<"\n";
+        transformsss<<"translation: "<<
+        transform.transform.translation.x<<" "<<
+        transform.transform.translation.y<<" "<<
+        transform.transform.translation.z;
+        RCLCPP_INFO(this->get_logger(),"transform %s",transformsss.str().c_str());
+        #endif
     }
     catch (tf2::TransformException &ex){
         RCLCPP_WARN(this->get_logger(),"[ImageCloudPointCallBack]: %s",ex.what());
@@ -120,7 +140,9 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     inarrowPointCloudRos.header.frame_id="sensor/camera";
     inarrowPointCloudRos.header.stamp=this->now();
     RCLCPP_INFO(this->get_logger(),"Before %ld After %ld",CloudPointpcl.size(),CloudPointOnArrow.size());
-    pcl_test_point_cloud_pub->publish(inarrowPointCloudRos);
+    TransformedCloudPoint.header.frame_id="sensor/camera";
+    TransformedCloudPoint.header.stamp=this->now();
+    pcl_test_point_cloud_pub->publish(TransformedCloudPoint);
 
     # endif
 
