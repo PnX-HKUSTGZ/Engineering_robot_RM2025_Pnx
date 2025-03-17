@@ -404,6 +404,8 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
     cv::Mat & tvec,
     cv::Mat & rvec){
 
+    RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Source.size() : %d",Source.size());
+    RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Target.size() : %d",Target.size());
     assert(Source.size()==Target.size());
     tvec=cv::Mat(cv::Size(3,1),CV_64F);
     rvec=cv::Mat(cv::Size(3,1),CV_64F);
@@ -439,7 +441,7 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
     Eigen::Matrix3d V = SVD.matrixV();
 
     // Handle reflection (ensure proper rotation)
-    Eigen::Matrix3d S = Eigen::Matrix3f::Identity();
+    Eigen::Matrix3d S = Eigen::Matrix3d::Identity();
     if (U.determinant() * V.determinant() < 0) {
         S(2, 2) = -1; // Flip the sign of the last column of V
     }

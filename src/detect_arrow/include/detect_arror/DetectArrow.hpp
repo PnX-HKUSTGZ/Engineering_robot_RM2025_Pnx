@@ -26,7 +26,7 @@
 #include <tf2/time.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
-#include "tf2_sensor_msgs/tf2_sensor_msgs.h"
+#include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -48,6 +48,26 @@
 
 using namespace std::chrono;
 using namespace std::placeholders;
+
+typedef std::pair<int,int> pii;
+
+typedef cv::Vec2f LineAL;
+typedef std::vector<LineAL> LineALs;
+typedef LineAL Line;
+typedef LineALs Lines;
+
+//Ax+By+C=0
+struct LineABC{
+    double a,b,c;
+};
+
+typedef std::vector<std::vector<cv::Point>> Counters;
+typedef std::vector<cv::Point> Counter;
+typedef std::vector<std::vector<cv::Point2d>> Counter2ds;
+typedef std::vector<cv::Point2d> Counter2d;
+
+//normalize vector with a point on the line
+typedef cv::Vec4d LineVP;
 
 class Arrow_detector:public rclcpp::Node{
     public:
@@ -76,9 +96,9 @@ class Arrow_detector:public rclcpp::Node{
     bool PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
         cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
     bool MainDetectArrow(const cv::Mat & OriginalImage);
-    std::vector<cv::Point2d> TargetArrow(const cv::Mat & BinaryImage);
+    std::vector<cv::Point2d> TargetArrow(const cv::Mat & BinaryImage,cv::Mat & Image);
 
-    void DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
+    void DrawPnPResult(cv::Mat & Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
 
     // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
     // cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
@@ -189,7 +209,7 @@ private:
     // @param Points2D 2D point on plant
     // @param plant Eigen::VectorXf plant Ax+By+Cz+D=0
     // @param Points3D 
-    bool ImagePointTo3DPoint_Plant(const Counter2d& Points2D, Eigen::VectorXf plant, std::vector<cv::Point3d> Points3D);
+    bool ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const Eigen::VectorXf & plant, std::vector<cv::Point3d> &Points3D);
 
 
     # ifdef test_pcl_manage
@@ -203,20 +223,6 @@ private:
 
 };
 
-typedef std::pair<int,int> pii;
-
-typedef cv::Vec2f LineAL;
-typedef std::vector<LineAL> LineALs;
-typedef LineAL Line;
-typedef LineALs Lines;
-
-//Ax+By+C=0
-struct LineABC{
-    double a,b,c;
-};
-
-//normalize vector with a point on the line
-typedef cv::Vec4d LineVP;
 
 LineAL GetLineAL(const LineVP & l);
 LineAL GetLineAL(const LineABC & l);
@@ -239,11 +245,6 @@ struct Slope{
     int p1,p2;
     double slope;
 };
-
-typedef std::vector<std::vector<cv::Point>> Counters;
-typedef std::vector<cv::Point> Counter;
-typedef std::vector<std::vector<cv::Point2d>> Counter2ds;
-typedef std::vector<cv::Point2d> Counter2d;
 
 double GetAngleAccordingToHorizon(cv::Point p1,cv::Point p2);
 

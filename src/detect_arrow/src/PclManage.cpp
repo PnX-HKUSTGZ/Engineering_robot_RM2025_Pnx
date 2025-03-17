@@ -63,7 +63,7 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     // Target Arrow
 
     cv::Mat BinaryImage=this->PreProgress(OriginalImage_pcl);
-    Counter2d CornerPoints=this->TargetArrow(BinaryImage);
+    Counter2d CornerPoints=this->TargetArrow(BinaryImage,OriginalImage_pcl);
 
     if(!CornerPoints.size()){
         RCLCPP_INFO(this->get_logger(),"target fail");
@@ -74,7 +74,13 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     cv::Point2f CornerPointsCenter;
     float CornerPointsRadius;
 
-    cv::minEnclosingCircle(CornerPoints, CornerPointsCenter, CornerPointsRadius);
+    cv::minEnclosingCircle([&CornerPoints](){
+        std::vector<cv::Point2f> ans;
+        for(auto & i : CornerPoints){
+            ans.push_back(cv::Point2f(i.x,i.y));
+        }
+        return ans;
+    }(), CornerPointsCenter, CornerPointsRadius);
 
     //preprocesse pointcloud
 
@@ -121,7 +127,10 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     cv::Mat tvec,rvec;
     GetTRvecPointCloud_PC(CloudPointOnArrow,CornerPoints,tvec,rvec);
 
-    DrawPnPResult(rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,20));
+    DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,20));
+
+    cv::imshow("OriginalImage_pcl",OriginalImage_pcl);
+    cv::waitKey(20);
 
 }
 
@@ -144,14 +153,16 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
     ransac.getModelCoefficients(coefficient);
 
     ImagePointTo3DPoint_Plant(CornerPoints,coefficient,Points3D);
+    RCLCPP_INFO(this->get_logger(),"Points3D size %d",Points3D.size());
+    RCLCPP_INFO(this->get_logger(),"CornerPoints size %d",CornerPoints.size());
 
-    RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant OK!");
 
     KabschAlgorithm(Points3D,objpoints,tvec,rvec);
+    return 1;
 
 }
 
-bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, Eigen::VectorXf plant, std::vector<cv::Point3d> Points3D){
+bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const Eigen::VectorXf & plant, std::vector<cv::Point3d> &Points3D){
     Points3D.clear();
 
     std::vector<Eigen::Matrix<double,3,1>> Points3DnoZEigen;
@@ -162,13 +173,17 @@ bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, Eigen:
         Point3dnoZlin=InverseCameraMatrixEigen*Point2dlin;
         Point3dnoZlin/=Point3dnoZlin(2);
         Points3DnoZEigen.push_back(std::move(Point3dnoZlin));
+        RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant Count!");
     }
+    RCLCPP_INFO(this->get_logger(),"Points3DnoZEigen size %ld",Points3DnoZEigen.size());
 
     for(auto & i : Points3DnoZEigen){
         double Z=CalculatePlantEquality(plant,std::vector<double>{i(0),i(1)},2);
         Points3D.push_back(cv::Point3d(i(0),i(1),Z));
     }
+    RCLCPP_INFO(this->get_logger(),"Points3D size %ld",Points3D.size());
 
+    RCLCPP_INFO(this->get_logger(),"ImagePointTo3DPoint_Plant OK!");
     return 0;
 }
 

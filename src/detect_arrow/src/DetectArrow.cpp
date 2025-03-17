@@ -30,9 +30,10 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
         cv::SOLVEPNP_IPPE
     );
 
+
     RCLCPP_INFO(this->get_logger(),"pnp solves num : %ld",rvecs.size());
     std::stringstream ss_vecs;
-    for(int i=0;i<rvecs.size();i++){
+    for(std::size_t i=0;i<rvecs.size();i++){
         ss_vecs<<"\n rvecs :"<< rvecs[i]<<std::endl;
         ss_vecs<<"\n tvecs :"<< tvecs[i]<<std::endl;
     }
@@ -46,7 +47,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
             return 0;
         }
     }
-    if(!PnPsuccess){
+    if(!PnPsuccess||!PnPsuccessed){
         RCLCPP_WARN(this->get_logger(),"PnP fail");
         return 0;
     }
@@ -96,9 +97,9 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
 
     # ifdef arrow_draw
-    DrawPnPResult(rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,20));
-    DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(50,50));
-    DrawPnPResult(rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(100,100));
+    DrawPnPResult(OriginalImage_,rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,20));
+    DrawPnPResult(OriginalImage_,rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(50,50));
+    DrawPnPResult(OriginalImage_,rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(100,100));
     auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
@@ -113,7 +114,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     return 1;
 }
 
-void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos){
+void Arrow_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos){
     //check_valide
     assert(((rvec.rows==3&&rvec.cols==1)||(rvec.rows==1&&rvec.cols==3))&&
     ((tvec.rows==3&&tvec.cols==1)||(tvec.rows==1&&tvec.cols==3)));
@@ -176,23 +177,23 @@ void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, c
         reput_arrow.push_back(cv::Point(new_i(0),new_i(1)));
     }
 
-    cv::line(OriginalImage_,
+    cv::line(Image,
         cv::Point(Center2D(0),Center2D(1)),
         cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),
         color);
-    cv::circle(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),1,color,-1);
-    cv::putText(OriginalImage_,"center",
+    cv::circle(Image,cv::Point(Center2D(0),Center2D(1)),1,color,-1);
+    cv::putText(Image,"center",
         cv::Point(Center2D(0),Center2D(1)),
         cv::FONT_HERSHEY_SIMPLEX,
         1.0,
         color);
 
-    cv::drawContours(OriginalImage_,Counters{Line},-1,color,thickness);
+    cv::drawContours(Image,Counters{Line},-1,color,thickness);
 
-    cv::drawContours(OriginalImage_,Counters{RedemptionBox},-1,color,thickness);
+    cv::drawContours(Image,Counters{RedemptionBox},-1,color,thickness);
 
-    cv::putText(OriginalImage_,rvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
-    cv::putText(OriginalImage_,tvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    cv::putText(Image,rvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    cv::putText(Image,tvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
     return;
 }
 
@@ -219,14 +220,13 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     MainDetectArrow(originalframe);
 }
 
-std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
+std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage, cv::Mat & Image){
     std::vector<cv::Vec2f> lines;
     Counters counters_;
     Counter isarrow;
     std::vector<cv::Point2d> arrowapproxcurve;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
-    // cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),1);
 
 
     cv::Point2f center;
@@ -279,7 +279,7 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
             //     RCLCPP_INFO(this->get_logger(),"approxcurve_length[]:%lf",i);
             // }
             for(int i=0;i<4;i++) Average_4+=approxcurve_length[i]/4;
-            for(int i=4;i<approxcurve_length.size();i++) Average_rest+=approxcurve_length[i]/(approxcurve_length.size()-3);
+            for(std::size_t i=4;i<approxcurve_length.size();i++) Average_rest+=approxcurve_length[i]/(approxcurve_length.size()-3);
             approxcurve_length_rate=Average_4/Average_rest;
         }
 
@@ -300,7 +300,7 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
         #ifdef TargetArrowtest
 
         cv::Mat copy_;
-        OriginalImage_.copyTo(copy_);
+        Image.copyTo(copy_);
 
         cv::Point2f rotatedrect_points_ptr[4];
         std::vector<cv::Point2f> rotatedrect_points;
@@ -408,8 +408,8 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
             arrowapproxcurve2i.push_back(cv::Point(i.x,i.y));
         }
         
-        cv::drawContours(OriginalImage_,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
-        cv::drawContours(OriginalImage_,Counters{arrowapproxcurve2i},-1,cv::Scalar(0,225,225),1);
+        cv::drawContours(Image,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
+        cv::drawContours(Image,Counters{arrowapproxcurve2i},-1,cv::Scalar(0,225,225),1);
 
         # endif
 
@@ -511,9 +511,9 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
     # ifdef arrow_draw
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
-        cv::circle(OriginalImage_,i,1,cv::Scalar(153,156,30),-1);
+        cv::circle(Image,i,1,cv::Scalar(153,156,30),-1);
         std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point2d(center)).cross(Centerline);PeaksCnt++;
-        cv::putText(OriginalImage_,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+        cv::putText(Image,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
 
     #endif
@@ -599,7 +599,7 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
 
     # ifdef arrow_draw
 
-    DrawLines(OriginalImage_,FittedLines,cv::Scalar(225,225,225),1);
+    DrawLines(Image,FittedLines,cv::Scalar(225,225,225),1);
 
     # endif
 
@@ -655,7 +655,7 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
     cv::fitLine(allindex,line_index,cv::DIST_L2,0,0.01,0.01);
 
     #ifdef arrow_draw
-    DrawLines(OriginalImage_,std::vector<LineVP>{line_index},cv::Scalar(225,225,225),1);
+    DrawLines(Image,std::vector<LineVP>{line_index},cv::Scalar(225,225,225),1);
     #endif
 
     std::vector<cv::Point2d> new_one(4);
@@ -669,14 +669,14 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
     for(int i=2;i<6;i++){
         ArrowPeaks_[i]=new_one[i-2];
     }
-    #endif twopath_inoneline
+    #endif //twopath_inoneline
 
     #ifdef arrow_draw
 
     for(int i=0;i<8;i++){
         // OriginalImage.at<cv::Vec3f>(int(ArrowPeaks_[i].y),int(ArrowPeaks_[i].x))=cv::Vec3f(0,0,0);
-        cv::circle(OriginalImage_,ArrowPeaks_[i],1,cv::Scalar(32,122,225),-1);
-        cv::putText(OriginalImage_,std::to_string(i),ArrowPeaks_[i],cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(32,122,225));
+        cv::circle(Image,ArrowPeaks_[i],1,cv::Scalar(32,122,225),-1);
+        cv::putText(Image,std::to_string(i),ArrowPeaks_[i],cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(32,122,225));
         RCLCPP_INFO(this->get_logger(),"Point %d: [%f,%f]",i,ArrowPeaks_[i].x,ArrowPeaks_[i].y);
     }
     #endif
@@ -690,7 +690,7 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
 
     # ifdef Imageshow
 
-    cv::imshow("finish one",OriginalImage_);
+    cv::imshow("finish one",Image);
     cv::waitKey(33);
 
     #endif
@@ -708,16 +708,16 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
     // this->ArrowPeaks.push_back(ArrowPeaks_[7]);
     // for(auto & i : ArrowPeaks_) this->ArrowPeaks.push_back(i);
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
-    return std::move(ArrowPeaks_);
+    return ArrowPeaks_;
 }
 
 bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
     #ifdef noMainDetectArrow
     return 0;
-    #endif noMainDetectArrow
+    #endif //noMainDetectArrow
     cv::Mat Binary=PreProgress(OriginalImage);
 
-    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary);
+    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary,OriginalImage_);
     if(!TargetArrowResult.size()){
         RCLCPP_INFO(this->get_logger(),"fail to target arrow.");
         return 0;
@@ -731,7 +731,15 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
 cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
     cv::Mat undis_Image;
-    cv::undistort(OriginalImage,undis_Image,cameraMatrix,distCoeffs);
+    cv::undistort(OriginalImage,undis_Image,[](std::vector<double> cameraMatrix){
+        cv::Mat ans(cv::Size(3,3),CV_64F);
+        for(int i=0;i<3;i++){
+            for(int e=0;e<3;e++){
+                ans.at<double>(i,e)=cameraMatrix[i*3+e];
+            }
+        }
+        return ans;
+    }(cameraMatrix),distCoeffs);
 
     std::vector<cv::Mat> SplitImage;
     //通道顺序为BGR
