@@ -6,9 +6,123 @@ void Arrow_detector::PointCloudeInit(){
     tf2_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_listener_=std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_,this);
 
-    msgfillter_cloudpoint_sub.subscribe(this,"/senser/mid360/point_cloud");
+    msgfillter_cloudpoint_sub.subscribe(this,"/sensor/mid360/point_cloud");
     msgfillter_image_sub.subscribe(this,"/sensor/image");
 
     sync_.reset(new Sync(SyncPolicy(10),msgfillter_cloudpoint_sub,msgfillter_image_sub));
-    sync_->registerCallback(std::bind(&Arrow_detector::ImageCloudPointCallBack,this));
+    sync_->setMaxIntervalDuration(rclcpp::Duration(1,0));
+    sync_->registerCallback(&Arrow_detector::ImageCloudPointCallBack,this);
+
+    # ifdef test_pcl_manage
+
+    pcl_test_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10);
+
+    # endif
+
+    RCLCPP_INFO(this->get_logger(),"finish init PointCloudeInit");
+
+}
+
+void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
+    const sensor_msgs::msg::Image::ConstSharedPtr& image_msg){
+    
+    tf2::TimePoint image_time_point = tf2::TimePoint(std::chrono::seconds(image_msg->header.stamp.sec)+std::chrono::nanoseconds(image_msg->header.stamp.nanosec));
+    tf2::TimePoint cloud_time_point = tf2::TimePoint(std::chrono::seconds(cloud_msg->header.stamp.sec)+std::chrono::nanoseconds(cloud_msg->header.stamp.nanosec));
+    geometry_msgs::msg::TransformStamped transform;
+
+    try{
+        transform=tf2_buffer_->lookupTransform("sensor/mid360",
+            cloud_time_point,
+            "sensor/camera",
+            image_time_point,
+            "map");
+    }
+    catch (tf2::TransformException &ex){
+        RCLCPP_WARN(this->get_logger(),"[ImageCloudPointCallBack]: %s",ex.what());
+        return;
+    }
+
+    //get Image
+    cv_bridge::CvImagePtr cv_ptr;
+    try{
+        cv_ptr=cv_bridge::toCvCopy(image_msg,sensor_msgs::image_encodings::BGR8);
+    }
+    catch(cv_bridge::Exception& e){
+        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        return;
+    }
+    cv::Mat originalframe=cv_ptr->image;
+    originalframe.copyTo(OriginalImage_pcl);
+    RCLCPP_INFO(this->get_logger(), "Get frame");
+
+    // Target Arrow
+
+    cv::Mat BinaryImage=this->PreProgress(OriginalImage_pcl);
+    Counter2d CornerPoints=this->TargetArrow(BinaryImage);
+
+    if(!CornerPoints.size()){
+        RCLCPP_INFO(this->get_logger(),"target fail");
+        return;
+    }
+
+    cv::Mat MaskCornerPoint(OriginalImage_pcl.size(),CV_8S);
+    cv::Point2f CornerPointsCenter;
+    float CornerPointsRadius;
+
+    cv::minEnclosingCircle(CornerPoints, CornerPointsCenter, CornerPointsRadius);
+
+    //preprocesse pointcloud
+
+    sensor_msgs::msg::PointCloud2 TransformedCloudPoint;
+    pcl::PointCloud<pcl::PointXYZ> CloudPointpcl;
+
+    pcl::PointCloud<pcl::PointXYZ> CloudPointOnArrow;
+    std::vector<Eigen::Matrix<double,3,1>> CloudPointImagePoint;
+    
+    tf2::doTransform(*cloud_msg,TransformedCloudPoint,transform);
+    pcl::fromROSMsg<pcl::PointXYZ>(TransformedCloudPoint,CloudPointpcl);
+
+    for(auto & i : CloudPointpcl){
+        if(i.z<0) continue;
+        Eigen::Matrix<double,4,1> cloudpointEigen;
+        Eigen::Matrix<double,3,1> imagePoint;
+        cloudpointEigen<<i.x, i.y, i.z, 1;
+
+        imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
+        imagePoint/=imagePoint(2);
+
+        if(0<=imagePoint(0)&&imagePoint(0)<=1280&&
+            0<=imagePoint(1)&&imagePoint(1)<=1080&&
+            inCircle(CornerPointsCenter,
+                CornerPointsRadius,
+                imagePoint)
+            ){
+                CloudPointOnArrow.push_back(i);
+                CloudPointImagePoint.push_back(std::move(imagePoint));
+        }
+    }
+
+    # ifdef test_pcl_manage
+
+    sensor_msgs::msg::PointCloud2 inarrowPointCloudRos;
+    pcl::toROSMsg<pcl::PointXYZ>(CloudPointOnArrow,inarrowPointCloudRos);
+    inarrowPointCloudRos.header.frame_id="sensor/camera";
+    inarrowPointCloudRos.header.stamp=this->now();
+    RCLCPP_INFO(this->get_logger(),"Before %ld After %ld",CloudPointpcl.size(),CloudPointOnArrow.size());
+    pcl_test_point_cloud_pub->publish(inarrowPointCloudRos);
+
+    # endif
+
+}
+
+bool Arrow_detector::inCircle(const cv::Point2f & Center,
+    const float & CornerPointsRadius,
+    const Eigen::Matrix<double,3,1>& TestPoint){
+
+    assert(CornerPointsRadius>0);
+
+    float distance_2=((TestPoint(0)-Center.x)*(TestPoint(0)-Center.x)+
+        (TestPoint(1)-Center.y)*(TestPoint(1)-Center.y));
+    
+    return distance_2<=CornerPointsRadius*CornerPointsRadius;
 }

@@ -105,6 +105,9 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
   tf_buffer = std::make_shared<tf2_ros::Buffer>(this->get_clock());
   tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer, this);
 
+  last_send_time=this->now();
+  interval_time=rclcpp::Time(0,20000000);
+
   RCLCPP_INFO(get_logger(), "c_strake_conmunication init finish");
 }
 
@@ -208,6 +211,10 @@ bool send1 = 0;
 
 void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPtr msg)
 {
+  if(rclcpp::Time((this->now()-last_send_time).seconds(),(this->now()-last_send_time).nanoseconds())<interval_time){
+    return;
+  }
+  last_send_time=this->now();
   const static std::map<std::string, uint8_t> id_unit8_map{
       {"", 0}, {"outpost", 0}, {"1", 1}, {"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"guard", 6}, {"base", 7}};
 

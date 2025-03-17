@@ -26,6 +26,7 @@
 #include <tf2/time.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include "tf2_sensor_msgs/tf2_sensor_msgs.h"
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -40,6 +41,8 @@
 #define Imageshow
 // #define TargetArrowtest
 #define twopath_inoneline
+#define test_pcl_manage
+#define noMainDetectArrow
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -152,11 +155,29 @@ private:
     tf2_ros::Buffer::SharedPtr tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
+    //OriginalImage_ for plc manage
+    cv::Mat OriginalImage_pcl;
+
     // Init Function for pointcloud part;
     void PointCloudeInit();
 
     void ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr& image_msg);
+    
+    template<typename T>
+    void DrawCircleMask(cv::Mat Image,std::vector<cv::Point_<T>> counter);
+
+    //in or on circle
+    bool inCircle(const cv::Point2f & Center,
+        const float & CornerPointsRadius,
+        const Eigen::Matrix<double,3,1>& TestPoint);
+
+    # ifdef test_pcl_manage
+
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_test_point_cloud_pub;
+
+    # endif
+
 };
 
 typedef std::pair<int,int> pii;

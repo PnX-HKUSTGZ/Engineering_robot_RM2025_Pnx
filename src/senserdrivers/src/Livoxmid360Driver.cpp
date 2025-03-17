@@ -236,7 +236,7 @@ void Mid360Driver::addPoint(const LivoxLidarEthernetPacket* data) {
       #endif
   }
   LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
-  // mtx_cloud.lock();
+  cloudmtx.lock();
   for(size_t i=0;i<data->dot_num;i++){
       if(p_point_data[i].tag != 0) continue;
       cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
@@ -245,18 +245,20 @@ void Mid360Driver::addPoint(const LivoxLidarEthernetPacket* data) {
   cloud.width=cloud.size();
   cloud.height=1;
   cloud.is_dense=true;
-  // mtx_cloud.unlock();
+  cloudmtx.unlock();
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(),"addPoint successfully.");
   #endif
 }
 
 void Mid360Driver::publishCloud(builtin_interfaces::msg::Time time_) {
+  cloudmtx.lock();
   sensor_msgs::msg::PointCloud2 cloud_msg;
   pcl::toROSMsg(cloud,cloud_msg);
   cloud_msg.header.frame_id=frame_id;
   cloud_msg.header.stamp=time_;
   point_cloud_pub_->publish(cloud_msg);
+  cloudmtx.unlock();
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(),"publishCloud successfully. size: %ld",cloud.size());
   #endif
@@ -268,8 +270,10 @@ void Mid360Driver::reset() {
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(),"reset cloud buffer.");
   #endif
+  cloudmtx.lock();
   start_time=this->now();
   cloud.clear();
+  cloudmtx.unlock();
   // mtx_cloud.unlock();
 }
 
