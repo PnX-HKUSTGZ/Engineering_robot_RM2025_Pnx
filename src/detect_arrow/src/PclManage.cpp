@@ -245,34 +245,24 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
         
     std::srand(this->now().nanoseconds()%100000);
     std::vector<cv::Point3d> RandomTranglePoints;
-    for(int i=0;i<3;i++){
-        int x=rand(),y=rand();
-        if(i==0) x=-0.01,y=-0.01;
-        if(i==1) x=0.001,y=-0.001;
-        if(i==2) x=0.001,y=0.001;
+    for(int i=0;i<10;i++){
+        double x=-0.0001*i,z=1.25;
+        double y=CalculatePlantEquality(coefficient,std::vector<double>{double(x),double(z)},1);
 
-        cv::Point3d inputome=cv::Point3d(x,y,CalculatePlantEquality(coefficient,std::vector<double>{double(x),double(y)},2));
+        if(std::isnan(y)) continue;
+
+        RCLCPP_INFO(this->get_logger(),"Plant3DPoints %lf, %lf, %lf",x,y,z);
+        cv::Point3d inputome=cv::Point3d(x,y,z);
         RandomTranglePoints.push_back(inputome);
 
-        if(std::abs(inputome.x*coefficient(0)+inputome.y*coefficient(1)+inputome.z*coefficient(2)+coefficient(3))>1e-9){
-            RCLCPP_ERROR(this->get_logger(),"CalculatePlantEquality fail");
-            cv::waitKey(0);
-        }
     }
 
     std::vector<cv::Point2d> PlantImagePoints = Points3to2Transform(cameraMatrixEigen,RandomTranglePoints);
 
     for(auto &i : PlantImagePoints){
         RCLCPP_INFO(this->get_logger(),"PlantImagePoints %lf, %lf",i.x,i.y);
+        cv::circle(OriginalImage_pcl,i,6,cv::Scalar(167,55,90),-1);
     }
-
-    cv::drawContours(OriginalImage_pcl,Counters{[&](){
-        Counter ans;
-        for(auto & i : PlantImagePoints){
-            ans.push_back(cv::Point(i.x,i.y));
-        }
-        return ans;
-    }()},-1,cv::Scalar(22,130,90),-1);
         
     sensor_msgs::msg::PointCloud2 msg;
     pcl::toROSMsg<pcl::PointXYZ>(ExtractedPointCloud,msg);

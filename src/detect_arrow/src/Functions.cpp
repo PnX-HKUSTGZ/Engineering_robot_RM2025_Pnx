@@ -387,14 +387,12 @@ template bool IsPointSame<double, int>(cv::Point_<double> point1,cv::Point_<int>
 double CalculatePlantEquality(Eigen::VectorXf plant,std::vector<double> coff,int emptyplace){
     assert(coff.size()==2&&emptyplace<=2&&plant.rows()==4);
     double lin=-plant(3);
-    int index=0;
     for(int i=0;i<3;i++){
         if(plant(i)==0){
             return NAN;
         }
         if(i==emptyplace) continue;
-        lin-=plant(i)*coff[index];
-        index++;
+        lin-=plant(i)*coff[i];
     }
     double ans=lin/plant(emptyplace);
 
