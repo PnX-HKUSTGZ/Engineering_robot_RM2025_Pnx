@@ -41,7 +41,7 @@ inline target_location fromVector(const std::vector<uint8_t> & data)
 inline std::vector<uint8_t> toVector(const target_location & data)
 {
   std::vector<uint8_t> packet(sizeof(target_location));
-  RCLCPP_INFO(rclcpp::get_logger("toVector"),"%d",sizeof(target_location));
+  RCLCPP_INFO(rclcpp::get_logger("toVector"),"%ld",sizeof(target_location));
   std::copy(
     reinterpret_cast<const uint8_t *>(&data),
     reinterpret_cast<const uint8_t *>(&data) + sizeof(target_location), packet.begin());

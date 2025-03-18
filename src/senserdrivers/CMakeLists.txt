@@ -13,7 +13,7 @@ include_directories("/usr/include/opencv4/")
 include_directories(${PROJECT_SOURCE_DIR}/include)
 link_directories(${PROJECT_SOURCE_DIR}/lib)
 
-link_libraries(/usr/local/lib)
+# link_libraries(/usr/local/lib)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
