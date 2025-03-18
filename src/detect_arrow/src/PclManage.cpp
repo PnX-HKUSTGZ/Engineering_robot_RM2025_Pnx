@@ -67,6 +67,16 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
         return;
     }
 
+    transform.transform.rotation.x=0;
+    transform.transform.rotation.y=-0.7071068;
+    transform.transform.rotation.z=0.7071068;
+    transform.transform.rotation.w=0;
+    transform.transform.translation.x=0.06623;
+    // transform.transform.translation.y=-0.0333;
+    transform.transform.translation.y=-0.03257;
+    // transform.transform.translation.z=0.03257;
+    transform.transform.translation.z=-0.0333;
+
     //get Image
     cv_bridge::CvImagePtr cv_ptr;
     try{
@@ -179,8 +189,12 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
     // RCLCPP_INFO(this->get_logger(),"CornerPoints size %d",CornerPoints.size());
 
 
-    KabschAlgorithm(Points3D,objpoints,tvec,rvec);
-    return 1;
+    bool KabschAlgorithmCheck=KabschAlgorithm(Points3D,objpoints,tvec,rvec);
+    if(KabschAlgorithmCheck){
+        RCLCPP_WARN(this->get_logger(),"KabschAlgorithm fail");
+        return KabschAlgorithmCheck;
+    }
+    return 0;
 
 }
 
@@ -201,6 +215,10 @@ bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const 
 
     for(auto & i : Points3DnoZEigen){
         double Z=CalculatePlantEquality(plant,std::vector<double>{i(0),i(1)},2);
+        if(std::isnan(Z)){
+            RCLCPP_WARN(this->get_logger(),"Points3DnoZEigen get nan");
+            return 1;
+        }
         Points3D.push_back(cv::Point3d(i(0),i(1),Z));
     }
     // RCLCPP_INFO(this->get_logger(),"Points3D size %ld",Points3D.size());

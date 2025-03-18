@@ -389,7 +389,9 @@ double CalculatePlantEquality(Eigen::VectorXf plant,std::vector<double> coff,int
     double lin=-plant(3);
     int index=0;
     for(int i=0;i<3;i++){
-        assert(plant(i)!=0);
+        if(plant(i)==0){
+            return NAN;
+        }
         if(i==emptyplace) continue;
         lin-=plant(i)*coff[index];
         index++;
@@ -406,7 +408,9 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
 
     RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Source.size() : %d",Source.size());
     RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Target.size() : %d",Target.size());
-    assert(Source.size()==Target.size());
+    if (Source.size()!=Target.size()){
+        return 0;
+    }
     tvec=cv::Mat(cv::Size(3,1),CV_64F);
     rvec=cv::Mat(cv::Size(3,1),CV_64F);
 
@@ -464,5 +468,5 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
     }
     cv::Rodrigues(rotation33,rvec);
 
-    return 1;
+    return 0;
 }

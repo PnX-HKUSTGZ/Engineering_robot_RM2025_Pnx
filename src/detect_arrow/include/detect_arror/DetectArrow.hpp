@@ -44,7 +44,7 @@
 // #define TargetArrowtest
 #define twopath_inoneline
 #define test_pcl_manage
-// #define noMainDetectArrow
+#define noMainDetectArrow
 
 using namespace std::chrono;
 using namespace std::placeholders;

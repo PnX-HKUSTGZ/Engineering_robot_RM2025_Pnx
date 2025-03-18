@@ -116,8 +116,11 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
 
 void Arrow_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos){
     //check_valide
-    assert(((rvec.rows==3&&rvec.cols==1)||(rvec.rows==1&&rvec.cols==3))&&
-    ((tvec.rows==3&&tvec.cols==1)||(tvec.rows==1&&tvec.cols==3)));
+    if(!(((rvec.rows==3&&rvec.cols==1)||(rvec.rows==1&&rvec.cols==3))&&
+    ((tvec.rows==3&&tvec.cols==1)||(tvec.rows==1&&tvec.cols==3)))){
+        RCLCPP_WARN(this->get_logger(),"DrawPnPResult assert fail");
+        return;
+    }
 
     for(int i=0;i<3;i++){
         if(std::isnan(rvec.at<double>(i))||
