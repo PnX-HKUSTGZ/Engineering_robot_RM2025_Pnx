@@ -470,3 +470,70 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
 
     return 0;
 }
+
+template<typename T,typename G>
+cv::Point_<double> Point3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const cv::Point3_<T> &point){
+    Eigen::Matrix<G,4,1> pointEigen;
+    Eigen::Matrix<G,3,1> ansEigen;
+    Eigen::Matrix<G,3,4> signMat;
+    signMat<<1,0,0,0,
+    0,1,0,0,
+    0,0,0,1;
+    pointEigen<<point.x,point.y,point.z,1;
+    ansEigen=cameraMatrixEigen*signMat*pointEigen;
+    ansEigen/=ansEigen(2);
+    return cv::Point2d(ansEigen(0),ansEigen(1));
+}
+
+template cv::Point_<double> Point3to2Transform< int, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const cv::Point3_<int> &point);
+template cv::Point_<double> Point3to2Transform< float, float> (const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const cv::Point3_<float> &point);
+template cv::Point_<double> Point3to2Transform< double, float>(const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const cv::Point3_<double> &point);
+template cv::Point_<double> Point3to2Transform< double, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const cv::Point3_<double> &point);
+
+template<typename T,typename G>
+std::vector<cv::Point_<double>> Points3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<T>> &points){
+    std::vector<cv::Point_<double>> ans;
+    for(auto & i : points){
+        ans.push_back(Point3to2Transform(cameraMatrixEigen,i));
+    }
+    return ans;
+}
+
+template std::vector<cv::Point_<double>> Points3to2Transform< int, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<int>> &points);
+template std::vector<cv::Point_<double>> Points3to2Transform< float, float> (const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<float>> &points);
+template std::vector<cv::Point_<double>> Points3to2Transform< double, float>(const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<double>> &points);
+template std::vector<cv::Point_<double>> Points3to2Transform< double, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<double>> &points);
+
+
+void DrawRotatedRect(cv::Mat &Image,const cv::RotatedRect& rect, const cv::Scalar &color, int thinkness){
+    cv::drawContours(Image,Counters{
+        [&](){
+            Counter ans;
+            cv::Point2f rotatedrect_points_ptr[4];
+            rect.points(rotatedrect_points_ptr);
+            for(int i=0;i<4;i++){
+                ans.push_back(cv::Point(rotatedrect_points_ptr[i].x,rotatedrect_points_ptr[i].y));
+            }
+            return ans;
+        }()
+    },-1,color,thinkness);
+}
+
+bool isPointInsideRotatedRect(const cv::Point2f& pt, const cv::RotatedRect& rect) {
+    // 将点平移到以矩形中心为原点的坐标系
+    cv::Point2f translated = pt - rect.center;
+    
+    // 计算旋转角度（弧度）及其三角函数值
+    float angle = rect.angle * CV_PI / 180.0f;
+    float cosA = std::cos(-angle);  // 逆旋转角度
+    float sinA = std::sin(-angle);
+    
+    // 应用逆旋转变换
+    float xRotated = translated.x * cosA - translated.y * sinA;
+    float yRotated = translated.x * sinA + translated.y * cosA;
+    
+    // 检查是否在未旋转的矩形范围内
+    float halfWidth = rect.size.width / 2.0f;
+    float halfHeight = rect.size.height / 2.0f;
+    return (std::abs(xRotated) <= halfWidth && std::abs(yRotated) <= halfHeight);
+}

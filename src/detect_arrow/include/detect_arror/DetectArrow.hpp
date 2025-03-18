@@ -14,6 +14,7 @@
 #include <thread>
 #include <algorithm>
 #include <sstream>
+#include <random>
 
 #include <yaml-cpp/yaml.h>
 
@@ -34,6 +35,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -289,5 +291,15 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
     const std::vector<cv::Point3d>& Target,
     cv::Mat & tvec,
     cv::Mat & rvec);
+
+template<typename T,typename G>
+cv::Point_<double> Point3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const cv::Point3_<T> &point);
+
+template<typename T,typename G>
+std::vector<cv::Point_<double>> Points3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<T>> &points);
+
+void DrawRotatedRect(cv::Mat &Image,const cv::RotatedRect& rect, const cv::Scalar &color, int thinkness=1);
+
+bool isPointInsideRotatedRect(const cv::Point2f& pt, const cv::RotatedRect& rect);
 
 #endif

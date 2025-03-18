@@ -101,16 +101,11 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     }
 
     cv::Mat MaskCornerPoint(OriginalImage_pcl.size(),CV_8S);
-    cv::Point2f CornerPointsCenter;
-    float CornerPointsRadius;
+    // cv::Point2f CornerPointsCenter;
+    // float CornerPointsRadius;
+    cv::RotatedRect rotateRectCounterPoints;
 
-    cv::minEnclosingCircle([&CornerPoints](){
-        std::vector<cv::Point2f> ans;
-        for(auto & i : CornerPoints){
-            ans.push_back(cv::Point2f(i.x,i.y));
-        }
-        return ans;
-    }(), CornerPointsCenter, CornerPointsRadius);
+    rotateRectCounterPoints=cv::minAreaRect(CornerPoints);
 
     //preprocesse pointcloud
 
@@ -130,13 +125,17 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
         cloudpointEigen<<i.x, i.y, i.z, 1;
 
         imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
-        imagePoint/=imagePoint(2);
+        # ifdef test_pcl_manage
 
+        // RCLCPP_INFO(this->get_logger(),"CloudPointpcl to imagePoint Oricloud [%lf,%lf,%lf,%lf]",cloudpointEigen(0),cloudpointEigen(1),cloudpointEigen(2),cloudpointEigen(3));
+        // RCLCPP_INFO(this->get_logger(),"CloudPointpcl to imagePoint transedcloud [%lf,%lf,%lf,%lf]",cloudpointEigen(0),cloudpointEigen(1),cloudpointEigen(2),cloudpointEigen(3));
+        // RCLCPP_INFO(this->get_logger(),"CloudPointpcl to imagePoint imagePoint [%lf,%lf,%lf]",imagePoint(0),imagePoint(1),imagePoint(2));
+
+        # endif
+        imagePoint/=imagePoint(2);
         if(0<=imagePoint(0)&&imagePoint(0)<=1280&&
             0<=imagePoint(1)&&imagePoint(1)<=1080&&
-            inCircle(CornerPointsCenter,
-                CornerPointsRadius,
-                imagePoint)
+            isPointInsideRotatedRect(cv::Point2f(imagePoint(0),imagePoint(1)),rotateRectCounterPoints)
             ){
                 CloudPointOnArrow.push_back(i);
                 CloudPointImagePoint.push_back(std::move(imagePoint));
@@ -145,6 +144,10 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
 
     # ifdef test_pcl_manage
 
+    for(auto i : CloudPointImagePoint){
+        cv::circle(OriginalImage_pcl,cv::Point(i(0),i(1)),1,cv::Scalar(22,33,130),-1);
+    }
+
     sensor_msgs::msg::PointCloud2 inarrowPointCloudRos;
     pcl::toROSMsg<pcl::PointXYZ>(CloudPointOnArrow,inarrowPointCloudRos);
     inarrowPointCloudRos.header.frame_id="sensor/camera";
@@ -152,7 +155,7 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     RCLCPP_INFO(this->get_logger(),"Before %ld After %ld",CloudPointpcl.size(),CloudPointOnArrow.size());
     TransformedCloudPoint.header.frame_id="sensor/camera";
     TransformedCloudPoint.header.stamp=this->now();
-    pcl_test_point_cloud_pub->publish(TransformedCloudPoint);
+    pcl_test_point_cloud_pub->publish(inarrowPointCloudRos);
 
     # endif
 
@@ -175,6 +178,7 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
     ransac.setMaxIterations(ransacMaxIterations);
     ransac.computeModel();
 
+
     // useful index of pointcloud
     std::vector<int> inliers;
     // Ax+By+Cz+D=0
@@ -184,9 +188,55 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
     ransac.getInliers(inliers);
     ransac.getModelCoefficients(coefficient);
 
-    ImagePointTo3DPoint_Plant(CornerPoints,coefficient,Points3D);
-    // RCLCPP_INFO(this->get_logger(),"Points3D size %d",Points3D.size());
-    // RCLCPP_INFO(this->get_logger(),"CornerPoints size %d",CornerPoints.size());
+    
+    bool ImagePointTo3DPoint_PlantCheck=ImagePointTo3DPoint_Plant(CornerPoints,coefficient,Points3D);
+    if(ImagePointTo3DPoint_PlantCheck){
+        RCLCPP_WARN(this->get_logger(),"ImagePointTo3DPoint_PlantCheck fail");
+        return 1;
+    }
+
+    # ifdef test_pcl_manage
+
+    std::stringstream coefficientsss;
+    coefficientsss<<"A :"<<coefficient(0)<<" ";
+    coefficientsss<<"B :"<<coefficient(1)<<" ";
+    coefficientsss<<"C :"<<coefficient(2)<<" ";
+    coefficientsss<<"D :"<<coefficient(3)<<" ";
+
+    RCLCPP_INFO(this->get_logger(),"coefficient %s",coefficientsss.str().c_str());
+        
+    std::srand(this->now().nanoseconds()%100000);
+    std::vector<cv::Point3d> RandomTranglePoints;
+    for(int i=0;i<3;i++){
+        int x=rand(),y=rand();
+        if(i==0) x=-0.01,y=-0.01;
+        if(i==1) x=0.001,y=-0.001;
+        if(i==2) x=0.001,y=0.001;
+
+        cv::Point3d inputome=cv::Point3d(x,y,CalculatePlantEquality(coefficient,std::vector<double>{double(x),double(y)},2));
+        RandomTranglePoints.push_back(inputome);
+
+        if(std::abs(inputome.x*coefficient(0)+inputome.y*coefficient(1)+inputome.z*coefficient(2)+coefficient(3))>1e-9){
+            RCLCPP_ERROR(this->get_logger(),"CalculatePlantEquality fail");
+            cv::waitKey(0);
+        }
+    }
+
+    std::vector<cv::Point2d> PlantImagePoints = Points3to2Transform(cameraMatrixEigen,RandomTranglePoints);
+
+    for(auto &i : PlantImagePoints){
+        RCLCPP_INFO(this->get_logger(),"PlantImagePoints %lf, %lf",i.x,i.y);
+    }
+
+    cv::drawContours(OriginalImage_pcl,Counters{[&](){
+        Counter ans;
+        for(auto & i : PlantImagePoints){
+            ans.push_back(cv::Point(i.x,i.y));
+        }
+        return ans;
+    }()},-1,cv::Scalar(22,130,90),-1);
+        
+    #endif
 
 
     bool KabschAlgorithmCheck=KabschAlgorithm(Points3D,objpoints,tvec,rvec);
