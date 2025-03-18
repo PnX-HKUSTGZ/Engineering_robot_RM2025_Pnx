@@ -94,6 +94,13 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
 
     cv::Mat BinaryImage=this->PreProgress(OriginalImage_pcl);
     Counter2d CornerPoints=this->TargetArrow(BinaryImage,OriginalImage_pcl);
+    Counter2f CornerPointsf=[&CornerPoints](){
+        Counter2f ans;
+        for(auto & I : CornerPoints){
+            ans.push_back(cv::Point2f(I.x,I.y));
+        }
+        return ans;
+    }();
 
     if(!CornerPoints.size()){
         RCLCPP_INFO(this->get_logger(),"target fail");
@@ -104,6 +111,8 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     // cv::Point2f CornerPointsCenter;
     // float CornerPointsRadius;
     cv::RotatedRect rotateRectCounterPoints;
+
+    // cv::minEnclosingCircle(CornerPointsf,CornerPointsCenter,CornerPointsRadius);
 
     rotateRectCounterPoints=cv::minAreaRect([&CornerPoints](){
         Counter2f ans;
@@ -142,6 +151,7 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
         if(0<=imagePoint(0)&&imagePoint(0)<=1280&&
             0<=imagePoint(1)&&imagePoint(1)<=1080&&
             isPointInsideRotatedRect(cv::Point2f(imagePoint(0),imagePoint(1)),rotateRectCounterPoints)
+            // inCircle(CornerPointsCenter,CornerPointsRadius,imagePoint)
             ){
                 CloudPointOnArrow.push_back(i);
                 CloudPointImagePoint.push_back(std::move(imagePoint));
