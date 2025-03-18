@@ -36,6 +36,11 @@
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/PointIndices.h>
+#include <pcl/filters/extract_indices.h>
+
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -67,6 +72,8 @@ typedef std::vector<std::vector<cv::Point>> Counters;
 typedef std::vector<cv::Point> Counter;
 typedef std::vector<std::vector<cv::Point2d>> Counter2ds;
 typedef std::vector<cv::Point2d> Counter2d;
+typedef std::vector<std::vector<cv::Point2f>> Counter2fs;
+typedef std::vector<cv::Point2f> Counter2f;
 
 //normalize vector with a point on the line
 typedef cv::Vec4d LineVP;

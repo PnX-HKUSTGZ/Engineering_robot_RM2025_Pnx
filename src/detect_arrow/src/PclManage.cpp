@@ -105,7 +105,13 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     // float CornerPointsRadius;
     cv::RotatedRect rotateRectCounterPoints;
 
-    rotateRectCounterPoints=cv::minAreaRect(CornerPoints);
+    rotateRectCounterPoints=cv::minAreaRect([&CornerPoints](){
+        Counter2f ans;
+        for(auto &i : CornerPoints){
+            ans.push_back(cv::Point2f(i.x,i.y));
+        }
+        return ans;
+    }());
 
     //preprocesse pointcloud
 
@@ -148,14 +154,16 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
         cv::circle(OriginalImage_pcl,cv::Point(i(0),i(1)),1,cv::Scalar(22,33,130),-1);
     }
 
-    sensor_msgs::msg::PointCloud2 inarrowPointCloudRos;
-    pcl::toROSMsg<pcl::PointXYZ>(CloudPointOnArrow,inarrowPointCloudRos);
-    inarrowPointCloudRos.header.frame_id="sensor/camera";
-    inarrowPointCloudRos.header.stamp=this->now();
-    RCLCPP_INFO(this->get_logger(),"Before %ld After %ld",CloudPointpcl.size(),CloudPointOnArrow.size());
-    TransformedCloudPoint.header.frame_id="sensor/camera";
-    TransformedCloudPoint.header.stamp=this->now();
-    pcl_test_point_cloud_pub->publish(inarrowPointCloudRos);
+    DrawRotatedRect(OriginalImage_pcl,rotateRectCounterPoints,cv::Scalar(102,32,210),1);
+
+    // sensor_msgs::msg::PointCloud2 inarrowPointCloudRos;
+    // pcl::toROSMsg<pcl::PointXYZ>(CloudPointOnArrow,inarrowPointCloudRos);
+    // inarrowPointCloudRos.header.frame_id="sensor/camera";
+    // inarrowPointCloudRos.header.stamp=this->now();
+    // RCLCPP_INFO(this->get_logger(),"Before %ld After %ld",CloudPointpcl.size(),CloudPointOnArrow.size());
+    // TransformedCloudPoint.header.frame_id="sensor/camera";
+    // TransformedCloudPoint.header.stamp=this->now();
+    // pcl_test_point_cloud_pub->publish(inarrowPointCloudRos);
 
     # endif
 
@@ -171,22 +179,42 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
 
 bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> & pointcloud, Counter2d CornerPoints, cv::Mat & tvec, cv::Mat & rvec){
     
-    pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(
-        std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(pointcloud)));
-    pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model);
-    ransac.setDistanceThreshold(ransacDistanceThreshold);
-    ransac.setMaxIterations(ransacMaxIterations);
-    ransac.computeModel();
+    // pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(
+    //     std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(pointcloud)));
+    // pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model);
+    // ransac.setDistanceThreshold(ransacDistanceThreshold);
+    // ransac.setMaxIterations(ransacMaxIterations);
+    // ransac.computeModel();
+
+    const std::shared_ptr<const pcl::PointCloud<pcl::PointXYZ> > pointcloudptr=std::make_shared<const pcl::PointCloud<pcl::PointXYZ> >(pointcloud);
+    pcl::PointCloud<pcl::PointXYZ> ExtractedPointCloud;
+    pcl::SACSegmentation<pcl::PointXYZ> seg;
+    seg.setOptimizeCoefficients(true);
+    seg.setModelType(pcl::SACMODEL_PLANE);
+    seg.setMethodType(pcl::SAC_RANSAC);
+    seg.setDistanceThreshold(ransacDistanceThreshold);
+    seg.setMaxIterations(ransacMaxIterations);
+    seg.setInputCloud(pointcloudptr);
+
+    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+    seg.segment(*inliers, *coefficients);
 
 
-    // useful index of pointcloud
-    std::vector<int> inliers;
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    extract.setInputCloud(pointcloudptr);
+    extract.setIndices(inliers);
+    extract.setNegative(false);
+    extract.filter(ExtractedPointCloud);
+
     // Ax+By+Cz+D=0
-    Eigen::VectorXf coefficient;
+    Eigen::Vector4f coefficient=Eigen::Vector4f(coefficients->values[0],
+        coefficients->values[1],
+        coefficients->values[2],
+        coefficients->values[3]);
+    // 储存了2D点映射得到的3D点
     std::vector<cv::Point3d> Points3D;
-
-    ransac.getInliers(inliers);
-    ransac.getModelCoefficients(coefficient);
+    
 
     
     bool ImagePointTo3DPoint_PlantCheck=ImagePointTo3DPoint_Plant(CornerPoints,coefficient,Points3D);
@@ -236,6 +264,21 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
         return ans;
     }()},-1,cv::Scalar(22,130,90),-1);
         
+    sensor_msgs::msg::PointCloud2 msg;
+    pcl::toROSMsg<pcl::PointXYZ>(ExtractedPointCloud,msg);
+    msg.header.frame_id="sensor/camera";
+    msg.header.stamp=this->now();
+    pcl_test_point_cloud_pub->publish(msg);
+
+    for(auto i : ExtractedPointCloud){
+        Eigen::Matrix<double,4,1>  ExtractedPointCloudEigen;
+        ExtractedPointCloudEigen<<i.x,i.y,i.z,1;
+        Eigen::Matrix<double,3,1> I=cameraMatrixEigen*signMat*ExtractedPointCloudEigen;
+        I/=I(2);
+        cv::circle(OriginalImage_pcl,cv::Point(I(0),I(1)),1,cv::Scalar(130,100,22),-1);
+    }
+
+
     #endif
 
 

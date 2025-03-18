@@ -295,19 +295,19 @@ int main (int argc,char ** argv){
     }
     RCLCPP_INFO(node->get_logger(),"YAML success!");
 
-    geometry_msgs::msg::TransformStamped t;
-    tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
-    t.header.stamp=node->now();
-    t.header.frame_id="/sensor/mid360";
-    t.child_frame_id="/sensor/camera";
-    t.transform.translation.x=66.26/1000;
-    t.transform.translation.y=32.5/1000;
-    t.transform.translation.z=-32.55/1000;
-    t.transform.rotation.x=1;
-    t.transform.rotation.y=0;
-    t.transform.rotation.z=0;
-    t.transform.rotation.w=1;
-    tf_broadcaster_->sendTransform(t);
+    // geometry_msgs::msg::TransformStamped t;
+    // tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
+    // t.header.stamp=node->now();
+    // t.header.frame_id="/sensor/mid360";
+    // t.child_frame_id="/sensor/camera";
+    // t.transform.translation.x=66.26/1000;
+    // t.transform.translation.y=32.5/1000;
+    // t.transform.translation.z=-32.55/1000;
+    // t.transform.rotation.x=1;
+    // t.transform.rotation.y=0;
+    // t.transform.rotation.z=0;
+    // t.transform.rotation.w=1;
+    // tf_broadcaster_->sendTransform(t);
     
     publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
 
