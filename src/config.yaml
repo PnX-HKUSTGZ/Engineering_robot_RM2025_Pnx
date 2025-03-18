@@ -66,8 +66,8 @@ arrow_detect:
   ArrowDetectorLongShortRateMax: 20.
   ArrowDetectorLongShortRateMin: 5.
   PCLManager:
-    ransacDistanceThreshold: 0.05
-    ransacMaxIterations: 100
+    ransacDistanceThreshold: 1
+    ransacMaxIterations: 1000
 
 mid_360:
   buffertime: 200 # ms int

@@ -407,7 +407,7 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
     RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Source.size() : %d",Source.size());
     RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Target.size() : %d",Target.size());
     if (Source.size()!=Target.size()){
-        return 0;
+        return 1;
     }
     tvec=cv::Mat(cv::Size(3,1),CV_64F);
     rvec=cv::Mat(cv::Size(3,1),CV_64F);
@@ -434,7 +434,7 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
     Eigen::Matrix<double,3,3> H=Eigen::Matrix<double,3,3>::Zero();
 
     for(int siz=Source.size(),i=0;i<siz;i++){
-        H+=centered_source[i]*centered_source[i].transpose();
+        H+=centered_source[i]*centered_target[i].transpose();
     }
 
     // SVD

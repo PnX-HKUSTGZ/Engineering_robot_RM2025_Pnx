@@ -134,7 +134,7 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     pcl::fromROSMsg<pcl::PointXYZ>(TransformedCloudPoint,CloudPointpcl);
 
     for(auto & i : CloudPointpcl){
-        if(i.z<0) continue;
+        if(i.z<0||i.z>2) continue;
         Eigen::Matrix<double,4,1> cloudpointEigen;
         Eigen::Matrix<double,3,1> imagePoint;
         cloudpointEigen<<i.x, i.y, i.z, 1;
@@ -241,13 +241,31 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
     coefficientsss<<"C :"<<coefficient(2)<<" ";
     coefficientsss<<"D :"<<coefficient(3)<<" ";
 
+    for(auto &i : Points3D){
+        std::stringstream Points3Dsss;
+        Points3Dsss<<"Points3Dsss: "<<i.x<<" "<<i.y<<" "<<i.z;
+        RCLCPP_INFO(this->get_logger(),"%s",Points3Dsss.str().c_str());
+    }
+    RCLCPP_INFO(this->get_logger(),"Points3Dsss end");
+
     RCLCPP_INFO(this->get_logger(),"coefficient %s",coefficientsss.str().c_str());
         
     std::srand(this->now().nanoseconds()%100000);
     std::vector<cv::Point3d> RandomTranglePoints;
-    for(int i=0;i<10;i++){
-        double x=-0.0001*i,z=1.25;
-        double y=CalculatePlantEquality(coefficient,std::vector<double>{double(x),double(z)},1);
+    for(int i=0;i<8;i++){
+        double z=-0.0001*i,y=1.25;
+        if(i==0) y=-0.10698 ,z=1.19216;
+        if(i==1) y=-0.107181 ,z=1.13963;
+        if(i==2) y=-0.0200642,z= 0.845218;
+        if(i==3) y=-0.0341553,z= 0.843324;
+        if(i==4) y=-0.201081 ,z=0.820894;
+        if(i==5) y=-0.186004 ,z=0.82292;
+        if(i==6) y=-0.100522 ,z=1.16639;
+        if(i==7) y=-0.113646 ,z=1.16586;
+        
+        
+
+        double x=CalculatePlantEquality(coefficient,std::vector<double>{double(y),double(z)},0);
 
         if(std::isnan(y)) continue;
 
@@ -282,7 +300,7 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
     #endif
 
 
-    bool KabschAlgorithmCheck=KabschAlgorithm(Points3D,objpoints,tvec,rvec);
+    bool KabschAlgorithmCheck=KabschAlgorithm(objpoints,Points3D,tvec,rvec);
     if(KabschAlgorithmCheck){
         RCLCPP_WARN(this->get_logger(),"KabschAlgorithm fail");
         return KabschAlgorithmCheck;
