@@ -52,8 +52,8 @@ arrow_detect:
   ArrowDetectorLengthWidthRatioMin: 1.1
   ArrowDetectorApproxSizeMax: 8.
   ArrowDetectorApproxSizeMin: 6.
-  ArrowDetectorCannyThreshold1: 100.
-  ArrowDetectorCannyThreshold2: 200.
+  ArrowDetectorCannyThreshold1: 200.
+  ArrowDetectorCannyThreshold2: 300.
   ArrowDetectorHoughRho: 0.25
   ArrowDetectorHoughTheta: 0.00436332312998582394230922638889
   ArrowDetectorHoughThreshold: 35.

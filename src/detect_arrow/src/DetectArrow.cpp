@@ -612,6 +612,25 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
         std::make_pair(std::make_pair(0,4),std::make_pair(1,3)),
     };
 
+    std::vector<std::pair<int,int>> LinesOrder={
+        std::make_pair(0,2),
+        std::make_pair(0,4),
+        std::make_pair(1,3),
+        std::make_pair(1,5),
+        std::make_pair(2,3),
+        std::make_pair(4,5)
+    };
+
+    std::vector<LineABC> OrderedFittedLines;
+
+    for(int i=0;i<6;i++){
+        for(int e=0;e<6;e++){
+            if(EndpointsIndex[e]==LinesOrder[i]){
+                OrderedFittedLines.push_back(GetLineABC(FittedLines[e]));
+            }
+        }
+    }
+
     for(int i=0;i<8;i++){
         int index1=-1,index2=-1;
         for(int e=0;e<6;e++){
@@ -620,6 +639,8 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
         }
         ArrowPeaks_.push_back(GetLineIntersections(FittedLines[index1],FittedLines[index2]));
     }
+
+
 
     #ifdef twopath_inoneline
 
