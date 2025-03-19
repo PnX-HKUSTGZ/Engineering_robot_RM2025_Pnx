@@ -176,10 +176,16 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     cv::Mat tvec,rvec;
     GetTRvecPointCloud_PC(CloudPointOnArrow,CornerPoints,tvec,rvec);
 
+    cloudressMtx.lock();
+    cloudress.push(PnPresult(tvec,rvec,this->now()));
+    cloudressMtx.unlock();
+
+    # ifdef test_pcl_manage
     DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,40));
 
     cv::imshow("OriginalImage_pcl",OriginalImage_pcl);
     cv::waitKey(20);
+    # endif
 
 }
 

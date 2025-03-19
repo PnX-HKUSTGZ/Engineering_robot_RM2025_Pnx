@@ -46,16 +46,18 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-#define arrow_draw
-#define Imageshow
+// #define arrow_draw
+// #define Imageshow
 // #define TargetArrowtest
 #define twopath_inoneline
-#define test_pcl_manage
-#define test_LocalCornerOpitimize
+// #define test_pcl_manage
+// #define test_LocalCornerOpitimize
 // #define noMainDetectArrow
+#define drawFinalres
 
 using namespace std::chrono;
 using namespace std::placeholders;
+using namespace std::chrono_literals;
 
 typedef std::pair<int,int> pii;
 
@@ -79,6 +81,13 @@ typedef std::vector<cv::Point2f> Counter2f;
 //normalize vector with a point on the line
 typedef cv::Vec4d LineVP;
 
+struct PnPresult{
+    cv::Mat tvec;
+    cv::Mat rvec;
+    rclcpp::Time stamp;
+    PnPresult(const cv::Mat &tvec_,const cv::Mat &rvec_,rclcpp::Time tim=rclcpp::Clock().now());
+};
+
 class Arrow_detector:public rclcpp::Node{
     public:
     // using Imagerequest=interfaces::srv::Imagerequest;
@@ -97,7 +106,6 @@ class Arrow_detector:public rclcpp::Node{
     cv::Mat GreyImage;
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
-    cv::Mat rvec,tvec;
     FilterCorner filter_;
 
     cv::Mat PreProgress(const cv::Mat & OriginalImage);
@@ -235,6 +243,19 @@ private:
 
     double ransacDistanceThreshold;
     int ransacMaxIterations;
+
+private: //同步结果并且发布
+    std::queue<PnPresult> pnpress;
+    std::queue<PnPresult> cloudress;
+    std::shared_ptr<rclcpp::TimerBase> respubtimer_;
+    int queuesiz;
+    rclcpp::Duration syncThresehold=rclcpp::Duration(0,0);
+    std::mutex pnpressMtx;
+    std::mutex cloudressMtx;
+
+    void SyncPubBoxPos();
+    void SyncPubBoxPosInit();
+
 
 };
 

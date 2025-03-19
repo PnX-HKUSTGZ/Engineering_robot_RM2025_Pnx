@@ -68,6 +68,9 @@ arrow_detect:
   PCLManager:
     ransacDistanceThreshold: 1
     ransacMaxIterations: 1000
+  SyncPubBoxPos:
+    queuesiz: 20
+    syncThresehold: [1,10000000]
 
 mid_360:
   buffertime: 200 # ms int

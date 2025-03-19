@@ -466,6 +466,7 @@ bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
     }
     cv::Rodrigues(rotation33,rvec);
 
+    RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"finish!");
     return 0;
 }
 
@@ -534,4 +535,10 @@ bool isPointInsideRotatedRect(const cv::Point2f& pt, const cv::RotatedRect& rect
     float halfWidth = rect.size.width / 2.0f;
     float halfHeight = rect.size.height / 2.0f;
     return (std::abs(xRotated) <= halfWidth && std::abs(yRotated) <= halfHeight);
+}
+
+PnPresult::PnPresult(const cv::Mat &tvec_,const cv::Mat &rvec_,rclcpp::Time tim){
+    tvec_.copyTo(tvec);
+    rvec_.copyTo(rvec);
+    stamp=tim;
 }

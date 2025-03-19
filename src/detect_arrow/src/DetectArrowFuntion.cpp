@@ -31,7 +31,6 @@ cv::Point_<T> LocalCornerOpitimize(const cv::Mat & BinaryImage ,cv::Point_<T> Co
     }
 
     RCLCPP_INFO(rclcpp::get_logger("LocalCornerOpitimize"),"1");
-    int BlockSize=std::min(blockSize,std::min(row,col));
     cv::cornerHarris(Masked,HattisResult,blockSize,ksize,k);
     RCLCPP_INFO(rclcpp::get_logger("LocalCornerOpitimize"),"1");
 

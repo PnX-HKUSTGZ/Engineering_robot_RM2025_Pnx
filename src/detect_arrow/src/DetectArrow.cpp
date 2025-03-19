@@ -738,10 +738,18 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
         return 0;
     }
 
-    PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
+    cv::Mat rvec,tvec;
+    bool PnPsolverCheck=PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
 
+    if(PnPsolverCheck) return 1;
 
-    return 1;
+    pnpressMtx.lock();
+    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
+    pnpress.push(PnPresult(tvec,rvec,this->now()));
+    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
+    pnpressMtx.unlock();
+
+    return 0;
 }
 
 cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
@@ -884,9 +892,63 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     }
 
     PointCloudeInit();
-
+    SyncPubBoxPosInit();
 }
 
+void Arrow_detector::SyncPubBoxPosInit(){
+    YAML::Node syncconfig=config["arrow_detect"]["SyncPubBoxPos"];
+    queuesiz=syncconfig["queuesiz"].as<int>();
+    syncThresehold=rclcpp::Duration(syncconfig["syncThresehold"].as<std::vector<int>>()[0],
+        syncconfig["syncThresehold"].as<std::vector<int>>()[1]);
+
+    respubtimer_=this->create_wall_timer(100ms,std::bind(&Arrow_detector::SyncPubBoxPos,this));
+}
+
+void Arrow_detector::SyncPubBoxPos(){
+    std::lock_guard<std::mutex> pnp_guard(pnpressMtx);
+    std::lock_guard<std::mutex> cloud_guard(cloudressMtx);
+
+    rclcpp::Time now=this->now();
+    while(!pnpress.empty()){
+        if((now-pnpress.front().stamp)>syncThresehold){
+            pnpress.pop();
+        }
+        else{
+            break;
+        }
+    }
+    while(!cloudress.empty()){
+        if((now-cloudress.front().stamp)>syncThresehold){
+            cloudress.pop();
+        }
+        else{
+            break;
+        }
+    }
+
+    if(pnpress.empty()&&cloudress.empty()){
+        RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : both are empty return");
+        return;
+    }
+
+    if(pnpress.empty()){
+        SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+        cloudress.pop();
+        return;
+    }
+    if(pnpress.empty()){
+        SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+        cloudress.pop();
+        return;
+    }
+
+    //现在的策略：直接发布点云的
+
+    SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+    cloudress.pop();
+    RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : send!");
+    return;
+}
 
 
 void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
@@ -902,6 +964,17 @@ void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
     else{
         rmat=rvecmat;
     }
+
+    #ifdef drawFinalres
+
+        cv::Mat rvec;
+        cv::Rodrigues(rmat,rvec);
+        DrawPnPResult(OriginalImage_,rvec,tvec,cv::Scalar(223,34,100),1,cv::Point(20,40));
+        cv::imshow("Finalres",OriginalImage_);
+        cv::waitKey(11);
+
+    #endif
+
     geometry_msgs::msg::TransformStamped box_to_camera;
 
     cv::Vec4d Quaternion_r=rotationMatrixToQuaternion(rmat);
