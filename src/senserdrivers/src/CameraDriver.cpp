@@ -295,19 +295,24 @@ int main (int argc,char ** argv){
     }
     RCLCPP_INFO(node->get_logger(),"YAML success!");
 
-    geometry_msgs::msg::TransformStamped t;
-    tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
-    t.header.stamp=node->now();
-    t.header.frame_id="/sensor/mid360";
-    t.child_frame_id="/sensor/camera";
-    t.transform.translation.x=66.26/1000;
-    t.transform.translation.y=32.5/1000;
-    t.transform.translation.z=-32.55/1000;
-    t.transform.rotation.x=1;
-    t.transform.rotation.y=0;
-    t.transform.rotation.z=0;
-    t.transform.rotation.w=1;
-    tf_broadcaster_->sendTransform(t);
+    YAML::Node config = YAML::LoadFile(node->get_parameter("Location").as_string()+"/src/config.yaml");
+
+    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_map;
+    static_tf_broadcaster_camera_to_map=std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
+    geometry_msgs::msg::TransformStamped to_map;
+
+    to_map.header.frame_id="map";
+    to_map.child_frame_id="sensor/camera";
+    to_map.header.stamp=node->now();
+    to_map.transform.rotation.w=config["object_pos"]["camera"]["rotate"]["w"].as<double>();
+    to_map.transform.rotation.x=config["object_pos"]["camera"]["rotate"]["x"].as<double>();
+    to_map.transform.rotation.y=config["object_pos"]["camera"]["rotate"]["y"].as<double>();
+    to_map.transform.rotation.z=config["object_pos"]["camera"]["rotate"]["z"].as<double>();
+    to_map.transform.translation.x=config["object_pos"]["camera"]["translation"]["x"].as<double>();
+    to_map.transform.translation.y=config["object_pos"]["camera"]["translation"]["y"].as<double>();
+    to_map.transform.translation.z=config["object_pos"]["camera"]["translation"]["z"].as<double>();
+
+    static_tf_broadcaster_camera_to_map->sendTransform(to_map);
     
     publisher_=node->create_publisher<sensor_msgs::msg::Image>("sensor/image",10);
 

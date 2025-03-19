@@ -30,9 +30,10 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
         cv::SOLVEPNP_IPPE
     );
 
+
     RCLCPP_INFO(this->get_logger(),"pnp solves num : %ld",rvecs.size());
     std::stringstream ss_vecs;
-    for(int i=0;i<rvecs.size();i++){
+    for(std::size_t i=0;i<rvecs.size();i++){
         ss_vecs<<"\n rvecs :"<< rvecs[i]<<std::endl;
         ss_vecs<<"\n tvecs :"<< tvecs[i]<<std::endl;
     }
@@ -46,7 +47,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
             return 0;
         }
     }
-    if(!PnPsuccess){
+    if(!PnPsuccess||!PnPsuccessed){
         RCLCPP_WARN(this->get_logger(),"PnP fail");
         return 0;
     }
@@ -78,27 +79,12 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     rtvecEigen(3, 2) = 0.0;
     rtvecEigen(3, 3) = 1.0;
 
-    geometry_msgs::msg::TransformStamped box_to_camera;
-
-    cv::Vec4d Quaternion_r=rotationMatrixToQuaternion(rmat);
-
-    box_to_camera.header.stamp=this->now();
-    box_to_camera.header.frame_id="sensor/camera";
-    box_to_camera.child_frame_id="object/box";
-    box_to_camera.transform.translation.x=tvec.at<double>(0);
-    box_to_camera.transform.translation.y=tvec.at<double>(1);
-    box_to_camera.transform.translation.z=tvec.at<double>(2);
-    box_to_camera.transform.rotation.w=Quaternion_r[0];
-    box_to_camera.transform.rotation.x=Quaternion_r[1];
-    box_to_camera.transform.rotation.y=Quaternion_r[2];
-    box_to_camera.transform.rotation.z=Quaternion_r[3];
-
-    tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
+    // SendBoxPosition(tvec,rvec);
 
     # ifdef arrow_draw
-    DrawPnPResult(rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,20));
-    DrawPnPResult(rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(20,80));
-    DrawPnPResult(rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(20,140));
+    DrawPnPResult(OriginalImage_,rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,40));
+    DrawPnPResult(OriginalImage_,rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(20,100));
+    DrawPnPResult(OriginalImage_,rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(20,160));
     auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
@@ -113,10 +99,13 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     return 1;
 }
 
-void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos){
+void Arrow_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos){
     //check_valide
-    assert(((rvec.rows==3&&rvec.cols==1)||(rvec.rows==1&&rvec.cols==3))&&
-    ((tvec.rows==3&&tvec.cols==1)||(tvec.rows==1&&tvec.cols==3)));
+    if(!(((rvec.rows==3&&rvec.cols==1)||(rvec.rows==1&&rvec.cols==3))&&
+    ((tvec.rows==3&&tvec.cols==1)||(tvec.rows==1&&tvec.cols==3)))){
+        RCLCPP_WARN(this->get_logger(),"DrawPnPResult assert fail");
+        return;
+    }
 
     for(int i=0;i<3;i++){
         if(std::isnan(rvec.at<double>(i))||
@@ -183,40 +172,23 @@ void Arrow_detector::DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, c
         reput_arrow.push_back(cv::Point(new_i(0),new_i(1)));
     }
 
-    std::vector<std::string> label_xyz={"X","Y","Z"};
-
-    for(int i=0;i<3;i++){
-        cv::line(OriginalImage_,
-            cv::Point(Center2D(0),Center2D(1)),
-            cv::Point(CenterVectorz2D[i](0),CenterVectorz2D[i](1)),
-            color);
-        
-        cv::putText(OriginalImage_,
-            label_xyz[i].c_str(),
-            cv::Point(Center2D(0),Center2D(1))+cv::Point(CenterVectorz2D[i](0),CenterVectorz2D[i](1))/70,
-            cv::FONT_HERSHEY_SIMPLEX,
-            1.0,
-            color);
-        
-    }
-
-    // cv::line(OriginalImage_,
-    //     cv::Point(Center2D(0),Center2D(1)),
-    //     cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),
-    //     color);
-    cv::circle(OriginalImage_,cv::Point(Center2D(0),Center2D(1)),1,color,-1);
-    cv::putText(OriginalImage_,"center",
+    cv::line(Image,
+        cv::Point(Center2D(0),Center2D(1)),
+        cv::Point(CenterVectorz2D(0),CenterVectorz2D(1)),
+        color);
+    cv::circle(Image,cv::Point(Center2D(0),Center2D(1)),1,color,-1);
+    cv::putText(Image,"center",
         cv::Point(Center2D(0),Center2D(1)),
         cv::FONT_HERSHEY_SIMPLEX,
         1.0,
         color);
 
-    cv::drawContours(OriginalImage_,Counters{Line},-1,color,thickness);
+    cv::drawContours(Image,Counters{Line},-1,color,thickness);
 
-    cv::drawContours(OriginalImage_,Counters{RedemptionBox},-1,color,thickness);
+    cv::drawContours(Image,Counters{RedemptionBox},-1,color,thickness);
 
-    cv::putText(OriginalImage_,rvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
-    cv::putText(OriginalImage_,tvecss.str().c_str(),cv::Point(textpos.x,textpos.y+25),cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    cv::putText(Image,rvecss.str().c_str(),textpos,cv::FONT_HERSHEY_SIMPLEX,1.0,color);
+    cv::putText(Image,tvecss.str().c_str(),cv::Point(textpos.x,textpos.y+25),cv::FONT_HERSHEY_SIMPLEX,1.0,color);
     return;
 }
 
@@ -237,20 +209,26 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
         RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
-    cv::Mat originalframe=cv_ptr->image;
-    originalframe.copyTo(OriginalImage_);
-    RCLCPP_INFO(this->get_logger(), "Get frame");
-    MainDetectArrow(originalframe);
+    cv::Mat originalframe=cv_ptr->image,undistortimage;
+    cv::undistort(originalframe,undistortimage,[&](){
+        cv::Mat ans(cv::Size(3,3),CV_64F);
+        for(int i=0;i<9;i++){
+            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
+        }
+        return ans;
+    }(),distCoeffs);
+    // originalframe.copyTo(OriginalImage_);
+    // RCLCPP_INFO(this->get_logger(), "Get frame");
+    MainDetectArrow(undistortimage);
 }
 
-bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
+std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage, cv::Mat & Image){
     std::vector<cv::Vec2f> lines;
     Counters counters_;
     Counter isarrow;
     std::vector<cv::Point2d> arrowapproxcurve;
     
     cv::findContours(BinaryImage,counters_,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
-    // cv::drawContours(OriginalImage,counters_,-1,cv::Scalar(224,33,21),1);
 
 
     cv::Point2f center;
@@ -303,7 +281,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
             //     RCLCPP_INFO(this->get_logger(),"approxcurve_length[]:%lf",i);
             // }
             for(int i=0;i<4;i++) Average_4+=approxcurve_length[i]/4;
-            for(int i=4;i<approxcurve_length.size();i++) Average_rest+=approxcurve_length[i]/(approxcurve_length.size()-3);
+            for(std::size_t i=4;i<approxcurve_length.size();i++) Average_rest+=approxcurve_length[i]/(approxcurve_length.size()-3);
             approxcurve_length_rate=Average_4/Average_rest;
         }
 
@@ -324,7 +302,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         #ifdef TargetArrowtest
 
         cv::Mat copy_;
-        OriginalImage_.copyTo(copy_);
+        Image.copyTo(copy_);
 
         cv::Point2f rotatedrect_points_ptr[4];
         std::vector<cv::Point2f> rotatedrect_points;
@@ -432,8 +410,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
             arrowapproxcurve2i.push_back(cv::Point(i.x,i.y));
         }
         
-        cv::drawContours(OriginalImage_,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
-        cv::drawContours(OriginalImage_,Counters{arrowapproxcurve2i},-1,cv::Scalar(0,225,225),1);
+        cv::drawContours(Image,Counters{isarrow},-1,cv::Scalar(225,225,225),1);
+        cv::drawContours(Image,Counters{arrowapproxcurve2i},-1,cv::Scalar(0,225,225),1);
 
         # endif
 
@@ -441,7 +419,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(isarrow.empty()){
         RCLCPP_WARN(this->get_logger(),"fail to find arrow!");
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"find arrow!");
 
@@ -472,7 +450,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(RightAnglePeaks.size()!=2){
         RCLCPP_WARN(this->get_logger(),"RightAnglePeaks.size != 2");
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"finish dichotomy and find two right angle peaks");
 
@@ -528,16 +506,16 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(ArrowPeaks[3]==cv::Point2d(0,0)||ArrowPeaks[2]==cv::Point2d(0,0)){
         RCLCPP_ERROR(this->get_logger(),"Fail to find midpoint of other two sides");
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"find midpoint of other two sides successfully");
 
     # ifdef arrow_draw
     int PeaksCnt=0;
     for(auto i : ArrowPeaks){
-        cv::circle(OriginalImage_,i,1,cv::Scalar(153,156,30),-1);
+        cv::circle(Image,i,1,cv::Scalar(153,156,30),-1);
         std::stringstream ss;ss<<PeaksCnt<<":"<<(i-cv::Point2d(center)).cross(Centerline);PeaksCnt++;
-        cv::putText(OriginalImage_,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
+        cv::putText(Image,ss.str(),i,cv::FONT_HERSHEY_SIMPLEX,1.0,cv::Scalar(225,225,225));
     }
 
     #endif
@@ -592,13 +570,13 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(Endpoints.size()!=6){
         RCLCPP_WARN(this->get_logger(),"size of Endpoints : %ld which is not equal to 6",Endpoints.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"size of Endpoints : %ld",Endpoints.size());
 
     if(EndpointsIndex.size()!=6){
         RCLCPP_WARN(this->get_logger(),"size of Endpoints : %ld which is not equal to 6",EndpointsIndex.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"size of Endpoints : %ld",EndpointsIndex.size());
 
@@ -616,19 +594,19 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     if(FittedLines.size()!=6){
         RCLCPP_WARN(this->get_logger(),"size of FittedLines : %ld which is not equal to 6",FittedLines.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"size of FittedLines : %ld",FittedLines.size());
     RCLCPP_INFO(this->get_logger(),"finish find lines");
 
     # ifdef arrow_draw
 
-    DrawLines(OriginalImage_,FittedLines,cv::Scalar(225,225,225),1);
+    DrawLines(Image,FittedLines,cv::Scalar(225,225,225),1);
 
     # endif
 
     //第二次迭代顶点储存
-    std::vector<cv::Point2f> ArrowPeaks_;
+    std::vector<cv::Point2d> ArrowPeaks_;
     
     static std::vector<std::pair<std::pair<int,int>,std::pair<int,int> > > MapOfIntersectionsLines={
         std::make_pair(std::make_pair(0,4),std::make_pair(0,2)),
@@ -641,6 +619,25 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         std::make_pair(std::make_pair(0,4),std::make_pair(1,3)),
     };
 
+    std::vector<std::pair<int,int>> LinesOrder={
+        std::make_pair(0,2),
+        std::make_pair(0,4),
+        std::make_pair(1,3),
+        std::make_pair(1,5),
+        std::make_pair(2,3),
+        std::make_pair(4,5)
+    };
+
+    std::vector<LineABC> OrderedFittedLines;
+
+    for(int i=0;i<6;i++){
+        for(int e=0;e<6;e++){
+            if(EndpointsIndex[e]==LinesOrder[i]){
+                OrderedFittedLines.push_back(GetLineABC(FittedLines[e]));
+            }
+        }
+    }
+
     for(int i=0;i<8;i++){
         int index1=-1,index2=-1;
         for(int e=0;e<6;e++){
@@ -649,6 +646,8 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         }
         ArrowPeaks_.push_back(GetLineIntersections(FittedLines[index1],FittedLines[index2]));
     }
+
+
 
     #ifdef twopath_inoneline
 
@@ -668,7 +667,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
         jjj++;
     }
 
-    if(index1.size()==0||index2.size()==0) return 0;
+    if(index1.size()==0||index2.size()==0) return std::vector<cv::Point2d>();
 
     std::vector<cv::Point> allindex=index1;
 
@@ -679,7 +678,7 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     cv::fitLine(allindex,line_index,cv::DIST_L2,0,0.01,0.01);
 
     #ifdef arrow_draw
-    DrawLines(OriginalImage_,std::vector<LineVP>{line_index},cv::Scalar(225,225,225),1);
+    DrawLines(Image,std::vector<LineVP>{line_index},cv::Scalar(225,225,225),1);
     #endif
 
     std::vector<cv::Point2d> new_one(4);
@@ -693,14 +692,14 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
     for(int i=2;i<6;i++){
         ArrowPeaks_[i]=new_one[i-2];
     }
-    #endif twopath_inoneline
+    #endif //twopath_inoneline
 
     #ifdef arrow_draw
 
     for(int i=0;i<8;i++){
         // OriginalImage.at<cv::Vec3f>(int(ArrowPeaks_[i].y),int(ArrowPeaks_[i].x))=cv::Vec3f(0,0,0);
-        cv::circle(OriginalImage_,ArrowPeaks_[i],1,cv::Scalar(32,122,225),-1);
-        cv::putText(OriginalImage_,std::to_string(i),ArrowPeaks_[i],cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(32,122,225));
+        cv::circle(Image,ArrowPeaks_[i],1,cv::Scalar(32,122,225),-1);
+        cv::putText(Image,std::to_string(i),ArrowPeaks_[i],cv::FONT_HERSHEY_COMPLEX,1.0,cv::Scalar(32,122,225));
         RCLCPP_INFO(this->get_logger(),"Point %d: [%f,%f]",i,ArrowPeaks_[i].x,ArrowPeaks_[i].y);
     }
     #endif
@@ -714,42 +713,56 @@ bool Arrow_detector::TargetArrow(const cv::Mat & BinaryImage){
 
     # ifdef Imageshow
 
-    cv::imshow("finish one",OriginalImage_);
+    cv::imshow("finish one",Image);
     cv::waitKey(33);
 
     #endif
 
     if(ArrowPeaks_.size()!=8){
         RCLCPP_ERROR(this->get_logger(),"Fail to find all peaks, size of ArrowPeaks_ : %ld",ArrowPeaks_.size());
-        return 0;
+        return std::vector<cv::Point2d>();
     }
     else RCLCPP_INFO(this->get_logger(),"find all peaks successfully");
 
-    // filter_.Update(ArrowPeaks_);
-    this->ArrowPeaks.clear();
-    // for(auto & i : ArrowPeaks) this->ArrowPeaks.push_back(i);
-    // this->ArrowPeaks.push_back(ArrowPeaks_[6]);
-    // this->ArrowPeaks.push_back(ArrowPeaks_[7]);
-    for(auto & i : ArrowPeaks_) this->ArrowPeaks.push_back(i);
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
-    return 1;
+
+    // LocalCornerOpitimize(BinaryImage,ArrowPeaks_[0],8,2,3,0.04);
+
+
+    return ArrowPeaks_;
 }
 
 bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
+    #ifdef noMainDetectArrow
+    return 0;
+    #endif //noMainDetectArrow
+    OriginalImage.copyTo(OriginalImage_);
     cv::Mat Binary=PreProgress(OriginalImage);
 
-    bool HaveArrow=TargetArrow(Binary);
-    if(!HaveArrow){
+    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary,OriginalImage_);
+    if(!TargetArrowResult.size()){
         RCLCPP_INFO(this->get_logger(),"fail to target arrow.");
         return 0;
     }
 
-    PnPsolver(ArrowPeaks,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
+    cv::Mat rvec,tvec;
+    bool PnPsolverCheck=PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
 
-    return 1;
+    if(PnPsolverCheck) return 1;
+
+    #ifdef SyncPubBoxPos
+    pnpressMtx.lock();
+    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
+    pnpress.push(PnPresult(tvec,rvec,this->now()));
+    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
+    pnpressMtx.unlock();
+    #endif
+
+    return 0;
 }
 
 cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
+
     std::vector<cv::Mat> SplitImage;
     //通道顺序为BGR
     cv::split(OriginalImage,SplitImage);
@@ -786,7 +799,7 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
     cv::Mat Sharpened;
     cv::filter2D(GaussBinaryImage,Sharpened,-1,sharpening_kenel);
 
-    cv::threshold(Sharpened,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
+    cv::threshold(GaussBinaryImage,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
     # ifdef Imageshow
 
@@ -809,12 +822,13 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     try{
 
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx");
-    YAML::Node config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
+    config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
     cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
     distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
     for(int i=0;i<9;i++){
         cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
     }
+    InverseCameraMatrixEigen=cameraMatrixEigen.inverse();
     for(int i=0;i<8;i++){
         const std::vector<double> & arrowPoints=config["arrow"]["arrowPoints"][i].as<std::vector<double>>();
         objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
@@ -865,7 +879,6 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
 
     static_tf_broadcaster_camera_to_arm=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
-    static_tf_broadcaster_camera_to_map=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
     geometry_msgs::msg::TransformStamped camera_to_arm;
 
@@ -881,29 +894,117 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
 
     static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
 
-    geometry_msgs::msg::TransformStamped to_map;
-
-    to_map.header.frame_id="map";
-    to_map.child_frame_id="sensor/camera";
-    to_map.header.stamp=this->now();
-    to_map.transform.rotation.w=config["object_pos"]["camera"]["rotate"]["w"].as<double>();
-    to_map.transform.rotation.x=config["object_pos"]["camera"]["rotate"]["x"].as<double>();
-    to_map.transform.rotation.y=config["object_pos"]["camera"]["rotate"]["y"].as<double>();
-    to_map.transform.rotation.z=config["object_pos"]["camera"]["rotate"]["z"].as<double>();
-    to_map.transform.translation.x=config["object_pos"]["camera"]["translation"]["x"].as<double>();
-    to_map.transform.translation.y=config["object_pos"]["camera"]["translation"]["y"].as<double>();
-    to_map.transform.translation.z=config["object_pos"]["camera"]["translation"]["z"].as<double>();
-
-    static_tf_broadcaster_camera_to_map->sendTransform(to_map);
-
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
         rclcpp::shutdown();
     }
 
-    // PointCloudeInit();
+    PointCloudeInit();
+    #ifdef SyncPubBoxPos
+    SyncPubBoxPosInit();
+    #endif
+}
 
+void Arrow_detector::SyncPubBoxPosInit(){
+    YAML::Node syncconfig=config["arrow_detect"]["SyncPubBoxPos"];
+    queuesiz=syncconfig["queuesiz"].as<int>();
+    syncThresehold=rclcpp::Duration(syncconfig["syncThresehold"].as<std::vector<int>>()[0],
+        syncconfig["syncThresehold"].as<std::vector<int>>()[1]);
+
+    respubtimer_=this->create_wall_timer(std::chrono::milliseconds(syncconfig["PubInterval"].as<int>()),std::bind(&Arrow_detector::SyncPubBoxPos,this));
+}
+
+void Arrow_detector::SyncPubBoxPos(){
+//     std::lock_guard<std::mutex> pnp_guard(pnpressMtx);
+//     std::lock_guard<std::mutex> cloud_guard(cloudressMtx);
+
+//     rclcpp::Time now=this->now();
+//     while(!pnpress.empty()){
+//         if((now-pnpress.front().stamp)>syncThresehold){
+//             pnpress.pop();
+//         }
+//         else{
+//             break;
+//         }
+//     }
+//     while(!cloudress.empty()){
+//         if((now-cloudress.front().stamp)>syncThresehold){
+//             cloudress.pop();
+//         }
+//         else{
+//             break;
+//         }
+//     }
+
+//     if(pnpress.empty()&&cloudress.empty()){
+//         RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : both are empty return");
+//         return;
+//     }
+
+//     if(pnpress.empty()){
+//         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//         cloudress.pop();
+//         return;
+//     }
+//     if(pnpress.empty()){
+//         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//         cloudress.pop();
+//         return;
+//     }
+
+//     //现在的策略：直接发布点云的
+
+//     SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//     cloudress.pop();
+//     RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : send!");
+//     return;
+}
+
+
+void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & OriginalImage){
+
+    CV_Assert((rvecmat.size()==cv::Size(3,3) || rvecmat.size()==cv::Size(3,1) || rvecmat.size()==cv::Size(1,3))&&
+        (rvecmat.type()==CV_64F || rvecmat.type()==CV_32F));
+    CV_Assert((tvec.size()==cv::Size(3,1)||tvec.size()==cv::Size(1,3))&&
+        (tvec.type()==CV_64F ||tvec.type()==CV_32F));
+    cv::Mat rmat;
+    if(rvecmat.size()==cv::Size(3,1)||rvecmat.size()==cv::Size(1,3)){
+        cv::Rodrigues(rvecmat,rmat);
+    }
+    else{
+        rmat=rvecmat;
+    }
+
+    #ifdef drawFinalres
+
+        cv::Mat rvec;
+        cv::Rodrigues(rmat,rvec);
+        DrawPnPResult(OriginalImage,rvec,tvec,cv::Scalar(223,34,100),1,cv::Point(20,40));
+        std::stringstream drawFinalressss;
+        drawFinalressss<<rvec<<"\n"<<tvec;
+        RCLCPP_INFO(this->get_logger(),"drawFinalres : %s",drawFinalressss.str().c_str());
+        cv::imshow("Finalres",OriginalImage);
+        cv::waitKey(11);
+
+    #endif
+
+    geometry_msgs::msg::TransformStamped box_to_camera;
+
+    cv::Vec4d Quaternion_r=rotationMatrixToQuaternion(rmat);
+
+    box_to_camera.header.stamp=this->now();
+    box_to_camera.header.frame_id="sensor/camera";
+    box_to_camera.child_frame_id="object/box";
+    box_to_camera.transform.translation.x=tvec.at<double>(0);
+    box_to_camera.transform.translation.y=tvec.at<double>(1);
+    box_to_camera.transform.translation.z=tvec.at<double>(2);
+    box_to_camera.transform.rotation.w=Quaternion_r[0];
+    box_to_camera.transform.rotation.x=Quaternion_r[1];
+    box_to_camera.transform.rotation.y=Quaternion_r[2];
+    box_to_camera.transform.rotation.z=Quaternion_r[3];
+
+    tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
 }
 
 int main (int argc,char* argv[]){

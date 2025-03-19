@@ -11,21 +11,28 @@ include_directories("/usr/include/eigen3/")
 include_directories("/usr/include/opencv4/")
 
 # find dependencies
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
+
+find_package(sensor_msgs REQUIRED)
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(cv_bridge REQUIRED)
 find_package(rclcpp_components REQUIRED)
+
 find_package(tf2_ros REQUIRED)
+find_package(tf2_sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+
 find_package(interfaces REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(yaml-cpp REQUIRED)
+find_package(pcl_conversions REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
 include_directories(/usr/include/eigen3)
 
-add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp)
+add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp src/PclManage.cpp src/DetectArrowFuntion.cpp)
 
 ament_target_dependencies(detect_arrow
   rclcpp
@@ -36,6 +43,9 @@ ament_target_dependencies(detect_arrow
   interfaces
   Eigen3
   tf2_ros
+  pcl_conversions
+  tf2
+  tf2_sensor_msgs
 )
 
 target_link_libraries(detect_arrow yaml-cpp::yaml-cpp)
