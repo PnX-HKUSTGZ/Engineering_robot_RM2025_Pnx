@@ -71,6 +71,7 @@ arrow_detect:
   SyncPubBoxPos:
     queuesiz: 20
     syncThresehold: [1,10000000]
+    PubInterval: 10
 
 mid_360:
   buffertime: 200 # ms int

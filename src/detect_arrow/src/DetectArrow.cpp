@@ -901,7 +901,7 @@ void Arrow_detector::SyncPubBoxPosInit(){
     syncThresehold=rclcpp::Duration(syncconfig["syncThresehold"].as<std::vector<int>>()[0],
         syncconfig["syncThresehold"].as<std::vector<int>>()[1]);
 
-    respubtimer_=this->create_wall_timer(100ms,std::bind(&Arrow_detector::SyncPubBoxPos,this));
+    respubtimer_=this->create_wall_timer(std::chrono::milliseconds(syncconfig["PubInterval"].as<int>()),std::bind(&Arrow_detector::SyncPubBoxPos,this));
 }
 
 void Arrow_detector::SyncPubBoxPos(){
