@@ -136,13 +136,6 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
         cloudpointEigen<<i.x, i.y, i.z, 1;
 
         imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
-        # ifdef test_pcl_manage
-
-        // RCLCPP_INFO(this->get_logger(),"CloudPointpcl to imagePoint Oricloud [%lf,%lf,%lf,%lf]",cloudpointEigen(0),cloudpointEigen(1),cloudpointEigen(2),cloudpointEigen(3));
-        // RCLCPP_INFO(this->get_logger(),"CloudPointpcl to imagePoint transedcloud [%lf,%lf,%lf,%lf]",cloudpointEigen(0),cloudpointEigen(1),cloudpointEigen(2),cloudpointEigen(3));
-        // RCLCPP_INFO(this->get_logger(),"CloudPointpcl to imagePoint imagePoint [%lf,%lf,%lf]",imagePoint(0),imagePoint(1),imagePoint(2));
-
-        # endif
         imagePoint/=imagePoint(2);
         if(0<=imagePoint(0)&&imagePoint(0)<=1280&&
             0<=imagePoint(1)&&imagePoint(1)<=1080&&
@@ -176,15 +169,22 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     cv::Mat tvec,rvec;
     GetTRvecPointCloud_PC(CloudPointOnArrow,CornerPoints,tvec,rvec);
 
+    SendBoxPosition(tvec,rvec,OriginalImage_pcl);
+
+    #ifdef SyncPubBoxPos
     cloudressMtx.lock();
     cloudress.push(PnPresult(tvec,rvec,this->now()));
     cloudressMtx.unlock();
+    #endif
 
     # ifdef test_pcl_manage
     DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,40));
 
+    std::stringstream test_pcl_managesss;
+    test_pcl_managesss<<rvec<<"\n"<<tvec;
+    RCLCPP_INFO(this->get_logger(),"test_pcl_managesss : %s",test_pcl_managesss.str().c_str());
     cv::imshow("OriginalImage_pcl",OriginalImage_pcl);
-    cv::waitKey(20);
+    cv::waitKey(1);
     # endif
 
 }

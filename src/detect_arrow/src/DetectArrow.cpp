@@ -743,11 +743,13 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
 
     if(PnPsolverCheck) return 1;
 
+    #ifdef SyncPubBoxPos
     pnpressMtx.lock();
     RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
     pnpress.push(PnPresult(tvec,rvec,this->now()));
     RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
     pnpressMtx.unlock();
+    #endif
 
     return 0;
 }
@@ -892,7 +894,9 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     }
 
     PointCloudeInit();
+    #ifdef SyncPubBoxPos
     SyncPubBoxPosInit();
+    #endif
 }
 
 void Arrow_detector::SyncPubBoxPosInit(){
@@ -905,53 +909,53 @@ void Arrow_detector::SyncPubBoxPosInit(){
 }
 
 void Arrow_detector::SyncPubBoxPos(){
-    std::lock_guard<std::mutex> pnp_guard(pnpressMtx);
-    std::lock_guard<std::mutex> cloud_guard(cloudressMtx);
+//     std::lock_guard<std::mutex> pnp_guard(pnpressMtx);
+//     std::lock_guard<std::mutex> cloud_guard(cloudressMtx);
 
-    rclcpp::Time now=this->now();
-    while(!pnpress.empty()){
-        if((now-pnpress.front().stamp)>syncThresehold){
-            pnpress.pop();
-        }
-        else{
-            break;
-        }
-    }
-    while(!cloudress.empty()){
-        if((now-cloudress.front().stamp)>syncThresehold){
-            cloudress.pop();
-        }
-        else{
-            break;
-        }
-    }
+//     rclcpp::Time now=this->now();
+//     while(!pnpress.empty()){
+//         if((now-pnpress.front().stamp)>syncThresehold){
+//             pnpress.pop();
+//         }
+//         else{
+//             break;
+//         }
+//     }
+//     while(!cloudress.empty()){
+//         if((now-cloudress.front().stamp)>syncThresehold){
+//             cloudress.pop();
+//         }
+//         else{
+//             break;
+//         }
+//     }
 
-    if(pnpress.empty()&&cloudress.empty()){
-        RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : both are empty return");
-        return;
-    }
+//     if(pnpress.empty()&&cloudress.empty()){
+//         RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : both are empty return");
+//         return;
+//     }
 
-    if(pnpress.empty()){
-        SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
-        cloudress.pop();
-        return;
-    }
-    if(pnpress.empty()){
-        SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
-        cloudress.pop();
-        return;
-    }
+//     if(pnpress.empty()){
+//         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//         cloudress.pop();
+//         return;
+//     }
+//     if(pnpress.empty()){
+//         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//         cloudress.pop();
+//         return;
+//     }
 
-    //现在的策略：直接发布点云的
+//     //现在的策略：直接发布点云的
 
-    SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
-    cloudress.pop();
-    RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : send!");
-    return;
+//     SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//     cloudress.pop();
+//     RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : send!");
+//     return;
 }
 
 
-void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
+void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & OriginalImage){
 
     CV_Assert((rvecmat.size()==cv::Size(3,3) || rvecmat.size()==cv::Size(3,1) || rvecmat.size()==cv::Size(1,3))&&
         (rvecmat.type()==CV_64F || rvecmat.type()==CV_32F));
@@ -969,8 +973,11 @@ void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
 
         cv::Mat rvec;
         cv::Rodrigues(rmat,rvec);
-        DrawPnPResult(OriginalImage_,rvec,tvec,cv::Scalar(223,34,100),1,cv::Point(20,40));
-        cv::imshow("Finalres",OriginalImage_);
+        DrawPnPResult(OriginalImage,rvec,tvec,cv::Scalar(223,34,100),1,cv::Point(20,40));
+        std::stringstream drawFinalressss;
+        drawFinalressss<<rvec<<"\n"<<tvec;
+        RCLCPP_INFO(this->get_logger(),"drawFinalres : %s",drawFinalressss.str().c_str());
+        cv::imshow("Finalres",OriginalImage);
         cv::waitKey(11);
 
     #endif
