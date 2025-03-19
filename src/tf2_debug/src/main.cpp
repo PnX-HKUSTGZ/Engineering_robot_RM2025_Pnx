@@ -39,7 +39,7 @@
 class tf2_Debug : public rclcpp::Node{
     public:
     tf2_Debug():Node("tf2_Debug"){
-        config=YAML::LoadFile("/home/lqx/code/Engineering_robot_RM2025_Pnx/src/config.yaml");
+        config=YAML::LoadFile("/home/pnx/code/Engineering_robot_RM2025_Pnx/src/config.yaml");
 
         camera_to_map.header.frame_id="map";
         camera_to_map.child_frame_id="sensor/camera";
@@ -78,7 +78,7 @@ class tf2_Debug : public rclcpp::Node{
 
         geometry_msgs::msg::TransformStamped transform;
         try{
-            transform=buf->lookupTransform("sensor/mid360","sensor/camera",this->now());
+            transform=buf->lookupTransform("sensor/camera","sensor/mid360",this->now());
         }
         catch(tf2::TransformException & ex){
             RCLCPP_WARN(this->get_logger(),"[ImageCloudPointCallBack]: %s",ex.what());
