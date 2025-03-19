@@ -14,23 +14,35 @@ def generate_launch_description():
             executable='camera_driver',
             name='camera_dirver',
             parameters=[Path],
+            respawn=True,  # 核心参数：启用自动重启
+            respawn_delay=3,  # 可选参数：延迟3秒重启
+            output='screen'  # 输出到终端便于调试
         ),
         Node(
             package='senserdrivers',
             executable='mid360_driver',
             name='mid360_driver',
             parameters=[Path],
+            respawn=True,  # 核心参数：启用自动重启
+            respawn_delay=3,  # 可选参数：延迟3秒重启
+            output='screen'  # 输出到终端便于调试
         ),
         Node(
             package='detect_arrow',
             executable='detect_arrow',
             name='detect_arrow',
             parameters=[Path],
+            respawn=True,  # 核心参数：启用自动重启
+            respawn_delay=3,  # 可选参数：延迟3秒重启
+            output='screen'  # 输出到终端便于调试
         ),
         Node(
             package='c_strake_conmunication',
             executable='c_strake_conmunication',
             name='c_strake_conmunication',
             parameters=[Path],
+            respawn=True,  # 核心参数：启用自动重启
+            respawn_delay=3,  # 可选参数：延迟3秒重启
+            output='screen'  # 输出到终端便于调试
         )
     ])
