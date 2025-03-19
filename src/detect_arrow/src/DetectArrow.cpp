@@ -79,7 +79,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     rtvecEigen(3, 2) = 0.0;
     rtvecEigen(3, 3) = 1.0;
 
-    SendBoxPosition(tvec,rvec);
+    // SendBoxPosition(tvec,rvec);
 
     # ifdef arrow_draw
     DrawPnPResult(OriginalImage_,rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,40));
@@ -202,10 +202,17 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
         RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
-    cv::Mat originalframe=cv_ptr->image;
-    originalframe.copyTo(OriginalImage_);
+    cv::Mat originalframe=cv_ptr->image,undistortimage;
+    cv::undistort(originalframe,undistortimage,[&](){
+        cv::Mat ans(cv::Size(3,3),CV_64F);
+        for(int i=0;i<9;i++){
+            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
+        }
+        return ans;
+    }(),distCoeffs);
+    // originalframe.copyTo(OriginalImage_);
     // RCLCPP_INFO(this->get_logger(), "Get frame");
-    MainDetectArrow(originalframe);
+    MainDetectArrow(undistortimage);
 }
 
 std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage, cv::Mat & Image){
@@ -703,6 +710,7 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
     #ifdef noMainDetectArrow
     return 0;
     #endif //noMainDetectArrow
+    OriginalImage.copyTo(OriginalImage_);
     cv::Mat Binary=PreProgress(OriginalImage);
 
     std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary,OriginalImage_);
@@ -718,24 +726,13 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
 
 cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 
-    cv::Mat undis_Image;
-    cv::undistort(OriginalImage,undis_Image,[](std::vector<double> cameraMatrix){
-        cv::Mat ans(cv::Size(3,3),CV_64F);
-        for(int i=0;i<3;i++){
-            for(int e=0;e<3;e++){
-                ans.at<double>(i,e)=cameraMatrix[i*3+e];
-            }
-        }
-        return ans;
-    }(cameraMatrix),distCoeffs);
-
     std::vector<cv::Mat> SplitImage;
     //通道顺序为BGR
-    cv::split(undis_Image,SplitImage);
+    cv::split(OriginalImage,SplitImage);
 
     #ifdef arrow_draw
 
-    cv::imshow("OriginalImage",undis_Image);
+    cv::imshow("OriginalImage",OriginalImage);
 
     #endif
     
@@ -765,7 +762,7 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
     cv::Mat Sharpened;
     cv::filter2D(GaussBinaryImage,Sharpened,-1,sharpening_kenel);
 
-    cv::threshold(Sharpened,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
+    cv::threshold(GaussBinaryImage,BinaryImage,ArrowDetectorThresholdThresh,ArrowDetectorThresholdMaxval,cv::THRESH_BINARY);
 
     # ifdef Imageshow
 
