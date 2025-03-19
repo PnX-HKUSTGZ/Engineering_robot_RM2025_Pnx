@@ -51,6 +51,7 @@
 // #define TargetArrowtest
 #define twopath_inoneline
 #define test_pcl_manage
+#define test_LocalCornerOpitimize
 // #define noMainDetectArrow
 
 using namespace std::chrono;
@@ -113,6 +114,7 @@ class Arrow_detector:public rclcpp::Node{
     // @param tvec translate vec
     // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
     void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat);
+
 
     // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
     // cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
@@ -312,5 +314,9 @@ std::vector<cv::Point_<double>> Points3to2Transform(const Eigen::Matrix<G,3,3> &
 void DrawRotatedRect(cv::Mat &Image,const cv::RotatedRect& rect, const cv::Scalar &color, int thinkness=1);
 
 bool isPointInsideRotatedRect(const cv::Point2f& pt, const cv::RotatedRect& rect);
+
+
+template<typename T>
+cv::Point_<T> LocalCornerOpitimize(const cv::Mat & BinaryImage ,cv::Point_<T> Corner, int MaskRadius, int blockSize, int ksize, double k);
 
 #endif

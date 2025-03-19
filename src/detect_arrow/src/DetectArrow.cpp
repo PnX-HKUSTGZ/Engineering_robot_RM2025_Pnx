@@ -696,13 +696,11 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
     }
     else RCLCPP_INFO(this->get_logger(),"find all peaks successfully");
 
-    // filter_.Update(ArrowPeaks_);
-    // this->ArrowPeaks.clear();
-    // for(auto & i : ArrowPeaks) this->ArrowPeaks.push_back(i);
-    // this->ArrowPeaks.push_back(ArrowPeaks_[6]);
-    // this->ArrowPeaks.push_back(ArrowPeaks_[7]);
-    // for(auto & i : ArrowPeaks_) this->ArrowPeaks.push_back(i);
     RCLCPP_INFO(this->get_logger(),"TargetArrow succesfully");
+
+    // LocalCornerOpitimize(BinaryImage,ArrowPeaks_[0],8,2,3,0.04);
+
+
     return ArrowPeaks_;
 }
 
@@ -720,6 +718,7 @@ bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
     }
 
     PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
+
 
     return 1;
 }
