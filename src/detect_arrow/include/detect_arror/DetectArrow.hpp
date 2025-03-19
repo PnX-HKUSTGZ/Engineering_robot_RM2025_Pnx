@@ -51,7 +51,7 @@
 // #define TargetArrowtest
 #define twopath_inoneline
 #define test_pcl_manage
-#define noMainDetectArrow
+// #define noMainDetectArrow
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -108,6 +108,11 @@ class Arrow_detector:public rclcpp::Node{
     std::vector<cv::Point2d> TargetArrow(const cv::Mat & BinaryImage,cv::Mat & Image);
 
     void DrawPnPResult(cv::Mat & Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
+
+    // send box position in camera to tf2
+    // @param tvec translate vec
+    // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
+    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat);
 
     // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
     // cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));

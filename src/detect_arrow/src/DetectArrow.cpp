@@ -79,22 +79,7 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     rtvecEigen(3, 2) = 0.0;
     rtvecEigen(3, 3) = 1.0;
 
-    geometry_msgs::msg::TransformStamped box_to_camera;
-
-    cv::Vec4d Quaternion_r=rotationMatrixToQuaternion(rmat);
-
-    box_to_camera.header.stamp=this->now();
-    box_to_camera.header.frame_id="sensor/camera";
-    box_to_camera.child_frame_id="object/box";
-    box_to_camera.transform.translation.x=tvec.at<double>(0);
-    box_to_camera.transform.translation.y=tvec.at<double>(1);
-    box_to_camera.transform.translation.z=tvec.at<double>(2);
-    box_to_camera.transform.rotation.w=Quaternion_r[0];
-    box_to_camera.transform.rotation.x=Quaternion_r[1];
-    box_to_camera.transform.rotation.y=Quaternion_r[2];
-    box_to_camera.transform.rotation.z=Quaternion_r[3];
-
-    tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
+    SendBoxPosition(tvec,rvec);
 
     # ifdef arrow_draw
     DrawPnPResult(OriginalImage_,rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,40));
@@ -883,6 +868,39 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
 
     PointCloudeInit();
 
+}
+
+
+
+void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
+
+    CV_Assert((rvecmat.size()==cv::Size(3,3) || rvecmat.size()==cv::Size(3,1) || rvecmat.size()==cv::Size(1,3))&&
+        (rvecmat.type()==CV_64F || rvecmat.type()==CV_32F));
+    CV_Assert((tvec.size()==cv::Size(3,1)||tvec.size()==cv::Size(1,3))&&
+        (tvec.type()==CV_64F ||tvec.type()==CV_32F));
+    cv::Mat rmat;
+    if(rvecmat.size()==cv::Size(3,1)||rvecmat.size()==cv::Size(1,3)){
+        cv::Rodrigues(rvecmat,rmat);
+    }
+    else{
+        rmat=rvecmat;
+    }
+    geometry_msgs::msg::TransformStamped box_to_camera;
+
+    cv::Vec4d Quaternion_r=rotationMatrixToQuaternion(rmat);
+
+    box_to_camera.header.stamp=this->now();
+    box_to_camera.header.frame_id="sensor/camera";
+    box_to_camera.child_frame_id="object/box";
+    box_to_camera.transform.translation.x=tvec.at<double>(0);
+    box_to_camera.transform.translation.y=tvec.at<double>(1);
+    box_to_camera.transform.translation.z=tvec.at<double>(2);
+    box_to_camera.transform.rotation.w=Quaternion_r[0];
+    box_to_camera.transform.rotation.x=Quaternion_r[1];
+    box_to_camera.transform.rotation.y=Quaternion_r[2];
+    box_to_camera.transform.rotation.z=Quaternion_r[3];
+
+    tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
 }
 
 int main (int argc,char* argv[]){

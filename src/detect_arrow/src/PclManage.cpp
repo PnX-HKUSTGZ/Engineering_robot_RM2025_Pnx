@@ -36,16 +36,12 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
     geometry_msgs::msg::TransformStamped transform;
 
     try{
-        // transform=tf2_buffer_->lookupTransform(
-        //     "sensor/mid360",
-        //     cloud_time_point,
-        //     "sensor/camera",
-        //     image_time_point,
-        //     "map");
         transform=tf2_buffer_->lookupTransform(
             "sensor/camera",
+            image_time_point,
             "sensor/mid360",
-            this->now()
+            cloud_time_point,
+            "map"
             );
 
         #ifdef test_pcl_manage
