@@ -42,9 +42,9 @@
 #include <pcl/filters/extract_indices.h>
 
 
-// #include <message_filters/subscriber.h>
-// #include <message_filters/synchronizer.h>
-// #include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 
 // #define arrow_draw
 // #define Imageshow
@@ -185,15 +185,15 @@ class Arrow_detector:public rclcpp::Node{
 
     YAML::Node config;
 
-// public: //pcl manage
-//     template <typename PointT>
-//     pcl::PointCloud<PointT> PointCloudTransformer(const pcl::PointCloud<PointT>& inputcloud,
-//     std::string sourceframe,
-//     std::string targetframe);
+public: //pcl manage
+    template <typename PointT>
+    pcl::PointCloud<PointT> PointCloudTransformer(const pcl::PointCloud<PointT>& inputcloud,
+    std::string sourceframe,
+    std::string targetframe);
 
-// private:
-//     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> msgfillter_cloudpoint_sub;
-//     message_filters::Subscriber<sensor_msgs::msg::Image> msgfillter_image_sub;
+private:
+    message_filters::Subscriber<sensor_msgs::msg::PointCloud2> msgfillter_cloudpoint_sub;
+    message_filters::Subscriber<sensor_msgs::msg::Image> msgfillter_image_sub;
 
     // set sync policy as Approximate
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
