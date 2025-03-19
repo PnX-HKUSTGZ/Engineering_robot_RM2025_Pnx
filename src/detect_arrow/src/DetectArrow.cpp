@@ -149,19 +149,12 @@ void Arrow_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, const c
     }
 
     Eigen::Matrix<double,4,1> Center3D=rtvecEigen*frontfacecenter;
-    std::vector<Eigen::Matrix<double,4,1>> Vectorz3D={rtvecEigen*Eigen::Matrix<double,4,1>(1,0,0,1),
-        rtvecEigen*Eigen::Matrix<double,4,1>(0,1,0,1),
-        rtvecEigen*Eigen::Matrix<double,4,1>(0,0,1,1)};
+    Eigen::Matrix<double,4,1> Vectorz3D=rtvecEigen*Eigen::Matrix<double,4,1>(0,0,1,1);
     Center3D/=Center3D(3);
-    for(auto& i : Vectorz3D){
-        i/=i(3);
-    }
+    Vectorz3D/=Vectorz3D(3);
     Eigen::Matrix<double,3,1> Center2D=cameraMatrixEigen*signMat*Center3D;
-    std::vector<Eigen::Matrix<double,3,1>> CenterVectorz2D;
-    for(auto Vectorz3D_:Vectorz3D){
-        CenterVectorz2D.push_back(cameraMatrixEigen*signMat*Vectorz3D_);
-        CenterVectorz2D.back()/=CenterVectorz2D.back()(2);
-    }
+    Eigen::Matrix<double,3,1> CenterVectorz2D=cameraMatrixEigen*signMat*Vectorz3D;
+    CenterVectorz2D/=CenterVectorz2D(2);
     Center2D/=Center2D(2);
 
     std::vector<cv::Point> reput_arrow;
