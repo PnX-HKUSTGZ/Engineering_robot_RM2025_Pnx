@@ -67,15 +67,15 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
         return;
     }
 
-    transform.transform.rotation.x=0;
-    transform.transform.rotation.y=-0.7071068;
-    transform.transform.rotation.z=0.7071068;
-    transform.transform.rotation.w=0;
-    transform.transform.translation.x=0.06623;
-    // transform.transform.translation.y=-0.0333;
-    transform.transform.translation.y=-0.03257;
-    // transform.transform.translation.z=0.03257;
-    transform.transform.translation.z=-0.0333;
+    // transform.transform.rotation.x=0;
+    // transform.transform.rotation.y=-0.7071068;
+    // transform.transform.rotation.z=0.7071068;
+    // transform.transform.rotation.w=0;
+    // transform.transform.translation.x=0.06623;
+    // // transform.transform.translation.y=-0.0333;
+    // transform.transform.translation.y=-0.03257;
+    // // transform.transform.translation.z=0.03257;
+    // transform.transform.translation.z=-0.0333;
 
     //get Image
     cv_bridge::CvImagePtr cv_ptr;

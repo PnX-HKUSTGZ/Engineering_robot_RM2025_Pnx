@@ -168,7 +168,6 @@ class Arrow_detector:public rclcpp::Node{
 
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_arm;
 
-    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_map;
 
     YAML::Node config;
 

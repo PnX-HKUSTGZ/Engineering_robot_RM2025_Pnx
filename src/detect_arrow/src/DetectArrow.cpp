@@ -860,7 +860,6 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
 
     static_tf_broadcaster_camera_to_arm=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
-    static_tf_broadcaster_camera_to_map=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
     geometry_msgs::msg::TransformStamped camera_to_arm;
 
@@ -875,21 +874,6 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     camera_to_arm.transform.rotation.z=config["object_pos"]["arm"]["rotate"]["z"].as<double>();
 
     static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
-
-    geometry_msgs::msg::TransformStamped to_map;
-
-    to_map.header.frame_id="map";
-    to_map.child_frame_id="sensor/camera";
-    to_map.header.stamp=this->now();
-    to_map.transform.rotation.w=config["object_pos"]["camera"]["rotate"]["w"].as<double>();
-    to_map.transform.rotation.x=config["object_pos"]["camera"]["rotate"]["x"].as<double>();
-    to_map.transform.rotation.y=config["object_pos"]["camera"]["rotate"]["y"].as<double>();
-    to_map.transform.rotation.z=config["object_pos"]["camera"]["rotate"]["z"].as<double>();
-    to_map.transform.translation.x=config["object_pos"]["camera"]["translation"]["x"].as<double>();
-    to_map.transform.translation.y=config["object_pos"]["camera"]["translation"]["y"].as<double>();
-    to_map.transform.translation.z=config["object_pos"]["camera"]["translation"]["z"].as<double>();
-
-    static_tf_broadcaster_camera_to_map->sendTransform(to_map);
 
     }
     catch(const std::exception& e){
