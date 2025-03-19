@@ -81,6 +81,10 @@ private:
 
     tf2_ros::Buffer::SharedPtr tf_buffer;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+
+    rclcpp::Time last_send_time;
+    rclcpp::Time interval_time;
+
 };
 
 

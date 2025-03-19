@@ -382,3 +382,163 @@ bool IsPointSame(cv::Point_<T> point1,cv::Point_<G> point2){
 
 template bool IsPointSame<double, double>(cv::Point_<double> point1,cv::Point_<double> point2);
 template bool IsPointSame<double, int>(cv::Point_<double> point1,cv::Point_<int> point2);
+
+
+double CalculatePlantEquality(Eigen::VectorXf plant,std::vector<double> coff,int emptyplace){
+    assert(coff.size()==2&&emptyplace<=2&&plant.rows()==4);
+    double lin=-plant(3);
+    for(int i=0;i<3;i++){
+        if(plant(i)==0){
+            return NAN;
+        }
+        if(i==emptyplace) continue;
+        lin-=plant(i)*coff[i];
+    }
+    double ans=lin/plant(emptyplace);
+
+    return ans;
+}
+
+bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
+    const std::vector<cv::Point3d>& Target,
+    cv::Mat & tvec,
+    cv::Mat & rvec){
+
+    RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Source.size() : %d",Source.size());
+    RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"Target.size() : %d",Target.size());
+    if (Source.size()!=Target.size()){
+        return 1;
+    }
+    tvec=cv::Mat(cv::Size(3,1),CV_64F);
+    rvec=cv::Mat(cv::Size(3,1),CV_64F);
+
+    std::vector<Eigen::Matrix<double,3,1>> SourceEigen(Source.size());
+    std::vector<Eigen::Matrix<double,3,1>> TargetEigen(Target.size());
+    Eigen::Matrix<double,3,1> source_centroid;
+    Eigen::Matrix<double,3,1> target_centroid;
+    std::vector<Eigen::Matrix<double,3,1>> centered_source(Source.size());
+    std::vector<Eigen::Matrix<double,3,1>> centered_target(Source.size());
+
+    for(int siz=Source.size(),i=0;i<siz;i++){
+        SourceEigen[i]<<Source[i].x,Source[i].y,Source[i].z;
+        TargetEigen[i]<<Target[i].x,Target[i].y,Target[i].z;
+        source_centroid+=SourceEigen[i]/siz;
+        target_centroid+=TargetEigen[i]/siz;
+    }
+
+    for(int siz=Source.size(),i=0;i<siz;i++){
+        centered_source[i]=SourceEigen[i]-source_centroid;
+        centered_target[i]=TargetEigen[i]-target_centroid;
+    }
+
+    Eigen::Matrix<double,3,3> H=Eigen::Matrix<double,3,3>::Zero();
+
+    for(int siz=Source.size(),i=0;i<siz;i++){
+        H+=centered_source[i]*centered_target[i].transpose();
+    }
+
+    // SVD
+    Eigen::JacobiSVD<Eigen::Matrix<double,3,3>> SVD(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d U = SVD.matrixU();
+    Eigen::Matrix3d V = SVD.matrixV();
+
+    // Handle reflection (ensure proper rotation)
+    Eigen::Matrix3d S = Eigen::Matrix3d::Identity();
+    if (U.determinant() * V.determinant() < 0) {
+        S(2, 2) = -1; // Flip the sign of the last column of V
+    }
+
+    Eigen::Matrix<double,3,3> rotation;
+    Eigen::Matrix<double,3,1> translation;
+    cv::Mat rotation33(cv::Size(3,3),CV_64F);
+
+    // Compute rotation matrix
+    rotation = V * S * U.transpose();
+
+    // Compute translation vector
+    translation = target_centroid - rotation * source_centroid;
+
+    for(int i=0;i<3;i++){
+        for(int e=0;e<3;e++){
+            rotation33.at<double>(i,e)=rotation(i,e);
+        }
+        tvec.at<double>(i)=translation(i);
+    }
+    cv::Rodrigues(rotation33,rvec);
+
+    RCLCPP_INFO(rclcpp::get_logger("KabschAlgorithm"),"finish!");
+    return 0;
+}
+
+template<typename T,typename G>
+cv::Point_<double> Point3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const cv::Point3_<T> &point){
+    Eigen::Matrix<G,4,1> pointEigen;
+    Eigen::Matrix<G,3,1> ansEigen;
+    Eigen::Matrix<G,3,4> signMat;
+    signMat<<1,0,0,0,
+    0,1,0,0,
+    0,0,0,1;
+    pointEigen<<point.x,point.y,point.z,1;
+    ansEigen=cameraMatrixEigen*signMat*pointEigen;
+    ansEigen/=ansEigen(2);
+    return cv::Point2d(ansEigen(0),ansEigen(1));
+}
+
+template cv::Point_<double> Point3to2Transform< int, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const cv::Point3_<int> &point);
+template cv::Point_<double> Point3to2Transform< float, float> (const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const cv::Point3_<float> &point);
+template cv::Point_<double> Point3to2Transform< double, float>(const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const cv::Point3_<double> &point);
+template cv::Point_<double> Point3to2Transform< double, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const cv::Point3_<double> &point);
+
+template<typename T,typename G>
+std::vector<cv::Point_<double>> Points3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<T>> &points){
+    std::vector<cv::Point_<double>> ans;
+    for(auto & i : points){
+        ans.push_back(Point3to2Transform(cameraMatrixEigen,i));
+    }
+    return ans;
+}
+
+template std::vector<cv::Point_<double>> Points3to2Transform< int, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<int>> &points);
+template std::vector<cv::Point_<double>> Points3to2Transform< float, float> (const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<float>> &points);
+template std::vector<cv::Point_<double>> Points3to2Transform< double, float>(const Eigen::Matrix<float,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<double>> &points);
+template std::vector<cv::Point_<double>> Points3to2Transform< double, double>(const Eigen::Matrix<double,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<double>> &points);
+
+
+void DrawRotatedRect(cv::Mat &Image,const cv::RotatedRect& rect, const cv::Scalar &color, int thinkness){
+    cv::drawContours(Image,Counters{
+        [&](){
+            Counter ans;
+            cv::Point2f rotatedrect_points_ptr[4];
+            rect.points(rotatedrect_points_ptr);
+            for(int i=0;i<4;i++){
+                ans.push_back(cv::Point(rotatedrect_points_ptr[i].x,rotatedrect_points_ptr[i].y));
+            }
+            return ans;
+        }()
+    },-1,color,thinkness);
+}
+
+bool isPointInsideRotatedRect(const cv::Point2f& pt, const cv::RotatedRect& rect) {
+    // 将点平移到以矩形中心为原点的坐标系
+    cv::Point2f translated = pt - rect.center;
+    
+    // 计算旋转角度（弧度）及其三角函数值
+    float angle = rect.angle * CV_PI / 180.0f;
+    float cosA = std::cos(-angle);  // 逆旋转角度
+    float sinA = std::sin(-angle);
+    
+    // 应用逆旋转变换
+    float xRotated = translated.x * cosA - translated.y * sinA;
+    float yRotated = translated.x * sinA + translated.y * cosA;
+    
+    // 检查是否在未旋转的矩形范围内
+    float halfWidth = rect.size.width / 2.0f;
+    float halfHeight = rect.size.height / 2.0f;
+    return (std::abs(xRotated) <= halfWidth && std::abs(yRotated) <= halfHeight);
+}
+
+PnPresult::PnPresult(const cv::Mat &tvec_,const cv::Mat &rvec_,rclcpp::Time tim){
+    tvec_.copyTo(tvec);
+    rvec_.copyTo(rvec);
+    stamp=tim;
+}

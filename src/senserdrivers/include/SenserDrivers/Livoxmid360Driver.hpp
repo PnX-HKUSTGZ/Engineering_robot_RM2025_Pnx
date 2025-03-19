@@ -76,6 +76,7 @@ private:
     pcl::PointCloud<pcl::PointXYZ> cloud;
     std::string frame_id;
     int buffertime;
+    std::mutex cloudmtx;
 };
 
 void PointCloudCallback(uint32_t handle, uint8_t dev_type, LivoxLidarEthernetPacket* data, void* client_data);
