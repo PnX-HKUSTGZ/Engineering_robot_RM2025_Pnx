@@ -14,6 +14,7 @@
 #include <thread>
 #include <algorithm>
 #include <sstream>
+#include <random>
 
 #include <yaml-cpp/yaml.h>
 
@@ -25,23 +26,67 @@
 #include <tf2/utils.hpp>
 #include <tf2/time.h>
 #include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 
-// #include <pcl/point_cloud.h>
-// #include <pcl/point_types.h>
-// #include <pcl_conversions/pcl_conversions.h>
-// #include <pcl/common/transforms.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/common/transforms.h>
+#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/PointIndices.h>
+#include <pcl/filters/extract_indices.h>
+
 
 // #include <message_filters/subscriber.h>
 // #include <message_filters/synchronizer.h>
 // #include <message_filters/sync_policies/approximate_time.h>
 
-#define arrow_draw
-#define Imageshow
+// #define arrow_draw
+// #define Imageshow
 // #define TargetArrowtest
 #define twopath_inoneline
+#define test_pcl_manage
+// #define test_LocalCornerOpitimize
+#define noMainDetectArrow
+// #define drawFinalres
 
 using namespace std::chrono;
 using namespace std::placeholders;
+using namespace std::chrono_literals;
+
+typedef std::pair<int,int> pii;
+
+typedef cv::Vec2f LineAL;
+typedef std::vector<LineAL> LineALs;
+typedef LineAL Line;
+typedef LineALs Lines;
+
+//Ax+By+C=0
+struct LineABC{
+    double a,b,c;
+};
+
+typedef std::vector<std::vector<cv::Point>> Counters;
+typedef std::vector<cv::Point> Counter;
+typedef std::vector<std::vector<cv::Point2d>> Counter2ds;
+typedef std::vector<cv::Point2d> Counter2d;
+typedef std::vector<std::vector<cv::Point2f>> Counter2fs;
+typedef std::vector<cv::Point2f> Counter2f;
+
+//normalize vector with a point on the line
+typedef cv::Vec4d LineVP;
+
+struct PnPresult{
+    cv::Mat tvec;
+    cv::Mat rvec;
+    rclcpp::Time stamp;
+    PnPresult(const cv::Mat &tvec_,const cv::Mat &rvec_,rclcpp::Time tim=rclcpp::Clock().now());
+};
 
 class Arrow_detector:public rclcpp::Node{
     public:
@@ -61,7 +106,6 @@ class Arrow_detector:public rclcpp::Node{
     cv::Mat GreyImage;
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
-    cv::Mat rvec,tvec;
     FilterCorner filter_;
 
     cv::Mat PreProgress(const cv::Mat & OriginalImage);
@@ -70,9 +114,14 @@ class Arrow_detector:public rclcpp::Node{
     bool PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
         cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
     bool MainDetectArrow(const cv::Mat & OriginalImage);
-    bool TargetArrow(const cv::Mat & BinaryImage);
+    std::vector<cv::Point2d> TargetArrow(const cv::Mat & BinaryImage,cv::Mat & Image);
 
-    void DrawPnPResult(const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
+    void DrawPnPResult(cv::Mat & Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
+
+    // send box position in camera to tf2
+    // @param tvec translate vec
+    // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
+    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & OriginalImage);
 
     // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
     // cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
@@ -106,6 +155,8 @@ class Arrow_detector:public rclcpp::Node{
     std::vector<double> cameraMatrix;
     // 相机外参 Eigen
     Eigen::Matrix<double,3,3> cameraMatrixEigen;
+    // 相机外参 Eigen Inverse
+    Eigen::Matrix<double,3,3> InverseCameraMatrixEigen;
     // 相机内参
     std::vector<double> distCoeffs;
     // 箭头上的点
@@ -131,7 +182,8 @@ class Arrow_detector:public rclcpp::Node{
 
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_arm;
 
-    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_camera_to_map;
+
+    YAML::Node config;
 
 // public: //pcl manage
 //     template <typename PointT>
@@ -143,29 +195,69 @@ class Arrow_detector:public rclcpp::Node{
 //     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> msgfillter_cloudpoint_sub;
 //     message_filters::Subscriber<sensor_msgs::msg::Image> msgfillter_image_sub;
 
-//     // set sync policy as Approximate
-//     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
-//     typedef message_filters::Synchronizer<SyncPolicy> Sync;
-//     std::shared_ptr<Sync> sync_;
+    // set sync policy as Approximate
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
+    typedef message_filters::Synchronizer<SyncPolicy> Sync;
+    std::shared_ptr<Sync> sync_;
 
-//     // Init Function for pointcloud part;
-//     void PointCloudeInit();
+    tf2_ros::Buffer::SharedPtr tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+
+    //OriginalImage_ for plc manage
+    cv::Mat OriginalImage_pcl;
+
+    // Init Function for pointcloud part;
+    void PointCloudeInit();
+
+    void ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
+        const sensor_msgs::msg::Image::ConstSharedPtr& image_msg);
+    
+    template<typename T>
+    void DrawCircleMask(cv::Mat Image,std::vector<cv::Point_<T>> counter);
+
+    //in or on circle
+    bool inCircle(const cv::Point2f & Center,
+        const float & CornerPointsRadius,
+        const Eigen::Matrix<double,3,1>& TestPoint);
+
+    // idea1 get plant first and using the limit of plant to get the possition of corner points and then get the trvec
+    bool GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> &pointcloud, 
+        Counter2d CornerPoints, 
+        cv::Mat & tvec, 
+        cv::Mat & rvec);
+    
+    // kown a plant and know the 2D points are on that plant
+    // get the 3D points according to these
+    // @param Points2D 2D point on plant
+    // @param plant Eigen::VectorXf plant Ax+By+Cz+D=0
+    // @param Points3D 
+    bool ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const Eigen::VectorXf & plant, std::vector<cv::Point3d> &Points3D);
+
+
+    # ifdef test_pcl_manage
+
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_test_point_cloud_pub;
+
+    # endif
+
+    double ransacDistanceThreshold;
+    int ransacMaxIterations;
+
+private: //同步结果并且发布
+    std::queue<PnPresult> pnpress;
+    std::queue<PnPresult> cloudress;
+    std::shared_ptr<rclcpp::TimerBase> respubtimer_;
+    int queuesiz;
+    rclcpp::Duration syncThresehold=rclcpp::Duration(0,0);
+    std::mutex pnpressMtx;
+    std::mutex cloudressMtx;
+
+    void SyncPubBoxPos();
+    void SyncPubBoxPosInit();
+
+
 };
 
-typedef std::pair<int,int> pii;
-
-typedef cv::Vec2f LineAL;
-typedef std::vector<LineAL> LineALs;
-typedef LineAL Line;
-typedef LineALs Lines;
-
-//Ax+By+C=0
-struct LineABC{
-    double a,b,c;
-};
-
-//normalize vector with a point on the line
-typedef cv::Vec4d LineVP;
 
 LineAL GetLineAL(const LineVP & l);
 LineAL GetLineAL(const LineABC & l);
@@ -188,11 +280,6 @@ struct Slope{
     int p1,p2;
     double slope;
 };
-
-typedef std::vector<std::vector<cv::Point>> Counters;
-typedef std::vector<cv::Point> Counter;
-typedef std::vector<std::vector<cv::Point2d>> Counter2ds;
-typedef std::vector<cv::Point2d> Counter2d;
 
 double GetAngleAccordingToHorizon(cv::Point p1,cv::Point p2);
 
@@ -225,5 +312,31 @@ void subopix(const cv::Mat& GrayImage, std::vector<cv::Point2d>& pointset, cv::S
 
 template<typename T,typename G>
 bool IsPointSame(cv::Point_<T> point1,cv::Point_<G> point2);
+
+
+// @param plant plant equality is Ax+By+Cz+D=0
+// @param coff two of X,Y,Z in order
+// @param emptyplace UN need to get index begin with 0
+double CalculatePlantEquality(Eigen::VectorXf plant,std::vector<double> coff,int emptyplace);
+
+// KabschAlgorithm
+bool KabschAlgorithm(const std::vector<cv::Point3d> &Source,
+    const std::vector<cv::Point3d>& Target,
+    cv::Mat & tvec,
+    cv::Mat & rvec);
+
+template<typename T,typename G>
+cv::Point_<double> Point3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const cv::Point3_<T> &point);
+
+template<typename T,typename G>
+std::vector<cv::Point_<double>> Points3to2Transform(const Eigen::Matrix<G,3,3> & cameraMatrixEigen,const std::vector<cv::Point3_<T>> &points);
+
+void DrawRotatedRect(cv::Mat &Image,const cv::RotatedRect& rect, const cv::Scalar &color, int thinkness=1);
+
+bool isPointInsideRotatedRect(const cv::Point2f& pt, const cv::RotatedRect& rect);
+
+
+template<typename T>
+cv::Point_<T> LocalCornerOpitimize(const cv::Mat & BinaryImage ,cv::Point_<T> Corner, int MaskRadius, int blockSize, int ksize, double k);
 
 #endif

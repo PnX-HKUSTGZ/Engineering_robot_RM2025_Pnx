@@ -3,8 +3,8 @@
 camera:
   height: 1080
   width: 1920
-  dist_coeffs: [-0.06956525568003788, 0.2581422804020626, -0.0003564032686199209, 0.0003338825740042274, 0.4402362993360126]
-  camera_matrix: [2391.737034052774, 0, 689.9444268016028, 0, 2392.02700219801, 563.7754255282723, 0.0, 0.0, 1.0]
+  dist_coeffs: [-0.1131506181237709, 0.1301328009901622, -0.0007416862926336681, 0.0003741668262735999, 0.06347345493061382]
+  camera_matrix: [2413.820435449382, 0, 658.3681795085505 , 0, 2418.356696660543, 568.1925341729512, 0.0, 0.0, 1.0]
   ExposureTimeLower: 15000
   ExposureTimeUpper: 15000
   Gain: 7.0
@@ -52,8 +52,8 @@ arrow_detect:
   ArrowDetectorLengthWidthRatioMin: 1.1
   ArrowDetectorApproxSizeMax: 8.
   ArrowDetectorApproxSizeMin: 6.
-  ArrowDetectorCannyThreshold1: 100.
-  ArrowDetectorCannyThreshold2: 200.
+  ArrowDetectorCannyThreshold1: 200.
+  ArrowDetectorCannyThreshold2: 300.
   ArrowDetectorHoughRho: 0.25
   ArrowDetectorHoughTheta: 0.00436332312998582394230922638889
   ArrowDetectorHoughThreshold: 35.
@@ -65,6 +65,13 @@ arrow_detect:
   ArrowDetectorapproxPolyDPEpsilon: 10.
   ArrowDetectorLongShortRateMax: 20.
   ArrowDetectorLongShortRateMin: 5.
+  PCLManager:
+    ransacDistanceThreshold: 1
+    ransacMaxIterations: 1000
+  SyncPubBoxPos:
+    queuesiz: 20
+    syncThresehold: [1,10000000]
+    PubInterval: 10
 
 mid_360:
   buffertime: 200 # ms int
@@ -72,33 +79,33 @@ mid_360:
 object_pos:
   arm: # arm to map
     translation:
-      x: 0
-      y: 0
-      z: 0
+      x: 0.
+      y: 0.
+      z: 0.
     rotate:
       w: 0.7071068
-      x: 0
-      y: 0
+      x: 0.
+      y: 0.
       z: 0.7071068
   camera: # camera to map
     translation:
-      x: 0
-      y: 0
+      x: 0.
+      y: 0.
       z: 0.01443
     rotate:
       w: 0.7071068
       x: -0.7071068
-      y: 0
-      z: 0
+      y: 0.
+      z: 0.
   mid360: # mid360 to map
     translation:
       x: 0.06623
       y: -0.03333
       z: 0.047
     rotate:
-      w: 0
-      x: 0
-      y: 0
-      z: 1
+      w: 0.
+      x: 0.
+      y: 0.
+      z: 1.
   
 
