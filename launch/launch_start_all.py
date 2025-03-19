@@ -16,6 +16,12 @@ def generate_launch_description():
             parameters=[Path],
         ),
         Node(
+            package='senserdrivers',
+            executable='mid360_driver',
+            name='mid360_driver',
+            parameters=[Path],
+        ),
+        Node(
             package='detect_arrow',
             executable='detect_arrow',
             name='detect_arrow',

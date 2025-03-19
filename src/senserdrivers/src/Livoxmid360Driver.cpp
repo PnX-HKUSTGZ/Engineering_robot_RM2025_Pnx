@@ -201,12 +201,11 @@ Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
 
     RCLCPP_INFO(this->get_logger(), "tf broadcaster successfully.");
 
-    if (!LivoxLidarSdkInit(configpath.c_str())) {
-        RCLCPP_ERROR(this->get_logger(), "LivoxLidarSdkInit failed.");
+    while(!LivoxLidarSdkInit(configpath.c_str())){
+        RCLCPP_ERROR(this->get_logger(), "LivoxLidarSdkInit failed. try again");
         LivoxLidarSdkUninit();
-        rclcpp::shutdown();
     }
-    else RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
+    RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
 
     cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(buffertime),[&](){
         publishCloud();
