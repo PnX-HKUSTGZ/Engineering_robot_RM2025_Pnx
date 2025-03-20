@@ -88,15 +88,18 @@ rectangle_detect:
   DetectRectangleC: 0
   DetectRectangleMaxValue: 250
   TargetRectangleapproxPolyDPepsilon: 10
-  TargetRectanglePixelNumMax: 5000
-  TargetRectanglePixelNumMin: 100
-  TargetRectangleApproxSizeMax: 8
+  TargetRectanglePixelNumMax: 10000
+  TargetRectanglePixelNumMin: 1000
+  TargetRectangleApproxSizeMax: 6
   TargetRectangleApproxSizeMin: 6
-  TargetRectangleHWRateMax: 3
+  TargetRectangleHWRateMax: 10
   TargetRectangleHWRateMin: 0.5
   TargetRectangleErodeCoreSize: [2,2]
   TargetRectangleErodeItrations: 3
-  TargetRectangleDilateCoreSize: [3,3]
+  TargetRectangleDilateCoreSize: [2,2]
+  TargetRectangleDilateItrations: 2
+  TargetRectanglee4f2rateMin: 1.5
+  TargetRectanglee4f2rateMax: 5
   
 
 

@@ -288,8 +288,11 @@ private://Rectangle_Detector
     double TargetRectangleHWRateMax;
     double TargetRectangleHWRateMin;
     int TargetRectangleErodeItrations;
+    int TargetRectangleDilateItrations;
     cv::Size TargetRectangleErodeCoreSize;
     cv::Size TargetRectangleDilateCoreSize;
+    double TargetRectanglee4f2rateMin;
+    double TargetRectanglee4f2rateMax;
 
     std::vector<cv::Point3d> RectangleOuterlayerCorners;
     std::vector<Eigen::Matrix<double,4,1>> RectangleOuterlayerCornersEigen;

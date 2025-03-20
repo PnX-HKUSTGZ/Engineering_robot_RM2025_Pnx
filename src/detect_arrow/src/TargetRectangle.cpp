@@ -49,7 +49,9 @@ cv::Mat Arrow_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
     cv::dilate(BinaryImage,
         DilatedImage,
         cv::getStructuringElement(cv::MorphShapes::MORPH_CROSS,
-            TargetRectangleDilateCoreSize));
+            TargetRectangleDilateCoreSize),
+        cv::Point(-1, -1),
+        TargetRectangleDilateItrations);
 
     cv::erode(DilatedImage,
         ErodedImage,
@@ -82,33 +84,19 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
     for(auto &counter : FirstCornerscounters){
 
         int PixelNum;
-        try{
-            PixelNum=cv::contourArea(counter);
-        }
-        catch(const std::exception& e){
-            RCLCPP_WARN(this->get_logger(),"cv::contourArea(counter) fail");
-            continue;
-        }
-        if(PixelNum<50) continue;
-
         Counter approxresult;
         cv::RotatedRect rotatedrect;
-
         try{
+            PixelNum=cv::contourArea(counter);
+            rotatedrect=cv::minAreaRect(counter);
             cv::approxPolyDP(counter,approxresult,TargetRectangleapproxPolyDPepsilon,1);
         }
         catch(const std::exception& e){
-            RCLCPP_WARN(this->get_logger(),"cv::approxPolyDP(counter,approxresult,TargetRectangleapproxPolyDPepsilon,1) fail");
+            RCLCPP_WARN(this->get_logger(),"first loop TargetRectangle fail with %s",e.what());
             continue;
         }
+        if(PixelNum<500) continue;
 
-        try{
-            rotatedrect=cv::minAreaRect(counter);
-        }
-        catch(const std::exception& e){
-            RCLCPP_WARN(this->get_logger(),"cv::minAreaRect(counter) fail");
-            continue;
-        }
         //check 0
         if(std::abs(rotatedrect.size.height)<eps||std::abs(rotatedrect.size.width)<eps){
             continue;
@@ -119,46 +107,80 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
         bool PixelNumcheck= (TargetRectanglePixelNumMin<=PixelNum&&PixelNum<=TargetRectanglePixelNumMax);
         bool HWRateCheck= (TargetRectangleHWRateMin<= HWRate && HWRate<= TargetRectangleHWRateMax);
 
+
         #ifdef DetectorRectangle_test_target
+        RCLCPP_INFO(this->get_logger(),"approxresult.size= %ld",approxresult.size());
+        RCLCPP_INFO( this->get_logger(),"PixelNum= %d",PixelNum);
+        RCLCPP_INFO( this->get_logger(),"HWRate= %f",HWRate);
 
-        cv::Mat Image_;
-        Image.copyTo(Image_);
-        RCLCPP_INFO(this->get_logger(),"TargetRectangle: approxresult %ld",approxresult.size());
-        RCLCPP_INFO(this->get_logger(),"TargetRectangle: PixelNum %ld", PixelNum);
-        RCLCPP_INFO(this->get_logger(),"TargetRectangle: HWRate %lf",HWRate);
-        RCLCPP_INFO(this->get_logger(),"TargetRectangle %s",(approxresultsizcheck&&PixelNumcheck&&HWRateCheck) ? "pass" : "nopass");
-        cv::drawContours(Image_,Counters{counter},-1,cv::Scalar(223,89,54),1);
-        cv::imshow("DetectorRectangle_test_target",Image_);
+        RCLCPP_INFO(this->get_logger(),"TargetRectangle %s",(approxresultsizcheck&&PixelNumcheck&&HWRateCheck) ? "pass" : "fail");
+        cv::drawContours(Image,std::vector<Counter>{counter},-1,cv::Scalar(255,34,123),3);
+        cv::imshow("TargetRectangle__",Image);
         cv::waitKey(0);
-
         #endif
+
 
         if(!(approxresultsizcheck&&PixelNumcheck&&HWRateCheck)){
             continue;
         }
 
-        //need more
+        std::vector<double> approxdis;
+        for(std::size_t i=0;i<approxresult.size();i++){
+            approxdis.push_back(DistancePoints(approxresult[i],approxresult[(i+1)%approxresult.size()]));
+        }
+        std::sort(approxdis.begin(),approxdis.end());
+        double f2=(approxdis[0]+approxdis[1])/2;
+        double e4=(approxdis[2]+approxdis[3]+approxdis[4]+approxdis[5])/4;
+        double e4f2rate=e4/f2;
+
+        bool e4f2ratecheck=(TargetRectanglee4f2rateMin<=e4f2rate&&e4f2rate<=TargetRectanglee4f2rateMax);
+
+        if(!e4f2ratecheck){
+            continue;
+        }
 
         TargetCornerscounters.push_back(counter);
         counter_size.push_back(cv::contourArea(counter));
+
+    
     }
+
+    //clear some inbody counter
+    Counters NoOverlapTargetCornerscounters;
+    for(std::size_t i=0;i<TargetCornerscounters.size();i++){
+        bool noverlap=true;
+        for(std::size_t j=0;j<TargetCornerscounters.size();j++){
+            if(i==j) continue;
+            if(cv::pointPolygonTest(TargetCornerscounters[j],TargetCornerscounters[i][0],false)>=0){
+                noverlap=false;
+                break;
+            }
+        }
+        if(noverlap){
+            NoOverlapTargetCornerscounters.push_back(TargetCornerscounters[i]);
+        }
+    }
+
+    // # ifdef DetectorRectangle_test_target
+    for(auto & e : NoOverlapTargetCornerscounters){
+        cv::drawContours(Image,std::vector<Counter>{e},-1,cv::Scalar(255,34,123),3);
+        RCLCPP_INFO(this->get_logger(),"counter.size= %lf",cv::contourArea(e));
+        cv::imshow("TargetRectangle",Image);
+        // cv::waitKey(0);
+    }
+    // #endif
     //defult due to opencv the order of TargetCornerscounters is 逆时针顺序
-    if(TargetCornerscounters.size()!=4){
-        RCLCPP_WARN(this->get_logger(),"TargetCornerscounters.size()!=4 fail size= %ld",TargetCornerscounters.size());
+    if(NoOverlapTargetCornerscounters.size()!=4){
+        RCLCPP_WARN(this->get_logger(),"TargetCornerscounters.size()!=4 fail size= %ld",NoOverlapTargetCornerscounters.size());
         return std::vector<cv::Point2f>();
     }
     else{
-        RCLCPP_INFO(this->get_logger(),"TargetCornerscounters.size()=4 pass size= %ld",TargetCornerscounters.size());
+        RCLCPP_INFO(this->get_logger(),"TargetCornerscounters.size()=4 pass size= %ld",NoOverlapTargetCornerscounters.size());
     }
-    
-    sort(counter_size.begin(),counter_size.end());
-    if(counter_size[0]*10<counter_size[3]){
-        RCLCPP_WARN(this->get_logger(),"TargetCornerscounters maxsize/minsize>=10 too large");
-        return std::vector<cv::Point2f>();
-    }
+
     RCLCPP_INFO(this->get_logger(),"1");
     Counter AllPointSet;
-    CombineCounters(TargetCornerscounters,AllPointSet);
+    CombineCounters(NoOverlapTargetCornerscounters,AllPointSet);
     std::vector<Circle<float>> circlesOf3(4),circles(4);
     Counter2fs TranglesOf3(4);
 
@@ -169,9 +191,9 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
 
     for(int i=0;i<4;i++){
         Counter combine3;
-        CombineCounters(Counters{TargetCornerscounters[(i+3)%4],
-            TargetCornerscounters[i],
-            TargetCornerscounters[(i+1)%4]},combine3);
+        CombineCounters(Counters{NoOverlapTargetCornerscounters[(i+3)%4],
+            NoOverlapTargetCornerscounters[i],
+            NoOverlapTargetCornerscounters[(i+1)%4]},combine3);
         cv::minEnclosingCircle(combine3,circlesOf3[i].center,circlesOf3[i].radius);
         cv::minEnclosingTriangle([&combine3](){
                 Counter2f result;
@@ -180,7 +202,7 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
                 }
                 return result;
             }(),TranglesOf3[i]);
-        cv::minEnclosingCircle(TargetCornerscounters[i],circles[i].center,circles[i].radius);
+        cv::minEnclosingCircle(NoOverlapTargetCornerscounters[i],circles[i].center,circles[i].radius);
 
         double dis=1e9;
         for(auto & e : TranglesOf3[i]){
@@ -189,7 +211,6 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
                 Corners[i]=e;
             }
         }
-    RCLCPP_INFO(this->get_logger(),"1");
     }
 
 
@@ -203,7 +224,6 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
             cv::Scalar(43,23,100));
     }
     cv::imshow("TargetRectangle",Image);
-    cv::waitKey(0);
     #endif
 
     return Corners;
@@ -235,10 +255,11 @@ bool Arrow_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
         return 1;
     }
 
+    #ifdef DetectorRectangle_test
     DrawPnPResult(OriginalImage_Rectangle,rvec,tvec,cv::Scalar(33,44,98),1,cv::Point(20,40));
-    
     cv::imshow("MainDetectArrow_Rectangle",OriginalImage_Rectangle);
-    cv::waitKey(0);
+    cv::waitKey(11);
+    #endif
 
     SendBoxPosition(tvec,rvec,OriginalImage_Rectangle);
     
@@ -269,9 +290,12 @@ void Arrow_detector::RectangleDetectorInit(){
         TargetRectangleHWRateMin=config["rectangle_detect"]["TargetRectangleHWRateMin"].as<double>();
         TargetRectangleHWRateMax=config["rectangle_detect"]["TargetRectangleHWRateMax"].as<double>();
         DetectRectangleMaxValue=config["rectangle_detect"]["DetectRectangleMaxValue"].as<double>();
+        TargetRectanglee4f2rateMin=config["rectangle_detect"]["TargetRectanglee4f2rateMin"].as<double>();
+        TargetRectanglee4f2rateMax=config["rectangle_detect"]["TargetRectanglee4f2rateMax"].as<double>();
         TargetRectangleErodeCoreSize=cv::Size(config["rectangle_detect"]["TargetRectangleErodeCoreSize"].as<std::vector<int>>()[0],
             config["rectangle_detect"]["TargetRectangleErodeCoreSize"].as<std::vector<int>>()[1]);
         TargetRectangleErodeItrations=config["rectangle_detect"]["TargetRectangleErodeItrations"].as<int>();
+        TargetRectangleDilateItrations=config["rectangle_detect"]["TargetRectangleDilateItrations"].as<int>();
         TargetRectangleDilateCoreSize=cv::Size(config["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[0],
             config["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[1]);
     }
