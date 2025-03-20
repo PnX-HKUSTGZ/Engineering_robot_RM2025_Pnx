@@ -542,3 +542,18 @@ PnPresult::PnPresult(const cv::Mat &tvec_,const cv::Mat &rvec_,rclcpp::Time tim)
     rvec_.copyTo(rvec);
     stamp=tim;
 }
+
+
+template<typename T>
+void CombineCounters(const std::vector<std::vector<cv::Point_<T>>> & counters,std::vector<cv::Point_<T>> & output){
+    output.clear();
+    for(auto & i : counters){
+        for(auto & e : i){
+            output.push_back(e);
+        }
+    }
+    return;
+}
+
+template void CombineCounters<int>(const std::vector<std::vector<cv::Point_<int>>> & counters,std::vector<cv::Point_<int>> & output);
+template void CombineCounters<double>(const std::vector<std::vector<cv::Point_<double>>> & counters,std::vector<cv::Point_<double>> & output);

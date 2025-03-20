@@ -222,6 +222,59 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
 
 }
 
+void Arrow_detector::DetectArrowInit(){
+    try{
+
+    for(int i=0;i<8;i++){
+        const std::vector<double> & arrowPoints=config["arrow"]["arrowPoints"][i].as<std::vector<double>>();
+        objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
+        objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));
+    }
+    for(int i=0;i<4;i++){
+        const std::vector<double> & redeemptionBoxCornerPoints=config["redeem_box"]["redeemptionBoxCornerPoints"][i].as<std::vector<double>>();
+        ObjRedemptionBoxCornerPoint.push_back(cv::Point3d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2]));
+        ObjRedemptionBoxCornerPointEigen.push_back(Eigen::Vector4d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2],1));
+    }
+    for(int i=0;i<2;i++){
+        const std::vector<double> & line=config["redeem_box"]["line"][i].as<std::vector<double>>();
+        Object2cornersEigen.push_back(Eigen::Vector4d(line[0],line[1],line[2],1));
+    }
+    // for(int i=0;i<9;i++){
+    //     CenterToArrowvec(i/3,i%3)=config["redeem_box"]["CenterToArrow"][i].as<double>();
+    // }
+    frontfacecenter=Eigen::Matrix<double,4,1>(config["redeem_box"]["center"][0].as<double>(),
+        config["redeem_box"]["center"][1].as<double>(),
+        config["redeem_box"]["center"][2].as<double>(),
+        1.0
+    );
+    
+    ArrowDetectorPixelNumMax=config["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
+    ArrowDetectorPixelNumMin=config["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
+    ArrowDetectorLengthWidthRatioMax=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
+    ArrowDetectorLengthWidthRatioMin=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
+    ArrowDetectorApproxSizeMax=config["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
+    ArrowDetectorApproxSizeMin=config["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
+    ArrowDetectorCannyThreshold1=config["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
+    ArrowDetectorCannyThreshold2=config["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
+    ArrowDetectorHoughRho=config["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
+    ArrowDetectorHoughTheta=config["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
+    ArrowDetectorHoughThreshold=config["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
+    ArrowDetectParallelThreshold=config["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
+    ArrowDetectorThresholdThresh=config["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
+    ArrowDetectorThresholdMaxval=config["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();
+    ArrowDetectorThresholdThreshold=config["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
+    ArrowDetectorIterations=config["arrow_detect"]["ArrowDetectorIterations"].as<double>();
+    ArrowDetectorapproxPolyDPEpsilon=config["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
+    ArrowDetectorLongShortRateMax=config["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
+    ArrowDetectorLongShortRateMin=config["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
+
+    }
+    catch(const std::exception& e){
+        RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
+        rclcpp::shutdown();
+    }
+}
+
 std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage, cv::Mat & Image){
     std::vector<cv::Vec2f> lines;
     Counters counters_;
@@ -814,63 +867,29 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     this->RedeemBoxPosition_publisher_=this->create_publisher<interfaces::msg::RedeemBoxPosition>("/arrow_detect/RedeemBoxPosition",10);
     this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
     RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
-
-    //定义参数
+    
     try{
-
-    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx");
+    
     config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
     cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
-    distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
+    distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();    
     for(int i=0;i<9;i++){
         cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
     }
     InverseCameraMatrixEigen=cameraMatrixEigen.inverse();
-    for(int i=0;i<8;i++){
-        const std::vector<double> & arrowPoints=config["arrow"]["arrowPoints"][i].as<std::vector<double>>();
-        objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
-        objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));
+
     }
-    for(int i=0;i<4;i++){
-        const std::vector<double> & redeemptionBoxCornerPoints=config["redeem_box"]["redeemptionBoxCornerPoints"][i].as<std::vector<double>>();
-        ObjRedemptionBoxCornerPoint.push_back(cv::Point3d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2]));
-        ObjRedemptionBoxCornerPointEigen.push_back(Eigen::Vector4d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2],1));
+    catch(const std::exception& e){
+        RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
+        rclcpp::shutdown();
     }
-    for(int i=0;i<2;i++){
-        const std::vector<double> & line=config["redeem_box"]["line"][i].as<std::vector<double>>();
-        Object2cornersEigen.push_back(Eigen::Vector4d(line[0],line[1],line[2],1));
-    }
-    // for(int i=0;i<9;i++){
-    //     CenterToArrowvec(i/3,i%3)=config["redeem_box"]["CenterToArrow"][i].as<double>();
-    // }
-    frontfacecenter=Eigen::Matrix<double,4,1>(config["redeem_box"]["center"][0].as<double>(),
-        config["redeem_box"]["center"][1].as<double>(),
-        config["redeem_box"]["center"][2].as<double>(),
-        1.0
-    );
+    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx");
     signMat<<1,0,0,0,
         0,1,0,0,
         0,0,1,0;
     
-    ArrowDetectorPixelNumMax=config["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
-    ArrowDetectorPixelNumMin=config["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
-    ArrowDetectorLengthWidthRatioMax=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
-    ArrowDetectorLengthWidthRatioMin=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
-    ArrowDetectorApproxSizeMax=config["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
-    ArrowDetectorApproxSizeMin=config["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
-    ArrowDetectorCannyThreshold1=config["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
-    ArrowDetectorCannyThreshold2=config["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
-    ArrowDetectorHoughRho=config["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
-    ArrowDetectorHoughTheta=config["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
-    ArrowDetectorHoughThreshold=config["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
-    ArrowDetectParallelThreshold=config["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
-    ArrowDetectorThresholdThresh=config["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
-    ArrowDetectorThresholdMaxval=config["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();
-    ArrowDetectorThresholdThreshold=config["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
-    ArrowDetectorIterations=config["arrow_detect"]["ArrowDetectorIterations"].as<double>();
-    ArrowDetectorapproxPolyDPEpsilon=config["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
-    ArrowDetectorLongShortRateMax=config["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
-    ArrowDetectorLongShortRateMin=config["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
+    //定义参数
+    try{
 
     tf_broadcaster_box_to_camera=std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
@@ -897,7 +916,18 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
         rclcpp::shutdown();
     }
 
+    #ifdef DetectorArrow
+    DetectArrowInit();
+    #endif
+
+    #ifdef DetectorRectangle
+    RectangleDetectorInit();
+    #endif
+
+    #ifdef PCLManager
     PointCloudeInit();
+    #endif
+
     #ifdef SyncPubBoxPos
     SyncPubBoxPosInit();
     #endif

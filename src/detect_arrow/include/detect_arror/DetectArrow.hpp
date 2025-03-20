@@ -49,14 +49,17 @@
 // #define arrow_draw
 // #define Imageshow
 // #define TargetArrowtest
-#define twopath_inoneline
 #define test_pcl_manage
 // #define test_LocalCornerOpitimize
 // #define drawFinalres
 #define DetectorRectangle_test
+#define DetectorRectangle_test_target
+
+#define twopath_inoneline
 
 // #define DetectorArrow
 #define DetectorRectangle
+// #define PCLManager
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -91,6 +94,13 @@ struct PnPresult{
     PnPresult(const cv::Mat &tvec_,const cv::Mat &rvec_,rclcpp::Time tim=rclcpp::Clock().now());
 };
 
+template<typename T>
+struct Circle{
+    cv::Point_<T> center;
+    float radius;
+};
+
+
 class Arrow_detector:public rclcpp::Node{
     public:
     // using Imagerequest=interfaces::srv::Imagerequest;
@@ -110,6 +120,8 @@ class Arrow_detector:public rclcpp::Node{
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     FilterCorner filter_;
+
+    void DetectArrowInit();
 
     cv::Mat PreProgress(const cv::Mat & OriginalImage);
     // void InitialArrowDetector();
@@ -259,6 +271,8 @@ private://Rectangle_Detector
     
     bool MainDetectArrow_Rectangle(const cv::Mat & OriginalImage);
 
+    void RectangleDetectorInit();
+
     // OriginalImage of MainDetectArrow_Rectangle
     cv::Mat OriginalImage_Rectangle;
 
@@ -266,6 +280,18 @@ private://Rectangle_Detector
     // must be odd from 3 to 21
     int DetectRectangleBlockSize;
     double DetectRectangleC;
+    int TargetRectangleapproxPolyDPepsilon;
+    int TargetRectanglePixelNumMax;
+    int TargetRectanglePixelNumMin;
+    int TargetRectangleApproxSizeMax;
+    int TargetRectangleApproxSizeMin;
+    double TargetRectangleHWRateMax;
+    double TargetRectangleHWRateMin;
+
+    std::vector<cv::Point3d> RectangleOuterlayerCorners;
+    std::vector<Eigen::Matrix<double,4,1>> RectangleOuterlayerCornersEigen;
+    std::vector<cv::Point3d> RectangleInnerlayerCorners;
+    std::vector<Eigen::Matrix<double,4,1>> RectangleInnerlayerCornersEigen;
 
 
 
@@ -364,5 +390,8 @@ bool isPointInsideRotatedRect(const cv::Point2f& pt, const cv::RotatedRect& rect
 
 template<typename T>
 cv::Point_<T> LocalCornerOpitimize(const cv::Mat & BinaryImage ,cv::Point_<T> Corner, int MaskRadius, int blockSize, int ksize, double k);
+
+template<typename T>
+void CombineCounters(const std::vector<std::vector<cv::Point_<T>>> & counters,std::vector<cv::Point_<T>> & output);
 
 #endif

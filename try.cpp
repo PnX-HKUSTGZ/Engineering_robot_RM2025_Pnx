@@ -1,143 +1,193 @@
-// #include <ros/ros.h>
-// #include <sensor_msgs/Imu.h>
-// #include <geometry_msgs/Quaternion.h>
-// #include <geometry_msgs/Vector3.h>
-// #include <Eigen/Dense>
+#include "detector.hpp"
 
-// class IMUOrientationEstimator {
-// public:
-//     IMUOrientationEstimator() {
-//         ros::NodeHandle nh;
-        
-//         // 初始化四元数 (w, x, y, z)
-//         q = Eigen::Vector4d(1.0, 0.0, 0.0, 0.0);
-//         last_time = ros::Time::now();
-        
-//         // 互补滤波参数
-//         alpha = 0.98;  // 陀螺仪权重
-        
-//         // 订阅和发布
-//         imu_sub = nh.subscribe("/imu/data", 10, &IMUOrientationEstimator::imuCallback, this);
-//         ori_pub = nh.advertise<geometry_msgs::Quaternion>("/filtered_orientation", 10);
-//         euler_pub = nh.advertise<geometry_msgs::Vector3>("/euler_angles", 10);
-//     }
+/*
+由于没有相机，所以没有对于画面的畸变矫正
 
-// private:
-//     void imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
-//         // 计算时间间隔
-//         ros::Time current_time = msg->header.stamp;
-//         double dt = (current_time - last_time).toSec();
-//         last_time = current_time;
+这里完成了通道分离，二值化
 
-//         if (dt <= 0) return;
+注意坑在于 split mixChannels merge 函数
+*/
+cv::Mat preprocess_image_exchange(const cv::Mat& image){
+    Splited_images channels;
+    Mat image_binary;
+    //通道顺序为 BGR
+    cv::split(image,channels);
+    Mat image_BR(channels[0].size(),channels[0].type());
 
-//         // 获取陀螺仪数据 (rad/s)
-//         double gx = msg->angular_velocity.x;
-//         double gy = msg->angular_velocity.y;
-//         double gz = msg->angular_velocity.z;
+    const vector<int> from_to={
+        0,0,
+        1,0
+    };
 
-//         // 四元数积分
-//         updateQuaternion(gx, gy, gz, dt);
+    cv::mixChannels(vector<cv::Mat>{channels[0],channels[2]},vector<cv::Mat>{image_BR},from_to);
 
-//         // 使用加速度计补偿
-//         double ax = msg->linear_acceleration.x;
-//         double ay = msg->linear_acceleration.y;
-//         double az = msg->linear_acceleration.z;
-        
-//         complementaryFilter(ax, ay, az, dt);
+    cv::threshold(image_BR,image_binary,100,200,cv::THRESH_BINARY);
 
-//         // 发布结果
-//         publishOrientation();
-//         publishEulerAngles();
-//     }
+    // std::cout<<image_BR.channels()<<std::endl;
 
-//     void updateQuaternion(double gx, double gy, double gz, double dt) {
-//         // 四元数微分方程
-//         Eigen::Vector4d omega(0, gx, gy, gz);
-//         Eigen::Vector4d q_dot = 0.5 * quaternionMultiply(q, omega);
-        
-//         // 一阶积分
-//         q += q_dot * dt;
-//         normalizeQuaternion();
-//     }
+    // cv::namedWindow("1");
+    // cv::namedWindow("2");
+    // cv::namedWindow("3");
+    // cv::imshow("1",image);
+    // cv::imshow("2",image_BR);
+    // cv::imshow("3",image_binary);
+    // cv::waitKey(0);
+    return  image_binary;
+}
 
-//     void complementaryFilter(double ax, double ay, double az, double dt) {
-//         // 加速度计测量的重力向量
-//         Eigen::Vector3d accel(ax, ay, az);
-//         if (accel.norm() < 1e-6) return;
-        
-//         // 归一化加速度计测量值
-//         accel.normalize();
+bool find_front_exchange_slot(const Mat& image_pre,Mat& image){
+    Counters counter_1,counter_2,counter_3;
+    vector<cv::RotatedRect> counter_3rects;
+    vector<int> counter_size;
+    cv::findContours(image_pre,counter_1,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
+    Counter result;
+    cv::RotatedRect rect;
+    cv::Size2f siz;
+    // cv::drawContours(image,counter_1,-1,blue,5);
+    // cv::imshow("1",image);
+    // cv::waitKey(0);
+    for(const Counter &counter : counter_1){
+        // auto I=image.clone();
+        // cv::drawContours(I,Counters{counter},-1,blue,5);
+        // cv::imshow("1",I);
+        // cv::waitKey(0);
+        //这里的epsilon的值是没有确定的，要看之后怎么调；
+        cv::approxPolyDP(counter,result,10,1);
+        rect=cv::minAreaRect(counter);
+        siz=rect.size;
+        int pixel_num=cv::contourArea(counter);
+        //参数全部等待确定，和相机与工作距离有关
+        bool height_to_width=(siz.width>eps)&&(siz.height>eps)&&(siz.height/siz.width<4.5 && siz.width/siz.height<4.5);
+        // bool siz_counter=1;
+        bool siz_counter=(pixel_num>400 && pixel_num<6000);
+        bool approxPolyDP_counters=(result.size()>=4 && result.size()<9);
+        if(height_to_width&&siz_counter&&approxPolyDP_counters) counter_2.push_back(counter),counter_size.push_back(pixel_num),cout<<1<<endl;
+        else counter_3.push_back(counter),counter_3rects.push_back(rect);
+    }
+    sort(counter_size.begin(),counter_size.end());
+    if(counter_2.size()!=4||(counter_size[0]*10<=counter_size[3])) return 0;
+    //找到了四个角
 
-//         // 从当前四元数计算预测重力方向
-//         Eigen::Vector3d grav_pred(
-//             2*(q[1]*q[3] - q[0]*q[2]),
-//             2*(q[0]*q[1] + q[2]*q[3]),
-//             q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]
-//         );
+    // cv::drawContours(image,counter_2,-1,blue,5);
+    // cv::imshow("1",image);
+    // cv::waitKey(0);
 
-//         // 计算误差向量
-//         Eigen::Vector3d error = accel.cross(grav_pred);
+    Circles circles(4);
+    Counters trangles(4);
+    Counter rectangle;
+    cv::Point2f center;
+    vector<float> angles;
 
-//         // 互补滤波校正陀螺仪偏差
-//         Eigen::Vector3d correction = (1 - alpha) * error;
-//         Eigen::Vector3d gyro_corrected(
-//             gx + correction.x(),
-//             gy + correction.y(),
-//             gz + correction.z()
-//         );
+    for(int i=0;i<4;i++){
+        vector<cv::Point2f> add;
+        for(int e=i-1;e<i+2;e++){
+            //vector中的⻆点顺序永远为逆时针顺序
+            for(const auto& point : counter_2[(e+4)%4]) add.push_back(point);
+        }
+        cv::minEnclosingCircle(add,circles[i].center,circles[i].radius);
+        cv::minEnclosingTriangle(add,trangles[i]);
 
-//         // 使用修正后的角速度更新四元数
-//         updateQuaternion(gyro_corrected.x(), gyro_corrected.y(), gyro_corrected.z(), dt);
-//     }
+        // Mat Image=image.clone();
+        // cv::drawContours(Image,Counters{trangles[i]},-1,blue,5);
+        // cv::imshow("1",Image);
+        // cv::waitKey(0);
+    }
 
-//     Eigen::Vector4d quaternionMultiply(const Eigen::Vector4d& q1, const Eigen::Vector4d& q2) {
-//         return Eigen::Vector4d(
-//             q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3],
-//             q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2],
-//             q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1],
-//             q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
-//         );
-//     }
+    for(auto & i: circles) center+=i.center;
+    center/=4;
 
-//     void normalizeQuaternion() {
-//         q.normalize();
-//     }
+    // cv::circle(image,center,3,blue,-3);
+    // cv::imshow("1",image);
+    // cv::waitKey(0);
+    
+    for(const auto& trangle:trangles){
+        // Mat Image=image.clone();
+        // cv::drawContours(Image,Counters{trangle},-1,blue,5);
+        // cv::imshow("1",Image);
+        // cv::waitKey(0);
+        bool get_across=0;
+        angles=get_trangle_angle(trangle);
+        for(int i=0;i<3;i++){
+            if(angles[i]>=130){
+                rectangle.push_back(trangle[i]);
+                get_across=1;
+                break;
+            }
+        }
+        if(get_across) continue;
 
-//     void publishOrientation() {
-//         geometry_msgs::Quaternion q_msg;
-//         q_msg.w = q[0];
-//         q_msg.x = q[1];
-//         q_msg.y = q[2];
-//         q_msg.z = q[3];
-//         ori_pub.publish(q_msg);
-//     }
+        float minn=1e9;int index=-1;
+        for(int i=0;i<3;i++){
+            // cv::circle(Image,trangle[i],3,green,-3);
+            // cv::imshow("1",Image);
+            // cv::waitKey(0);
+            //判断逻辑还要改一下，不太清楚
+            float dis=distanceBetweenPoint(trangle[i],center);
+            if(dis<=minn) minn=dis,index=i;
+        }
+        rectangle.push_back(trangle[index]);
+    }
 
-//     void publishEulerAngles() {
-//         geometry_msgs::Vector3 euler;
-        
-//         // 四元数转欧拉角 (ZYX顺序)
-//         double roll = atan2(2*(q[0]*q[1] + q[2]*q[3]), 1 - 2*(q[1]*q[1] + q[2]*q[2]));
-//         double pitch = asin(2*(q[0]*q[2] - q[3]*q[1]));
-//         double yaw = atan2(2*(q[0]*q[3] + q[1]*q[2]), 1 - 2*(q[2]*q[2] + q[3]*q[3]));
-        
-//         euler.x = roll;
-//         euler.y = pitch;
-//         euler.z = yaw;
-//         euler_pub.publish(euler);
-//     }
+    // cv::drawContours(image,Counters{rectangle},-1,blue,5);
+    // cv::imshow("1",image);
+    // cv::waitKey(0);
 
-//     ros::Subscriber imu_sub;
-//     ros::Publisher ori_pub, euler_pub;
-//     Eigen::Vector4d q;
-//     ros::Time last_time;
-//     double alpha;
-// };
+    //找完了四个角，开始排序
 
-// int main(int argc, char** argv) {
-//     ros::init(argc, argv, "imu_orientation_estimator");
-//     IMUOrientationEstimator estimator;
-//     ros::spin();
-//     return 0;
-// }
+    // Counters small_rects;
+    // int index_0;
 
+    // for(int i=counter_3.size()-1;i>=0;i--){
+    //     double siz_counter=cv::contourArea(counter_3[i]),siz_rect=counter_3rects[i].size.area();
+    //     bool siz_factor=siz_counter>=50&&siz_counter<=200;
+    //     bool siz_counter_to_siz_rect=siz_rect<=siz_counter*1.2;
+    //     bool width_to_height=counter_3rects[i].size.height/counter_3rects[i].size.width<=2&&counter_3rects[i].size.width/counter_3rects[i].size.height<=2;
+    //     if(siz_factor&&siz_counter_to_siz_rect&&width_to_height){
+    //         small_rects.push_back(counter_3[i]);
+    //     }
+    // }
+
+    // if(small_rects.empty()){
+    //     for(auto & i : )
+    // }
+
+    //这里使用的是识别一个特殊的角来确定方向
+
+    std::sort(rectangle.begin(),rectangle.end(),[&center](const cv::Point &x1,const cv::Point &x2){
+        float angle1=angleBetweenVectors(cv::Point2f(1,0),cv::Point2f(x1)-center);
+        float angle2=angleBetweenVectors(cv::Point2f(1,0),cv::Point2f(x2)-center);
+        if(x1.y>=center.y) angle1=360-angle1;
+        if(x2.y>=center.y) angle2=360-angle2;
+        return angle1<angle2;
+    });
+    // 这个是按照顺时针存的，第一个角是当前图片中最左上角
+    cv::drawContours(image,Counters{rectangle},-1,blue,5);
+    cv::imshow("1",image);
+    cv::waitKey(0);
+    
+    return 1;
+}
+
+void process_image_front(cv::Mat& image){
+    cv::Mat image_binary=preprocess_image_exchange(image);
+    find_front_exchange_slot(image_binary,image);
+}
+
+float angleBetweenVectors(const cv::Point2f& v1, const cv::Point2f& v2) {
+    float cosAngle = v1.dot(v2) / (cv::norm(v1) * cv::norm(v2));
+    return std::acos(cosAngle); // 返回的是弧度值
+}
+
+float distanceBetweenPoint(const cv::Point2f& v1, const cv::Point2f& v2){
+    return sqrt((v1.x-v2.x)*(v1.x-v2.x)+(v1.y-v2.y)*(v1.y-v2.y));
+}
+
+vector<float> get_trangle_angle(const Counter& trangle){
+    //存对边
+    vector<float> angles;
+    if(trangle.size()!=3){std::cerr<<"the trangle.size() is not 3\n";exit(0);}
+    for(int i=0;i<3;i++){
+        angles.push_back(angleBetweenVectors(trangle[(i+1)%3]-trangle[i],trangle[(i+2)%3]-trangle[i])*180.0/CV_PI);
+    }
+    return angles;
+}

@@ -44,14 +44,14 @@ arrow:
   - [0.144, -0.007071067811865476, 0.05257106781186548]
   - [0.144, 0.007071067811865476, 0.05257106781186548]
   RectanglePoints:
-  - [-0.144, 0.144, 0]
-  - [-0.144, -0.144, 0]
-  - [0.144, -0.144, 0]
   - [0.144, 0.144, 0]
-  - [-0.120, 0.120, 0]
-  - [-0.120, -0.120, 0]
-  - [0.120, -0.120, 0]
+  - [0.144, -0.144, 0]
+  - [-0.144, -0.144, 0]
+  - [-0.144, 0.144, 0]
   - [0.120, 0.120, 0]
+  - [0.120, -0.120, 0]
+  - [-0.120, -0.120, 0]
+  - [-0.120, 0.120, 0]
 
 # 存一些箭头检测的参数
 arrow_detect:
@@ -81,6 +81,18 @@ arrow_detect:
     queuesiz: 20
     syncThresehold: [1,10000000]
     PubInterval: 10
+
+rectangle_detect:
+  DetectRectangleBlockSize: 10
+  DetectRectangleC: 10
+  TargetRectangleapproxPolyDPepsilon: 10
+  TargetRectanglePixelNumMax: 5000
+  TargetRectanglePixelNumMin: 1000
+  TargetRectangleApproxSizeMax: 8
+  TargetRectangleApproxSizeMin: 6
+  TargetRectangleHWRateMax: 3
+  TargetRectangleHWRateMin: 1.1
+
 
 mid_360:
   buffertime: 200 # ms int
