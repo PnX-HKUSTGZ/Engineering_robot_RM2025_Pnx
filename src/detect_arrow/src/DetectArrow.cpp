@@ -864,12 +864,13 @@ cv::Mat Arrow_detector::PreProgress(const cv::Mat & OriginalImage){
 Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCorner(k)){
     // this->client_=this->create_client<Imagerequest>("OriginalVideo");
     this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/image",10,std::bind(&Arrow_detector::GetImage,this,_1));
-    this->RedeemBoxPosition_publisher_=this->create_publisher<interfaces::msg::RedeemBoxPosition>("/arrow_detect/RedeemBoxPosition",10);
     this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
     RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
+
+    this->declare_parameter<std::string>("Location","");
     
     try{
-    
+    // RCLCPP_INFO(this->get_logger(),"Location %s",(this->get_parameter("Location").as_string()+"/src/config.yaml").c_str());
     config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
     cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
     distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();    
@@ -883,7 +884,6 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
         rclcpp::shutdown();
     }
-    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx");
     signMat<<1,0,0,0,
         0,1,0,0,
         0,0,1,0;
@@ -915,6 +915,8 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
         rclcpp::shutdown();
     }
+
+    RCLCPP_INFO(this->get_logger(),"MainInit finish");
 
     #ifdef DetectorArrow
     DetectArrowInit();

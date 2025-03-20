@@ -53,7 +53,7 @@
 // #define test_LocalCornerOpitimize
 // #define drawFinalres
 #define DetectorRectangle_test
-#define DetectorRectangle_test_target
+// #define DetectorRectangle_test_target
 
 #define twopath_inoneline
 
@@ -287,6 +287,9 @@ private://Rectangle_Detector
     int TargetRectangleApproxSizeMin;
     double TargetRectangleHWRateMax;
     double TargetRectangleHWRateMin;
+    int TargetRectangleErodeItrations;
+    cv::Size TargetRectangleErodeCoreSize;
+    cv::Size TargetRectangleDilateCoreSize;
 
     std::vector<cv::Point3d> RectangleOuterlayerCorners;
     std::vector<Eigen::Matrix<double,4,1>> RectangleOuterlayerCornersEigen;

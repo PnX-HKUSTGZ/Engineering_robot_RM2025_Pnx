@@ -3,11 +3,11 @@
 camera:
   height: 1080
   width: 1920
-  dist_coeffs: [-0.1131506181237709, 0.1301328009901622, -0.0007416862926336681, 0.0003741668262735999, 0.06347345493061382]
-  camera_matrix: [2413.820435449382, 0, 658.3681795085505 , 0, 2418.356696660543, 568.1925341729512, 0.0, 0.0, 1.0]
+  dist_coeffs: [-0.08103311788040146, 0.3232641812024377, -0.0009989978811517845, -0.00459932286882118, -1.64065459435693]
+  camera_matrix: [2461.868075481564, 0, 631.7015039289838 , 0, 2513.93935296834, 687.8131716949171, 0.0, 0.0, 1.0]
   ExposureTimeLower: 15000
   ExposureTimeUpper: 15000
-  Gain: 7.0
+  Gain: 10
 
 redeem_box:
 # 兑换框的四个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
@@ -43,15 +43,16 @@ arrow:
   - [0.144, 0.08585786437626905, 0.1455]
   - [0.144, -0.007071067811865476, 0.05257106781186548]
   - [0.144, 0.007071067811865476, 0.05257106781186548]
-  RectanglePoints:
-  - [0.144, 0.144, 0]
-  - [0.144, -0.144, 0]
-  - [-0.144, -0.144, 0]
-  - [-0.144, 0.144, 0]
-  - [0.120, 0.120, 0]
-  - [0.120, -0.120, 0]
-  - [-0.120, -0.120, 0]
-  - [-0.120, 0.120, 0]
+
+RectanglePoints:
+- [0.144, 0.144, 0]
+- [0.144, -0.144, 0]
+- [-0.144, -0.144, 0]
+- [-0.144, 0.144, 0]
+- [0.120, 0.120, 0]
+- [0.120, -0.120, 0]
+- [-0.120, -0.120, 0]
+- [-0.120, 0.120, 0]
 
 # 存一些箭头检测的参数
 arrow_detect:
@@ -83,15 +84,20 @@ arrow_detect:
     PubInterval: 10
 
 rectangle_detect:
-  DetectRectangleBlockSize: 10
-  DetectRectangleC: 10
+  DetectRectangleBlockSize: 9
+  DetectRectangleC: 0
+  DetectRectangleMaxValue: 250
   TargetRectangleapproxPolyDPepsilon: 10
   TargetRectanglePixelNumMax: 5000
-  TargetRectanglePixelNumMin: 1000
+  TargetRectanglePixelNumMin: 100
   TargetRectangleApproxSizeMax: 8
   TargetRectangleApproxSizeMin: 6
   TargetRectangleHWRateMax: 3
-  TargetRectangleHWRateMin: 1.1
+  TargetRectangleHWRateMin: 0.5
+  TargetRectangleErodeCoreSize: [2,2]
+  TargetRectangleErodeItrations: 3
+  TargetRectangleDilateCoreSize: [3,3]
+  
 
 
 mid_360:
