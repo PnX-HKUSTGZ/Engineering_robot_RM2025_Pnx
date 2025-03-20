@@ -48,6 +48,7 @@ void DrawLines(cv::Mat & img,const std::vector<LineVP> & lines, const cv::Scalar
     }
 }
 
+//return the angle between line(p1,p2) and horizon
 double GetAngleAccordingToHorizon(cv::Point p1,cv::Point p2){
     cv::Point horison(1,0),tar=p1-p2;
     if(tar.y>=eps) tar=-tar;
@@ -557,3 +558,9 @@ void CombineCounters(const std::vector<std::vector<cv::Point_<T>>> & counters,st
 
 template void CombineCounters<int>(const std::vector<std::vector<cv::Point_<int>>> & counters,std::vector<cv::Point_<int>> & output);
 template void CombineCounters<double>(const std::vector<std::vector<cv::Point_<double>>> & counters,std::vector<cv::Point_<double>> & output);
+
+void DrawTrangle(cv::Mat & Image,Counter2f & CornerPoints,cv::Scalar color,int thickness){
+    cv::line(Image,CornerPoints[0],CornerPoints[1],color,thickness);
+    cv::line(Image,CornerPoints[1],CornerPoints[2],color,thickness);
+    cv::line(Image,CornerPoints[2],CornerPoints[0],color,thickness);
+}

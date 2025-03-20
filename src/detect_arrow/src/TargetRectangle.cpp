@@ -181,8 +181,26 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
     RCLCPP_INFO(this->get_logger(),"1");
     Counter AllPointSet;
     CombineCounters(NoOverlapTargetCornerscounters,AllPointSet);
-    std::vector<Circle<float>> circlesOf3(4),circles(4);
+    std::vector<Circle<float>> circles(4);
     Counter2fs TranglesOf3(4);
+    Circle<float> allcircle;
+    cv::minEnclosingCircle(AllPointSet,allcircle.center,allcircle.radius);
+
+    // put the NoOverlapTargetCornerscounters in order
+    std::sort(NoOverlapTargetCornerscounters.begin(),
+        NoOverlapTargetCornerscounters.end(),
+        [&allcircle](const Counter & a,const Counter & b){
+            cv::Point2f a_,b_;
+            float a_r,b_r;
+            cv::minEnclosingCircle(a,a_,a_r);
+            cv::minEnclosingCircle(b,b_,b_r);
+            double anglea=GetAngleAccordingToHorizon(a_,allcircle.center);
+            double angleb=GetAngleAccordingToHorizon(b_,allcircle.center);
+            if(a_.y>allcircle.center.y) anglea+=180;
+            if(b_.y>allcircle.center.y) angleb+=180;
+            return (anglea<angleb);        
+    });
+
 
     RCLCPP_INFO(this->get_logger(),"1");
     // 逆时针顺序
@@ -194,7 +212,6 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
         CombineCounters(Counters{NoOverlapTargetCornerscounters[(i+3)%4],
             NoOverlapTargetCornerscounters[i],
             NoOverlapTargetCornerscounters[(i+1)%4]},combine3);
-        cv::minEnclosingCircle(combine3,circlesOf3[i].center,circlesOf3[i].radius);
         cv::minEnclosingTriangle([&combine3](){
                 Counter2f result;
                 for(auto & e : combine3){
@@ -203,6 +220,13 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
                 return result;
             }(),TranglesOf3[i]);
         cv::minEnclosingCircle(NoOverlapTargetCornerscounters[i],circles[i].center,circles[i].radius);
+        
+        # ifdef DetectorRectangle_test_target
+        cv::circle(Image,circles[i].center,circles[i].radius,cv::Scalar(255,34*i%225,123*i%225),1);
+        DrawTrangle(Image,TranglesOf3[i],cv::Scalar(255,34*i%225,123*i%225),1);
+        cv::imshow("TargetRectangle",Image);
+        cv::waitKey(0);
+        #endif
 
         double dis=1e9;
         for(auto & e : TranglesOf3[i]){
