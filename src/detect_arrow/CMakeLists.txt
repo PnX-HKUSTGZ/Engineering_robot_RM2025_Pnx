@@ -32,7 +32,7 @@ find_package(pcl_conversions REQUIRED)
 include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
 include_directories(/usr/include/eigen3)
 
-add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp src/PclManage.cpp src/DetectArrowFuntion.cpp)
+add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp src/PclManage.cpp src/DetectArrowFuntion.cpp src/TargetRectangle.cpp)
 
 ament_target_dependencies(detect_arrow
   rclcpp
