@@ -52,8 +52,11 @@
 #define twopath_inoneline
 #define test_pcl_manage
 // #define test_LocalCornerOpitimize
-#define noMainDetectArrow
 // #define drawFinalres
+#define DetectorRectangle_test
+
+// #define DetectorArrow
+#define DetectorRectangle
 
 using namespace std::chrono;
 using namespace std::placeholders;
@@ -242,6 +245,23 @@ private:
 
     double ransacDistanceThreshold;
     int ransacMaxIterations;
+
+private://Rectangle_Detector
+    /*
+    order of return vector
+    @return if fall to detect well return an empty vector
+    @return if success, will begin with special corner and continue in clock order
+    */
+    std::vector<cv::Point2d> TargetRectangle(const cv::Mat & BinaryImage,cv::Mat & Image);
+
+    //using adaptthreshold instead of threshold
+    cv::Mat Adapted_PreProgress(const cv::Mat & OriginalImage);
+    
+    bool MainDetectArrow_Rectangle(const cv::Mat & OriginalImage);
+
+    // OriginalImage of MainDetectArrow_Rectangle
+    cv::Mat OriginalImage_Rectangle;
+
 
 private: //同步结果并且发布
     std::queue<PnPresult> pnpress;

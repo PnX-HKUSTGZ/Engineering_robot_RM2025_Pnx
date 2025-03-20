@@ -212,7 +212,14 @@ void Arrow_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     }(),distCoeffs);
     // originalframe.copyTo(OriginalImage_);
     // RCLCPP_INFO(this->get_logger(), "Get frame");
+    #ifdef DetectorArrow
     MainDetectArrow(undistortimage);
+    #endif
+    
+    #ifdef DetectorRectangle
+    MainDetectArrow_Rectangle(undistortimage);
+    #endif
+
 }
 
 std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage, cv::Mat & Image){
@@ -726,9 +733,6 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
 }
 
 bool Arrow_detector::MainDetectArrow(const cv::Mat & OriginalImage){
-    #ifdef noMainDetectArrow
-    return 0;
-    #endif //noMainDetectArrow
     OriginalImage.copyTo(OriginalImage_);
     cv::Mat Binary=PreProgress(OriginalImage);
 
