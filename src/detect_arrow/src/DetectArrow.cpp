@@ -82,15 +82,15 @@ bool Arrow_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,c
     // SendBoxPosition(tvec,rvec);
 
     # ifdef arrow_draw
-    DrawPnPResult(OriginalImage_,rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,40));
-    DrawPnPResult(OriginalImage_,rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(20,100));
-    DrawPnPResult(OriginalImage_,rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(20,160));
+    DrawPnPResult(OriginalImage_Rectangle,rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,40));
+    DrawPnPResult(OriginalImage_Rectangle,rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(20,100));
+    DrawPnPResult(OriginalImage_Rectangle,rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(20,160));
     auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
     lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
     lable_msg_ptr->header.stamp=this->get_clock()->now();
     this->label_image_pub_->publish(*lable_msg_ptr);
 
-    cv::imshow("pnp result",OriginalImage_);
+    cv::imshow("pnp result",OriginalImage_Rectangle);
 
     cv::waitKey(10);
     # endif
@@ -158,12 +158,6 @@ void Arrow_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, const c
     Center2D/=Center2D(2);
 
     std::vector<cv::Point> reput_arrow;
-    std::vector<int> indexArrowPoint={0,2,3,1,5,4};
-    for(auto i : indexArrowPoint){
-        Eigen::Matrix<double,3,1> new_i=cameraMatrixEigen*signMat*rtvecEigen*objpointsEigen[i];
-        new_i(0)/=new_i(2);
-        reput_arrow.push_back(cv::Point(new_i(0),new_i(1)));
-    }
 
     cv::line(Image,
         cv::Point(Center2D(0),Center2D(1)),
@@ -230,23 +224,6 @@ void Arrow_detector::DetectArrowInit(){
         objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
         objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));
     }
-    for(int i=0;i<4;i++){
-        const std::vector<double> & redeemptionBoxCornerPoints=config["redeem_box"]["redeemptionBoxCornerPoints"][i].as<std::vector<double>>();
-        ObjRedemptionBoxCornerPoint.push_back(cv::Point3d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2]));
-        ObjRedemptionBoxCornerPointEigen.push_back(Eigen::Vector4d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2],1));
-    }
-    for(int i=0;i<2;i++){
-        const std::vector<double> & line=config["redeem_box"]["line"][i].as<std::vector<double>>();
-        Object2cornersEigen.push_back(Eigen::Vector4d(line[0],line[1],line[2],1));
-    }
-    // for(int i=0;i<9;i++){
-    //     CenterToArrowvec(i/3,i%3)=config["redeem_box"]["CenterToArrow"][i].as<double>();
-    // }
-    frontfacecenter=Eigen::Matrix<double,4,1>(config["redeem_box"]["center"][0].as<double>(),
-        config["redeem_box"]["center"][1].as<double>(),
-        config["redeem_box"]["center"][2].as<double>(),
-        1.0
-    );
     
     ArrowDetectorPixelNumMax=config["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
     ArrowDetectorPixelNumMin=config["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
@@ -870,14 +847,28 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     this->declare_parameter<std::string>("Location","");
     
     try{
-    // RCLCPP_INFO(this->get_logger(),"Location %s",(this->get_parameter("Location").as_string()+"/src/config.yaml").c_str());
-    config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
-    cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
-    distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();    
-    for(int i=0;i<9;i++){
-        cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
-    }
-    InverseCameraMatrixEigen=cameraMatrixEigen.inverse();
+        config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
+        cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
+        distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();    
+        for(int i=0;i<9;i++){
+            cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
+        }
+        InverseCameraMatrixEigen=cameraMatrixEigen.inverse();
+
+        for(int i=0;i<4;i++){
+            const std::vector<double> & redeemptionBoxCornerPoints=config["redeem_box"]["redeemptionBoxCornerPoints"][i].as<std::vector<double>>();
+            ObjRedemptionBoxCornerPoint.push_back(cv::Point3d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2]));
+            ObjRedemptionBoxCornerPointEigen.push_back(Eigen::Vector4d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2],1));
+        }
+        for(int i=0;i<2;i++){
+            const std::vector<double> & line=config["redeem_box"]["line"][i].as<std::vector<double>>();
+            Object2cornersEigen.push_back(Eigen::Vector4d(line[0],line[1],line[2],1));
+        }
+        frontfacecenter=Eigen::Matrix<double,4,1>(config["redeem_box"]["center"][0].as<double>(),
+            config["redeem_box"]["center"][1].as<double>(),
+            config["redeem_box"]["center"][2].as<double>(),
+            1.0
+        );
 
     }
     catch(const std::exception& e){
@@ -891,24 +882,24 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     //定义参数
     try{
 
-    tf_broadcaster_box_to_camera=std::make_shared<tf2_ros::TransformBroadcaster>(this);
+        tf_broadcaster_box_to_camera=std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
-    static_tf_broadcaster_camera_to_arm=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+        static_tf_broadcaster_camera_to_arm=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
 
-    geometry_msgs::msg::TransformStamped camera_to_arm;
+        geometry_msgs::msg::TransformStamped camera_to_arm;
 
-    camera_to_arm.header.frame_id="map";
-    camera_to_arm.child_frame_id="object/arm";
-    camera_to_arm.transform.translation.x=config["object_pos"]["arm"]["translation"]["x"].as<double>();
-    camera_to_arm.transform.translation.y=config["object_pos"]["arm"]["translation"]["y"].as<double>();
-    camera_to_arm.transform.translation.z=config["object_pos"]["arm"]["translation"]["z"].as<double>();
-    camera_to_arm.transform.rotation.w=config["object_pos"]["arm"]["rotate"]["w"].as<double>();
-    camera_to_arm.transform.rotation.x=config["object_pos"]["arm"]["rotate"]["x"].as<double>();
-    camera_to_arm.transform.rotation.y=config["object_pos"]["arm"]["rotate"]["y"].as<double>();
-    camera_to_arm.transform.rotation.z=config["object_pos"]["arm"]["rotate"]["z"].as<double>();
+        camera_to_arm.header.frame_id="map";
+        camera_to_arm.child_frame_id="object/arm";
+        camera_to_arm.transform.translation.x=config["object_pos"]["arm"]["translation"]["x"].as<double>();
+        camera_to_arm.transform.translation.y=config["object_pos"]["arm"]["translation"]["y"].as<double>();
+        camera_to_arm.transform.translation.z=config["object_pos"]["arm"]["translation"]["z"].as<double>();
+        camera_to_arm.transform.rotation.w=config["object_pos"]["arm"]["rotate"]["w"].as<double>();
+        camera_to_arm.transform.rotation.x=config["object_pos"]["arm"]["rotate"]["x"].as<double>();
+        camera_to_arm.transform.rotation.y=config["object_pos"]["arm"]["rotate"]["y"].as<double>();
+        camera_to_arm.transform.rotation.z=config["object_pos"]["arm"]["rotate"]["z"].as<double>();
 
-    static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
+        static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
 
     }
     catch(const std::exception& e){

@@ -237,6 +237,9 @@ bool Arrow_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
 
     DrawPnPResult(OriginalImage_Rectangle,rvec,tvec,cv::Scalar(33,44,98),1,cv::Point(20,40));
     
+    cv::imshow("MainDetectArrow_Rectangle",OriginalImage_Rectangle);
+    cv::waitKey(0);
+
     SendBoxPosition(tvec,rvec,OriginalImage_Rectangle);
     
     return 0;
