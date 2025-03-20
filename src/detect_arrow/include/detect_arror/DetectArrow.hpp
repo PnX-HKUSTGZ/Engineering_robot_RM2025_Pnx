@@ -252,7 +252,7 @@ private://Rectangle_Detector
     @return if fall to detect well return an empty vector
     @return if success, will begin with special corner and continue in clock order
     */
-    std::vector<cv::Point2d> TargetRectangle(const cv::Mat & BinaryImage,cv::Mat & Image);
+    std::vector<cv::Point2f> TargetRectangle(const cv::Mat & BinaryImage,cv::Mat & Image);
 
     //using adaptthreshold instead of threshold
     cv::Mat Adapted_PreProgress(const cv::Mat & OriginalImage);
@@ -261,6 +261,12 @@ private://Rectangle_Detector
 
     // OriginalImage of MainDetectArrow_Rectangle
     cv::Mat OriginalImage_Rectangle;
+
+    double DetectRectangleMaxValue;
+    // must be odd from 3 to 21
+    int DetectRectangleBlockSize;
+    double DetectRectangleC;
+
 
 
 private: //同步结果并且发布
