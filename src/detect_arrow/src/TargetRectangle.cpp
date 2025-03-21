@@ -100,7 +100,7 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
             RCLCPP_WARN(this->get_logger(),"first loop TargetRectangle fail with %s",e.what());
             continue;
         }
-        if(PixelNum<500) continue;
+        if(PixelNum<300) continue;
 
         //check 0
         if(std::abs(rotatedrect.size.height)<eps||std::abs(rotatedrect.size.width)<eps){
@@ -143,6 +143,60 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
         if(!e4f2ratecheck){
             continue;
         }
+
+
+        std::vector<double> LineSlopes;
+
+        for(int siz=approxresult.size(),i=0;i<siz;i++){
+            LineSlopes.push_back([](cv::Point p1,cv::Point p2,double threshold){
+                double slope=GetAngleAccordingToHorizon(p1,p2);
+                return abs(slope-180)<threshold ? 0 : slope;
+            }(approxresult[i],approxresult[(i+1)%siz],TargetRectangleSlopeHorizonThreshold));
+            #ifdef DetectorRectangle_test_target
+            RCLCPP_INFO(this->get_logger(),"Slope %ld : %lf",i,LineSlopes.back());
+            #endif
+        }
+
+        std::sort(LineSlopes.begin(),LineSlopes.end());
+        //calculate variance of f3 e3
+
+        double SlopeVariance[2]={0,0};
+
+        for(int i=0,siz=approxresult.size();i<siz;i+=3){
+            int index=i/3;
+            double sum=0;
+            for(int e=i;e<i+3;e++){
+                sum+=LineSlopes[e];
+            }
+            double average=sum/3;
+            for(int e=i;e<i+3;e++){
+                SlopeVariance[index]+=(LineSlopes[e]-average)*(LineSlopes[e]-average);           
+            }
+            SlopeVariance[index]/=3;
+            #ifdef DetectorRectangle_test_target
+            RCLCPP_INFO(this->get_logger(),"index : %ld",index);
+            #endif
+        }
+
+        bool ParallelLinesCheck=1;
+        for(int i=0,siz=approxresult.size();i<siz;i+=3){
+            int index=i/3;
+            ParallelLinesCheck=ParallelLinesCheck&&(
+                SlopeVariance[index]<=TargetRectangleSlopeVarianceThreshold
+            );
+        }
+
+        #ifdef DetectorRectangle_test_target
+        cv::drawContours(Image,std::vector<Counter>{approxresult},-1,cv::Scalar(22,33,200),1);
+        RCLCPP_INFO(this->get_logger(),"f3 slopes variance : %lf",SlopeVariance[0]);
+        RCLCPP_INFO(this->get_logger(),"e3 slopes variance : %lf",SlopeVariance[1]);
+        RCLCPP_INFO(this->get_logger(),"ParallelLinesCheck %s",ParallelLinesCheck ? "pass" : "nopass");
+
+        cv::imshow("ParallelLinesCheck",Image);
+        cv::waitKey(0);
+        #endif
+
+        if(!ParallelLinesCheck) continue;
 
         TargetCornerscounters.push_back(counter);
         counter_size.push_back(cv::contourArea(counter));
@@ -330,6 +384,8 @@ void Arrow_detector::RectangleDetectorInit(){
             config["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[1]);
         DetectRectangleAlpha=config["rectangle_detect"]["DetectRectangleAlpha"].as<double>();
         DetectRectangleBeta=config["rectangle_detect"]["DetectRectangleBeta"].as<double>();
+        TargetRectangleSlopeVarianceThreshold=config["rectangle_detect"]["TargetRectangleSlopeVarianceThreshold"].as<double>();
+        TargetRectangleSlopeHorizonThreshold=config["rectangle_detect"]["TargetRectangleSlopeHorizonThreshold"].as<double>();
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());

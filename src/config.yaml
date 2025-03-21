@@ -87,9 +87,9 @@ rectangle_detect:
   DetectRectangleBlockSize: 9
   DetectRectangleC: 0
   DetectRectangleMaxValue: 250
-  TargetRectangleapproxPolyDPepsilon: 10
+  TargetRectangleapproxPolyDPepsilon: 7
   TargetRectanglePixelNumMax: 10000
-  TargetRectanglePixelNumMin: 1000
+  TargetRectanglePixelNumMin: 400
   TargetRectangleApproxSizeMax: 6
   TargetRectangleApproxSizeMin: 6
   TargetRectangleHWRateMax: 10
@@ -102,6 +102,8 @@ rectangle_detect:
   TargetRectanglee4f2rateMax: 5
   DetectRectangleAlpha: 1.2
   DetectRectangleBeta: 0
+  TargetRectangleSlopeVarianceThreshold: 30
+  TargetRectangleSlopeHorizonThreshold: 15
   
 
 

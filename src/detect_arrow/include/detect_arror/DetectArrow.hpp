@@ -298,6 +298,9 @@ private://Rectangle_Detector
     //alpha I + beta
     double DetectRectangleBeta;
 
+    double TargetRectangleSlopeVarianceThreshold;
+    double TargetRectangleSlopeHorizonThreshold;
+
     std::vector<cv::Point3d> RectangleOuterlayerCorners;
     std::vector<Eigen::Matrix<double,4,1>> RectangleOuterlayerCornersEigen;
     std::vector<cv::Point3d> RectangleInnerlayerCorners;
