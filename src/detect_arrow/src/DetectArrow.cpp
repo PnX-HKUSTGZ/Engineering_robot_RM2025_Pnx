@@ -1025,6 +1025,8 @@ void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & 
     box_to_camera.transform.rotation.z=Quaternion_r[3];
 
     tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
+
+    RCLCPP_INFO(this->get_logger(),"tf_broadcaster_box_to_camera pub successfully");
 }
 
 int main (int argc,char* argv[]){
