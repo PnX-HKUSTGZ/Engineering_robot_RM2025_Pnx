@@ -16,7 +16,7 @@ cv::Mat Arrow_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
             0,0,
             1,0
     });
-    
+
     #ifdef DetectorRectangle_test
     cv::imshow("Adapted_PreProgress GreyImage",GreyImage);
     #endif
@@ -28,11 +28,16 @@ cv::Mat Arrow_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
         1.5
     );
 
+
+    cv::Mat SharperImage;
+    cv::convertScaleAbs(GaussGrayImage,SharperImage,DetectRectangleAlpha,DetectRectangleBeta);
+
     #ifdef DetectorRectangle_test
     cv::imshow("Adapted_PreProgress GaussGrayImage",GaussGrayImage);
+    cv::imshow("Adapted_PreProgress SharperImage",SharperImage);
     #endif
 
-    cv::adaptiveThreshold(GaussGrayImage
+    cv::adaptiveThreshold(SharperImage
         ,BinaryImage
         ,DetectRectangleMaxValue
         ,cv::ADAPTIVE_THRESH_MEAN_C,
@@ -240,12 +245,12 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
 
     #ifdef DetectorRectangle_test
     for(int i=0;i<4;i++){
-        cv::circle(Image,cv::Point(Corners[i].x,Corners[i].y),1,cv::Scalar(43,23,100),-1);
+        cv::circle(Image,cv::Point(Corners[i].x,Corners[i].y),4,cv::Scalar(225,225,225),-1);
         cv::putText(Image,std::to_string(i),
             cv::Point(Corners[i].x,Corners[i].y),
             cv::FONT_HERSHEY_SIMPLEX,
-            1.0,
-            cv::Scalar(43,23,100));
+            3.0,
+            cv::Scalar(225,225,225));
     }
     cv::imshow("TargetRectangle",Image);
     #endif
@@ -276,6 +281,7 @@ bool Arrow_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
         cv::SOLVEPNP_IPPE);
     
     if(!PnPsolverCheck){
+        RCLCPP_INFO(this->get_logger(),"MainDetectArrow_Rectangle fail due to pnp");
         return 1;
     }
 
@@ -286,7 +292,7 @@ bool Arrow_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
     #endif
 
     SendBoxPosition(tvec,rvec,OriginalImage_Rectangle);
-    
+    RCLCPP_INFO(this->get_logger(),"MainDetectArrow_Rectangle finish!");
     return 0;
 
 }
@@ -322,6 +328,8 @@ void Arrow_detector::RectangleDetectorInit(){
         TargetRectangleDilateItrations=config["rectangle_detect"]["TargetRectangleDilateItrations"].as<int>();
         TargetRectangleDilateCoreSize=cv::Size(config["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[0],
             config["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[1]);
+        DetectRectangleAlpha=config["rectangle_detect"]["DetectRectangleAlpha"].as<double>();
+        DetectRectangleBeta=config["rectangle_detect"]["DetectRectangleBeta"].as<double>();
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());

@@ -100,6 +100,8 @@ rectangle_detect:
   TargetRectangleDilateItrations: 2
   TargetRectanglee4f2rateMin: 1.5
   TargetRectanglee4f2rateMax: 5
+  DetectRectangleAlpha: 1.2
+  DetectRectangleBeta: 0
   
 
 
