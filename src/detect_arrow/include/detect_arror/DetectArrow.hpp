@@ -100,6 +100,20 @@ struct Circle{
     float radius;
 };
 
+class CombGenerator{
+    public:
+    CombGenerator(int n_,int m_);
+    std::vector<int> get_next();
+    private:
+    //length of the whole list
+    //list look like :[0,1,2,...,n-1]
+    int n;
+    //num of places to choose
+    int m;
+    //record the place
+    std::vector<int> recorder;
+    bool update();
+};
 
 class Arrow_detector:public rclcpp::Node{
     public:
@@ -273,6 +287,10 @@ private://Rectangle_Detector
 
     void RectangleDetectorInit();
 
+    //
+    bool GetFourCornersPair(const Counters & Corners,Counters OutputCorners);
+
+
     // OriginalImage of MainDetectArrow_Rectangle
     cv::Mat OriginalImage_Rectangle;
 
@@ -300,6 +318,8 @@ private://Rectangle_Detector
 
     double TargetRectangleSlopeVarianceThreshold;
     double TargetRectangleSlopeHorizonThreshold;
+
+    double TargetRectanglePairFourCornersThreshold;
 
     std::vector<cv::Point3d> RectangleOuterlayerCorners;
     std::vector<Eigen::Matrix<double,4,1>> RectangleOuterlayerCornersEigen;

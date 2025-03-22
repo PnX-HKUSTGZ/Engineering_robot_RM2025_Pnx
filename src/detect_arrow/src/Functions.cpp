@@ -564,3 +564,38 @@ void DrawTrangle(cv::Mat & Image,Counter2f & CornerPoints,cv::Scalar color,int t
     cv::line(Image,CornerPoints[1],CornerPoints[2],color,thickness);
     cv::line(Image,CornerPoints[2],CornerPoints[0],color,thickness);
 }
+
+CombGenerator::CombGenerator(int n_,int m_){
+    assert(n_>0&&m_>0&&n_>=m_);
+    n=n_;
+    m=m_;
+    recorder=std::vector<int>(-1,m_);
+
+}
+
+bool CombGenerator::update(){
+    if(recorder[0]==-1){
+        for(int i=0;i<m;i++){
+            recorder.push_back(i);
+        }
+        return 0;
+    }
+    int index=m-1;
+    while(index>=0&&recorder[index]==(n-(m-index-1))) index--;
+    if(index==-1) return 1;
+    recorder[index]++;
+    for(int i=index+1;i<m;i++){
+        recorder[i]=recorder[i-1]+1;
+    }
+    return 0;
+}
+
+
+std::vector<int> CombGenerator::get_next(){
+    if(update()){
+        return std::vector<int>();
+    }
+    else{
+        return recorder;
+    }
+}

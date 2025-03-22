@@ -53,14 +53,14 @@ cv::Mat Arrow_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
     cv::Mat ErodedImage;
     cv::dilate(BinaryImage,
         DilatedImage,
-        cv::getStructuringElement(cv::MorphShapes::MORPH_CROSS,
+        cv::getStructuringElement(cv::MorphShapes::MORPH_ELLIPSE,
             TargetRectangleDilateCoreSize),
         cv::Point(-1, -1),
         TargetRectangleDilateItrations);
 
     cv::erode(DilatedImage,
         ErodedImage,
-        cv::getStructuringElement(cv::MorphShapes::MORPH_CROSS,
+        cv::getStructuringElement(cv::MorphShapes::MORPH_ELLIPSE,
             TargetRectangleErodeCoreSize),
             cv::Point(-1, -1),
             TargetRectangleErodeItrations);
@@ -187,6 +187,9 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
         }
 
         #ifdef DetectorRectangle_test_target
+        RCLCPP_INFO(this->get_logger(),"approxresult.size= %ld",approxresult.size());
+        RCLCPP_INFO( this->get_logger(),"PixelNum= %d",PixelNum);
+        RCLCPP_INFO( this->get_logger(),"HWRate= %f",HWRate);
         cv::drawContours(Image,std::vector<Counter>{approxresult},-1,cv::Scalar(22,33,200),1);
         RCLCPP_INFO(this->get_logger(),"f3 slopes variance : %lf",SlopeVariance[0]);
         RCLCPP_INFO(this->get_logger(),"e3 slopes variance : %lf",SlopeVariance[1]);
@@ -227,17 +230,21 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
         cv::imshow("TargetRectangle",Image);
         // cv::waitKey(0);
     }
+
+    Counters PairedCornersCounters;
+    bool GetFourCornersPairCheck= GetFourCornersPair(NoOverlapTargetCornerscounters,PairedCornersCounters);
+
     // #endif
     //defult due to opencv the order of TargetCornerscounters is 逆时针顺序
-    if(NoOverlapTargetCornerscounters.size()!=4){
-        RCLCPP_WARN(this->get_logger(),"TargetCornerscounters.size()!=4 fail size= %ld",NoOverlapTargetCornerscounters.size());
+    if(NoOverlapTargetCornerscounters.size()<4){
+        RCLCPP_WARN(this->get_logger(),"TargetCornerscounters.size()<4 fail size= %ld",NoOverlapTargetCornerscounters.size());
         return std::vector<cv::Point2f>();
     }
     else{
-        RCLCPP_INFO(this->get_logger(),"TargetCornerscounters.size()=4 pass size= %ld",NoOverlapTargetCornerscounters.size());
+        RCLCPP_INFO(this->get_logger(),"TargetCornerscounters.size() pass size= %ld",NoOverlapTargetCornerscounters.size());
     }
 
-    RCLCPP_INFO(this->get_logger(),"1");
+
     Counter AllPointSet;
     CombineCounters(NoOverlapTargetCornerscounters,AllPointSet);
     std::vector<Circle<float>> circles(4);
@@ -386,10 +393,38 @@ void Arrow_detector::RectangleDetectorInit(){
         DetectRectangleBeta=config["rectangle_detect"]["DetectRectangleBeta"].as<double>();
         TargetRectangleSlopeVarianceThreshold=config["rectangle_detect"]["TargetRectangleSlopeVarianceThreshold"].as<double>();
         TargetRectangleSlopeHorizonThreshold=config["rectangle_detect"]["TargetRectangleSlopeHorizonThreshold"].as<double>();
+        TargetRectanglePairFourCornersThreshold=config["rectangle_detect"]["TargetRectanglePairFourCornersThreshold"].as<double>();
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
         rclcpp::shutdown();
     }
     RCLCPP_INFO(this->get_logger(),"RectangleDetectorInit finish");
+}
+
+bool Arrow_detector::GetFourCornersPair(const Counters & Corners,Counters OutputCorners){
+    CombGenerator combg(Corners.size(),4);
+    std::vector<int> comb;
+    std::vector<Circle<float>> Combcircles;
+    std::vector<int> bestIndex;
+    double value=TargetRectanglePairFourCornersThreshold;
+    while((comb=combg.get_next()).size()){
+        Circle<float> circle;
+        Counter add;
+        for(int i=0;i<4;i++){
+            Counter add;
+            Circle<float> combcircle;
+            for(int e=0;e<4;e++){
+                if(i==e) continue;
+                CombineCounters(Counters{add,Corners[e]},add);
+            }
+            cv::minEnclosingCircle(add,combcircle.center,combcircle.radius);
+            Combcircles.push_back(combcircle);
+        }
+
+        double DisSum=0;
+
+        for()
+
+    }
 }
