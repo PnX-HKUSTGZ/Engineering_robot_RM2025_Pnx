@@ -288,7 +288,7 @@ private://Rectangle_Detector
     void RectangleDetectorInit();
 
     // @return 0 good 1 bad
-    bool GetFourCornersPair(const Counters & Corners,Counters OutputCorners);
+    bool GetFourCornersPair(const Counters & Corners,Counters &OutputCorners);
 
 
     // OriginalImage of MainDetectArrow_Rectangle

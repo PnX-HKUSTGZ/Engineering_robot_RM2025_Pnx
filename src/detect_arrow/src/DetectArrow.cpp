@@ -844,7 +844,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
     RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
 
-    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
+    this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx/");
     
     try{
         config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");

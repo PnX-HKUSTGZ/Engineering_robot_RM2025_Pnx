@@ -569,19 +569,19 @@ CombGenerator::CombGenerator(int n_,int m_){
     assert(n_>0&&m_>0&&n_>=m_);
     n=n_;
     m=m_;
-    recorder=std::vector<int>(-1,m_);
+    recorder=std::vector<int>(m_,-1);
 
 }
 
 bool CombGenerator::update(){
     if(recorder[0]==-1){
         for(int i=0;i<m;i++){
-            recorder.push_back(i);
+            recorder[i]=(i);
         }
         return 0;
     }
     int index=m-1;
-    while(index>=0&&recorder[index]==(n-(m-index-1))) index--;
+    while(index>=0&&recorder[index]==n-m+index) index--;
     if(index==-1) return 1;
     recorder[index]++;
     for(int i=index+1;i<m;i++){
@@ -596,6 +596,9 @@ std::vector<int> CombGenerator::get_next(){
         return std::vector<int>();
     }
     else{
+        // for(auto i : recorder){
+        //     RCLCPP_INFO(rclcpp::get_logger("CombGener"),"recorder : %ld",i);
+        // }
         return recorder;
     }
 }
@@ -603,7 +606,9 @@ std::vector<int> CombGenerator::get_next(){
 template<typename T>
 void AppendCounters(const std::vector<std::vector<cv::Point_<T>>> & source,std::vector<cv::Point_<T>> & target){
     for(auto & i : source){
-        target.insert(target.end(),i.begin(),i.end());
+        for(auto & e : i ){
+            target.push_back(e);
+        }
     }
 }
 

@@ -241,6 +241,19 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
 
     Counters PairedCornersCounters;
     bool GetFourCornersPairCheck= GetFourCornersPair(NoOverlapTargetCornerscounters,PairedCornersCounters);
+    if(GetFourCornersPairCheck){
+        return std::vector<cv::Point2f>();
+    }
+
+    // if(NoOverlapTargetCornerscounters.size()!=4){
+    //     RCLCPP_WARN(this->get_logger(),"TargetCornerscounters.size()<4 fail size= %ld",NoOverlapTargetCornerscounters.size());
+    //     return std::vector<cv::Point2f>();
+    // }
+    // Counters PairedCornersCounters=NoOverlapTargetCornerscounters;
+
+
+    RCLCPP_INFO(this->get_logger(),"GetFourCornersPairCheck pass");
+    RCLCPP_INFO(this->get_logger(),"PairedCornersCounters size :%ld",PairedCornersCounters.size());
 
 
     Counter AllPointSet;
@@ -323,7 +336,10 @@ bool Arrow_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
     
     std::vector<cv::Point2f> TargetRectangleResult=TargetRectangle(BinaryImage,OriginalImage_Rectangle);
 
+
     if(TargetRectangleResult.size()==0) return 1;
+
+    RCLCPP_INFO(this->get_logger(),"TargetRectangle finish with TargetRectangleResult.size()= %ld",TargetRectangleResult.size());
 
     Counter2d TargetRectangleResult2d;
     for(auto & i : TargetRectangleResult) TargetRectangleResult2d.push_back(cv::Point2d(i.x,i.y));
@@ -400,14 +416,20 @@ void Arrow_detector::RectangleDetectorInit(){
     RCLCPP_INFO(this->get_logger(),"RectangleDetectorInit finish");
 }
 
-bool Arrow_detector::GetFourCornersPair(const Counters & Corners,Counters OutputCorners){
+bool Arrow_detector::GetFourCornersPair(const Counters & Corners,Counters & OutputCorners){
     CombGenerator combg(Corners.size(),4);
     std::vector<int> comb;
     Circle<float> AllCounterCircles;
     std::vector<int> bestIndex;
     double value=TargetRectanglePairFourCornersThreshold;
     Counter allcounter;
+    OutputCorners.clear();
     while((comb=combg.get_next()).size()){
+        // RCLCPP_INFO(this->get_logger(),"comb size %ld",comb.size());
+        // RCLCPP_INFO(this->get_logger(),"comb size %d",comb[0]);
+        // RCLCPP_INFO(this->get_logger(),"comb size %d",comb[1]);
+        // RCLCPP_INFO(this->get_logger(),"comb size %d",comb[2]);
+        // RCLCPP_INFO(this->get_logger(),"comb size %d",comb[3]);
         std::vector<Circle<float>> circles;
         Counter add;
         for(int i=0;i<4;i++){
@@ -417,13 +439,16 @@ bool Arrow_detector::GetFourCornersPair(const Counters & Corners,Counters Output
                 if(i==e) continue;
                 AppendCounters(Counters{Corners[comb[e]]},add);
             }
+            // RCLCPP_INFO(this->get_logger(),"%ld",add.size());
             cv::minEnclosingCircle(add,combcircle.center,combcircle.radius);
             circles.push_back(combcircle);
             AppendCounters(Counters{Corners[comb[i]]},allcounter);
         }
 
         double DisSum=0;
+        // RCLCPP_INFO(this->get_logger(),"%ld",allcounter.size());
         cv::minEnclosingCircle(allcounter,AllCounterCircles.center,AllCounterCircles.radius);
+        // RCLCPP_INFO(this->get_logger(),"QWQ%ld",allcounter.size());
 
         for(auto & i : circles){
             DisSum+=DistancePoints(i.center,AllCounterCircles.center);
