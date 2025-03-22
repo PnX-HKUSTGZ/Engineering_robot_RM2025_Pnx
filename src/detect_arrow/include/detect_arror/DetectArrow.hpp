@@ -287,7 +287,7 @@ private://Rectangle_Detector
 
     void RectangleDetectorInit();
 
-    //
+    // @return 0 good 1 bad
     bool GetFourCornersPair(const Counters & Corners,Counters OutputCorners);
 
 
@@ -426,6 +426,10 @@ cv::Point_<T> LocalCornerOpitimize(const cv::Mat & BinaryImage ,cv::Point_<T> Co
 
 template<typename T>
 void CombineCounters(const std::vector<std::vector<cv::Point_<T>>> & counters,std::vector<cv::Point_<T>> & output);
+
+// append source to target
+template<typename T>
+void AppendCounters(const std::vector<std::vector<cv::Point_<T>>> & source,std::vector<cv::Point_<T>> & target);
 
 void DrawTrangle(cv::Mat & Image,Counter2f & CornerPoints,cv::Scalar color,int thickness);
 

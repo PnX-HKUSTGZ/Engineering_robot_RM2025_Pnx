@@ -599,3 +599,14 @@ std::vector<int> CombGenerator::get_next(){
         return recorder;
     }
 }
+
+template<typename T>
+void AppendCounters(const std::vector<std::vector<cv::Point_<T>>> & source,std::vector<cv::Point_<T>> & target){
+    for(auto & i : source){
+        target.insert(target.end(),i.begin(),i.end());
+    }
+}
+
+template void AppendCounters<int>(const std::vector<std::vector<cv::Point_<int>>> & source,std::vector<cv::Point_<int>> & target);
+template void AppendCounters<double>(const std::vector<std::vector<cv::Point_<double>>> & source,std::vector<cv::Point_<double>> & target);
+

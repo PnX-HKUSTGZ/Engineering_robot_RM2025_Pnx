@@ -104,6 +104,7 @@ rectangle_detect:
   DetectRectangleBeta: 0
   TargetRectangleSlopeVarianceThreshold: 30
   TargetRectangleSlopeHorizonThreshold: 15
+  TargetRectanglePairFourCornersThreshold: 20.5
   
 
 

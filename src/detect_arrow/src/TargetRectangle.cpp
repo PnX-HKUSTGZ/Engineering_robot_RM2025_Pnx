@@ -231,11 +231,6 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
         // cv::waitKey(0);
     }
 
-    Counters PairedCornersCounters;
-    bool GetFourCornersPairCheck= GetFourCornersPair(NoOverlapTargetCornerscounters,PairedCornersCounters);
-
-    // #endif
-    //defult due to opencv the order of TargetCornerscounters is 逆时针顺序
     if(NoOverlapTargetCornerscounters.size()<4){
         RCLCPP_WARN(this->get_logger(),"TargetCornerscounters.size()<4 fail size= %ld",NoOverlapTargetCornerscounters.size());
         return std::vector<cv::Point2f>();
@@ -244,17 +239,20 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
         RCLCPP_INFO(this->get_logger(),"TargetCornerscounters.size() pass size= %ld",NoOverlapTargetCornerscounters.size());
     }
 
+    Counters PairedCornersCounters;
+    bool GetFourCornersPairCheck= GetFourCornersPair(NoOverlapTargetCornerscounters,PairedCornersCounters);
+
 
     Counter AllPointSet;
-    CombineCounters(NoOverlapTargetCornerscounters,AllPointSet);
+    CombineCounters(PairedCornersCounters,AllPointSet);
     std::vector<Circle<float>> circles(4);
     Counter2fs TranglesOf3(4);
     Circle<float> allcircle;
     cv::minEnclosingCircle(AllPointSet,allcircle.center,allcircle.radius);
 
-    // put the NoOverlapTargetCornerscounters in order
-    std::sort(NoOverlapTargetCornerscounters.begin(),
-        NoOverlapTargetCornerscounters.end(),
+    // put the PairedCornersCounters in order
+    std::sort(PairedCornersCounters.begin(),
+        PairedCornersCounters.end(),
         [&allcircle](const Counter & a,const Counter & b){
             cv::Point2f a_,b_;
             float a_r,b_r;
@@ -275,9 +273,9 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
 
     for(int i=0;i<4;i++){
         Counter combine3;
-        CombineCounters(Counters{NoOverlapTargetCornerscounters[(i+3)%4],
-            NoOverlapTargetCornerscounters[i],
-            NoOverlapTargetCornerscounters[(i+1)%4]},combine3);
+        CombineCounters(Counters{PairedCornersCounters[(i+3)%4],
+            PairedCornersCounters[i],
+            PairedCornersCounters[(i+1)%4]},combine3);
         cv::minEnclosingTriangle([&combine3](){
                 Counter2f result;
                 for(auto & e : combine3){
@@ -285,7 +283,7 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
                 }
                 return result;
             }(),TranglesOf3[i]);
-        cv::minEnclosingCircle(NoOverlapTargetCornerscounters[i],circles[i].center,circles[i].radius);
+        cv::minEnclosingCircle(PairedCornersCounters[i],circles[i].center,circles[i].radius);
         
         # ifdef DetectorRectangle_test_target
         cv::circle(Image,circles[i].center,circles[i].radius,cv::Scalar(255,34*i%225,123*i%225),1);
@@ -405,26 +403,43 @@ void Arrow_detector::RectangleDetectorInit(){
 bool Arrow_detector::GetFourCornersPair(const Counters & Corners,Counters OutputCorners){
     CombGenerator combg(Corners.size(),4);
     std::vector<int> comb;
-    std::vector<Circle<float>> Combcircles;
+    Circle<float> AllCounterCircles;
     std::vector<int> bestIndex;
     double value=TargetRectanglePairFourCornersThreshold;
+    Counter allcounter;
     while((comb=combg.get_next()).size()){
-        Circle<float> circle;
+        std::vector<Circle<float>> circles;
         Counter add;
         for(int i=0;i<4;i++){
             Counter add;
             Circle<float> combcircle;
             for(int e=0;e<4;e++){
                 if(i==e) continue;
-                CombineCounters(Counters{add,Corners[e]},add);
+                AppendCounters(Counters{Corners[comb[e]]},add);
             }
             cv::minEnclosingCircle(add,combcircle.center,combcircle.radius);
-            Combcircles.push_back(combcircle);
+            circles.push_back(combcircle);
+            AppendCounters(Counters{Corners[comb[i]]},allcounter);
         }
 
         double DisSum=0;
+        cv::minEnclosingCircle(allcounter,AllCounterCircles.center,AllCounterCircles.radius);
 
-        for()
+        for(auto & i : circles){
+            DisSum+=DistancePoints(i.center,AllCounterCircles.center);
+        }
+
+
+        if(DisSum<value){
+            value=DisSum;
+            bestIndex=comb;
+        }
 
     }
+
+    if(!bestIndex.size()) return 1;
+    for(auto & i : bestIndex){
+        OutputCorners.push_back(Corners[i]);
+    }
+    return 0;
 }
