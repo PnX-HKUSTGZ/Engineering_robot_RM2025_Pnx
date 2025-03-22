@@ -566,16 +566,16 @@ std::vector<cv::Point2d> Arrow_detector::TargetArrow(const cv::Mat & BinaryImage
     #endif
 
     // begine SubPix
-    subopix(this->GreyImage,
-        ArrowPeaks,
-        cv::Size(10,10),
-        cv::Size(-1,-1),
-        cv::TermCriteria(
-            cv::TermCriteria::EPS+cv::TermCriteria::COUNT,
-            150,
-            0.001
-            ),
-        Mask);
+    // subopix(this->GreyImage,
+    //     ArrowPeaks,
+    //     cv::Size(10,10),
+    //     cv::Size(-1,-1),
+    //     cv::TermCriteria(
+    //         cv::TermCriteria::EPS+cv::TermCriteria::COUNT,
+    //         150,
+    //         0.001
+    //         ),
+    //     Mask);
     
 
     FindPolygonCounterPointsSets(CannyImage,
@@ -844,7 +844,7 @@ Arrow_detector::Arrow_detector(double k):Node("Arrow_detector"),filter_(FilterCo
     this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
     RCLCPP_INFO(this->get_logger(),"Arrow_detector client created !");
 
-    this->declare_parameter<std::string>("Location","");
+    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
     
     try{
         config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
@@ -1025,6 +1025,8 @@ void Arrow_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & 
     box_to_camera.transform.rotation.z=Quaternion_r[3];
 
     tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
+
+    RCLCPP_INFO(this->get_logger(),"tf_broadcaster_box_to_camera pub successfully");
 }
 
 int main (int argc,char* argv[]){

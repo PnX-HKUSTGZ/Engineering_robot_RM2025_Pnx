@@ -293,6 +293,13 @@ private://Rectangle_Detector
     cv::Size TargetRectangleDilateCoreSize;
     double TargetRectanglee4f2rateMin;
     double TargetRectanglee4f2rateMax;
+    //alpha I + beta
+    double DetectRectangleAlpha;
+    //alpha I + beta
+    double DetectRectangleBeta;
+
+    double TargetRectangleSlopeVarianceThreshold;
+    double TargetRectangleSlopeHorizonThreshold;
 
     std::vector<cv::Point3d> RectangleOuterlayerCorners;
     std::vector<Eigen::Matrix<double,4,1>> RectangleOuterlayerCornersEigen;
