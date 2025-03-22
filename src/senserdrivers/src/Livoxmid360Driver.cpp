@@ -10,13 +10,9 @@ void PointCloudCallback(uint32_t handle, const uint8_t dev_type, LivoxLidarEther
   #ifdef cloudelog
   RCLCPP_INFO(node->get_logger(),"PointCloudCallback called.");
   #endif
-  // void*(dev_type);
-  // void*(client_data);
   if(data == nullptr) {
     return;
   }
-    // RCLCPP_INFO(rclcpp::get_logger("Mid360Driver:PointCloudCallback"),"point cloud handle: %u, data_num: %d, data_type: %d, length: %d, frame_counter: %d\n",
-    //     handle, data->dot_num, data->data_type, data->length, data->frame_cnt);
   node->PublishPointCloud(data);
 }
 
@@ -167,10 +163,10 @@ void mid360_init(){
 Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
 : Node("mid360_driver", options) {
     // init pose
-    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
+    this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx/");
     config=YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
-    start_time=this->now();
-    buffertime=config["mid_360"]["buffertime"].as<int>();
+    Mid360SendTimeInterval=config["mid_360"]["Mid360SendTimeInterval"].as<int>();
+    buffertime=rclcpp::Duration(config["mid_360"]["buffertime"].as<std::vector<int>>()[0],config["mid_360"]["buffertime"].as<std::vector<int>>()[1]) ;
 
     if(config["camera"]){
       RCLCPP_INFO(this->get_logger(),"okk");
@@ -207,7 +203,7 @@ Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
     }
     RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
 
-    cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(buffertime),[&](){
+    cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(Mid360SendTimeInterval),[&](){
         publishCloud();
     });
 
@@ -217,70 +213,45 @@ Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
 
 }
 
+void Mid360Driver::UpdateCloud(){
+  std::lock_guard<std::mutex> lock_guarde(cloudmtx);
+  while(!CloudTimeStamp.empty()&&(this->now()-CloudTimeStamp.front().second)>buffertime){
+    cloud.erase(cloud.begin(),cloud.begin()+CloudTimeStamp.front().first);
+    this->CloudTimeStamp.pop();
+  }
+}
+
 void Mid360Driver::addPoint(const LivoxLidarEthernetPacket* data) {
-  if((this->now()-start_time)>rclcpp::Duration::from_seconds(buffertime/1000.0)){
-    std::stringstream sss;
-    sss<<"now: "<<this->now().seconds()<<" "<<this->now().nanoseconds()<<
-      " start_time "<<start_time.seconds()<<" "<<start_time.nanoseconds()<<"  "
-      <<"buffertime "<<rclcpp::Duration::from_seconds(buffertime/1000).seconds()<<" "<<rclcpp::Duration::from_seconds(buffertime/1000).nanoseconds()
-      <<" (this->now()-start_time) "<<(this->now()-start_time).seconds()<<" "<<(this->now()-start_time).nanoseconds();
-      #ifdef cloudelog
-      RCLCPP_INFO(this->get_logger(),"addPoint time out, this call will not publish cloud. time %s",sss.str().c_str());
-      #endif
-      return;
-  }
-  else {
-      #ifdef cloudelog
-      RCLCPP_INFO(this->get_logger(),"addPoint time in, this call will publish cloud. size: %ld",data->dot_num);
-      #endif
-  }
+  UpdateCloud();
+  std::lock_guard<std::mutex> lock_guarde(cloudmtx);
   LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
-  cloudmtx.lock();
+  std::pair<int,rclcpp::Time> tmp=std::make_pair(0,this->now());
   for(size_t i=0;i<data->dot_num;i++){
       if(p_point_data[i].tag != 0) continue;
       cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
+      tmp.first++;
       // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
   }
   cloud.width=cloud.size();
   cloud.height=1;
   cloud.is_dense=true;
-  cloudmtx.unlock();
+  CloudTimeStamp.push(tmp);
   #ifdef cloudelog
-  RCLCPP_INFO(this->get_logger(),"addPoint successfully.");
+  RCLCPP_INFO(this->get_logger(),"addPoint successfully. with add size %ld , all size : %ld",tmp.first,cloud.size());
   #endif
 }
 
 void Mid360Driver::publishCloud(builtin_interfaces::msg::Time time_) {
-  cloudmtx.lock();
+  UpdateCloud();
+  std::lock_guard<std::mutex> lock_guarde(cloudmtx);
   sensor_msgs::msg::PointCloud2 cloud_msg;
   pcl::toROSMsg(cloud,cloud_msg);
   cloud_msg.header.frame_id=frame_id;
   cloud_msg.header.stamp=time_;
   point_cloud_pub_->publish(cloud_msg);
-  cloudmtx.unlock();
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(),"publishCloud successfully. size: %ld",cloud.size());
   #endif
-  this->reset();
-}
-
-void Mid360Driver::reset() {
-  // mtx_cloud.lock();
-  #ifdef cloudelog
-  RCLCPP_INFO(this->get_logger(),"reset cloud buffer.");
-  #endif
-  cloudmtx.lock();
-  start_time=this->now();
-  cloud.clear();
-  cloudmtx.unlock();
-  // mtx_cloud.unlock();
-}
-
-bool Mid360Driver::isoutoftime() {
-  // mtx_cloud.lock();
-  bool res=this->now()-start_time>rclcpp::Duration::from_seconds(buffertime/1000);
-  // mtx_cloud.unlock();
-  return res;
 }
 
 int main (int argc, const char *argv[]) {

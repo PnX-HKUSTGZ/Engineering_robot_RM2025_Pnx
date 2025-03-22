@@ -10,9 +10,11 @@
 #include <chrono>
 #include <iostream>
 #include <functional>
-#include <mutex>
+#include <queue>
+#include <chrono>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/duration.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/utils.hpp>
@@ -30,7 +32,7 @@
 
 #include <yaml-cpp/yaml.h>
 
-// #define cloudelog
+#define cloudelog
 
 using namespace std::placeholders;
 
@@ -63,20 +65,23 @@ private:
 
 
     public:
+    //function will get mutex
     void addPoint(const LivoxLidarEthernetPacket* data);
 
+    //function will get mutex
     void publishCloud(builtin_interfaces::msg::Time time_=rclcpp::Clock().now());
 
-    void reset();
-
-    bool isoutoftime();
 
 private:
-    rclcpp::Time start_time;
+    std::queue<std::pair<int,rclcpp::Time>> CloudTimeStamp;
     pcl::PointCloud<pcl::PointXYZ> cloud;
     std::string frame_id;
-    int buffertime;
+    rclcpp::Duration buffertime=rclcpp::Duration(0,0);
+    int Mid360SendTimeInterval;
     std::mutex cloudmtx;
+
+    //function will get mutex
+    void UpdateCloud();
 };
 
 void PointCloudCallback(uint32_t handle, uint8_t dev_type, LivoxLidarEthernetPacket* data, void* client_data);

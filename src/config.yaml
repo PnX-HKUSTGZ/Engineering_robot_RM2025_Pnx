@@ -93,7 +93,7 @@ rectangle_detect:
   TargetRectangleApproxSizeMax: 6
   TargetRectangleApproxSizeMin: 6
   TargetRectangleHWRateMax: 10
-  TargetRectangleHWRateMin: 0.5
+  TargetRectangleHWRateMin: 0.5buffertime
   TargetRectangleErodeCoreSize: [2,2]
   TargetRectangleErodeItrations: 3
   TargetRectangleDilateCoreSize: [2,2]
@@ -109,7 +109,9 @@ rectangle_detect:
 
 
 mid_360:
-  buffertime: 200 # ms int
+  Mid360SendTimeInterval: 10 # ms int
+  buffertime: [0,100000000] # [s,ns]
+
 
 object_pos:
   arm: # arm to map
@@ -120,7 +122,7 @@ object_pos:
     rotate:
       w: 0.7071068
       x: 0.
-      y: 0.
+      y: 0.buffertime
       z: 0.7071068
   camera: # camera to map
     translation:
