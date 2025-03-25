@@ -29,6 +29,7 @@
 #include <thread>
 #include <memory>
 
+extern std::shared_ptr<AVIADriver> node;
 
 /** Const varible ------------------------------------------------------------------------------- */
 /** User add broadcast code here */
@@ -155,6 +156,7 @@ void LdsLidar::GetLidarDataCb(uint8_t handle, LivoxEthPacket *data,
       uint64_t cur_timestamp = *((uint64_t *)(data->timestamp));
       if(data ->data_type == kCartesian) {
         LivoxRawPoint *p_point_data = (LivoxRawPoint *)data->data;
+        node->addPoint(p_point_data,data_num);
       }else if ( data ->data_type == kSpherical) {
         LivoxSpherPoint *p_point_data = (LivoxSpherPoint *)data->data;
       }else if ( data ->data_type == kExtendCartesian) {
@@ -538,4 +540,28 @@ void AVIADriver::publishCloud(builtin_interfaces::msg::Time time_){
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(),"publishCloud successfully.");
   #endif
+}
+
+int main (int argc,char ** argv){
+  rclcpp::init(argc,argv);
+
+
+  SaveLoggerFile();
+  LdsLidar& read_lidar = LdsLidar::GetInstance();
+  std::vector<std::string> broadcast_code_strs;
+  broadcast_code_strs=node->config["AVIA"]["broadcast_code"].as<std::vector<std::string>>();
+  int ret = read_lidar.InitLdsLidar(broadcast_code_strs);
+  if (!ret) {
+    RCLCPP_INFO(node->get_logger(),"Init lds lidar success!");
+  } else {
+    RCLCPP_INFO(node->get_logger(),"Init lds lidar fail!");
+    read_lidar.DeInitLdsLidar();
+  return 0;
+  }
+  node = std::make_shared<AVIADriver>();
+
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+  read_lidar.DeInitLdsLidar();
+  return 0;
 }

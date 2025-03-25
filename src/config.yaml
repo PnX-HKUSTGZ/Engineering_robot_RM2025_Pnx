@@ -115,6 +115,7 @@ mid_360:
 AVIA:
   AVIASendTimeInterval: 10 # ms int
   buffertime: [0,100000000] # [s,ns]
+  broadcast_code: ["3JEDM4R0010S17"]
 
 
 object_pos:
@@ -148,5 +149,15 @@ object_pos:
       x: 0.
       y: 0.
       z: 1.
+  AVIA: # AVIA to map
+    translation:
+      x: 0.
+      y: 0.
+      z: 0.
+    rotate:
+      w: 1.
+      x: 0.
+      y: 0.
+      z: 0.
   
 

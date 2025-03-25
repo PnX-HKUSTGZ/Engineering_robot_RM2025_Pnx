@@ -168,15 +168,15 @@ class AVIADriver : public rclcpp::Node {
       
       rclcpp::TimerBase::SharedPtr cloud_buffer_timer_; 
       int AVIASendTimeInterval;
-      YAML::Node config;
   
       // mid360 special config
       std::string configpath;
   
   
-      public:
+  public:
       //function will get mutex
       void addPoint(const LivoxRawPoint* data, int DataSize);
+      YAML::Node config;
   
       //function will get mutex
       void publishCloud(builtin_interfaces::msg::Time time_);

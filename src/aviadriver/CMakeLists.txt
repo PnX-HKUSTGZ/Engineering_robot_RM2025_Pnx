@@ -5,11 +5,44 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+
+include_directories(${PROJECT_SOURCE_DIR}/include)
+link_directories(${PROJECT_SOURCE_DIR}/lib)
+
+# link_libraries(/usr/local/lib)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(interfaces REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(yaml-cpp REQUIRED)
+
+add_executable(AVIA_Driver src/lds_lidar.cpp)
+
+ament_target_dependencies(AVIA_Driver
+  rclcpp
+  sensor_msgs
+  cv_bridge
+  rclcpp_components
+  interfaces
+  tf2
+  tf2_ros
+)
+
+target_link_libraries(AVIA_Driver
+  yaml-cpp::yaml-cpp
+)
+
+install(TARGETS 
+  AVIA_Driver
+  DESTINATION lib/${PROJECT_NAME})
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
