@@ -204,7 +204,7 @@ Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
     RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
 
     cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(Mid360SendTimeInterval),[&](){
-        publishCloud();
+        publishCloud(this->now());
     });
 
     point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud", 10);

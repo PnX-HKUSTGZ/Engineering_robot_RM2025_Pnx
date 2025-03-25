@@ -112,6 +112,10 @@ mid_360:
   Mid360SendTimeInterval: 10 # ms int
   buffertime: [0,100000000] # [s,ns]
 
+AVIA:
+  AVIASendTimeInterval: 10 # ms int
+  buffertime: [0,100000000] # [s,ns]
+
 
 object_pos:
   arm: # arm to map

@@ -31,6 +31,37 @@
 #include <vector>
 #include <string>
 
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <thread>
+#include <chrono>
+#include <iostream>
+#include <functional>
+#include <queue>
+#include <chrono>
+
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/duration.hpp>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/utils.hpp>
+
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/image.hpp>
+
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
+#include <yaml-cpp/yaml.h>
+
 #include "livox_def.h"
 #include "livox_sdk.h"
 
@@ -127,4 +158,39 @@ class LdsLidar {
   uint32_t data_recveive_count_[kMaxLidarCount];
 };
 
+
+class AVIADriver : public rclcpp::Node {
+  public:
+      AVIADriver(const rclcpp::NodeOptions & options=rclcpp::NodeOptions());
+  private:
+      rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
+      std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_transform_broadcaster;
+      
+      rclcpp::TimerBase::SharedPtr cloud_buffer_timer_; 
+      int AVIASendTimeInterval;
+      YAML::Node config;
+  
+      // mid360 special config
+      std::string configpath;
+  
+  
+      public:
+      //function will get mutex
+      void addPoint(const LivoxRawPoint* data, int DataSize);
+  
+      //function will get mutex
+      void publishCloud(builtin_interfaces::msg::Time time_);
+  
+  
+  private:
+      std::queue<std::pair<int,rclcpp::Time>> CloudTimeStamp;
+      pcl::PointCloud<pcl::PointXYZ> cloud;
+      std::string frame_id;
+      rclcpp::Duration buffertime=rclcpp::Duration(0,0);
+      std::mutex cloudmtx;
+  
+      //function will get mutex
+      void UpdateCloud();
+  };
+  
 #endif

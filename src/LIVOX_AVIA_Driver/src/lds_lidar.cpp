@@ -471,3 +471,71 @@ bool LdsLidar::FindInWhitelist(const char* bd_code) {
 }
 
 
+AVIADriver::AVIADriver(const rclcpp::NodeOptions & options):rclcpp::Node("AVIA Driver",options){
+  this->declare_parameter<std::string>("Location","");
+
+  config=YAML::LoadFile(this->get_parameter("Location").as_string());
+
+  point_cloud_pub_=this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/AVIA/point_cloud",10);
+  tf_static_transform_broadcaster=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+  buffertime=rclcpp::Duration(config["AVIA"]["buffertime"].as<std::vector<int>>()[0],
+    config["AVIA"]["buffertime"].as<std::vector<int>>()[1]);
+  AVIASendTimeInterval=config["AVIA"]["AVIASendTimeInterval"].as<int>();
+
+  geometry_msgs::msg::TransformStamped t;
+  t.header.stamp =this->now();
+  t.header.frame_id = "map";
+  t.child_frame_id = "sensor/AVIA";
+  t.transform.translation.x = config["object_pos"]["AVIA"]["translation"]["x"].as<double>();
+  t.transform.translation.y = config["object_pos"]["AVIA"]["translation"]["y"].as<double>();
+  t.transform.translation.z = config["object_pos"]["AVIA"]["translation"]["z"].as<double>();
+  t.transform.rotation.x = config["object_pos"]["AVIA"]["rotation"]["x"].as<double>();
+  t.transform.rotation.y = config["object_pos"]["AVIA"]["rotation"]["y"].as<double>();
+  t.transform.rotation.z = config["object_pos"]["AVIA"]["rotation"]["z"].as<double>();
+  t.transform.rotation.w = config["object_pos"]["AVIA"]["rotation"]["w"].as<double>();
+  tf_static_transform_broadcaster->sendTransform(t);
+  RCLCPP_INFO(this->get_logger(), "tf broadcaster successfully.");
+
+  cloud_buffer_timer_=this->create_wall_timer(std::chrono::milliseconds(AVIASendTimeInterval),[&](){
+    publishCloud(this->now());
+  });
+
+}
+
+void AVIADriver::UpdateCloud(){
+  std::lock_guard<std::mutex> lock_guarde(cloudmtx);
+  while(!CloudTimeStamp.empty()&&(this->now()-CloudTimeStamp.front().second)>buffertime){
+    cloud.erase(cloud.begin(),cloud.begin()+CloudTimeStamp.front().first);
+    this->CloudTimeStamp.pop();
+  }
+}
+
+void AVIADriver::addPoint(const LivoxRawPoint* data, int DataSize){
+  UpdateCloud();
+  std::lock_guard<std::mutex> lock_guarde(cloudmtx);
+  std::pair<int,rclcpp::Time> tmp=std::make_pair(DataSize,this->now());
+  for(size_t i=0;i<DataSize;i++){
+      cloud.push_back(pcl::PointXYZ(data[i].x/1000.0,data[i].y/1000.0,data[i].z/1000.0));
+      // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
+  }
+  cloud.width=cloud.size();
+  cloud.height=1;
+  cloud.is_dense=true;
+  CloudTimeStamp.push(tmp);
+  #ifdef cloudelog
+  RCLCPP_INFO(this->get_logger(),"addPoint successfully. with add size %ld , all size : %ld",tmp.first,cloud.size());
+  #endif
+}
+
+void AVIADriver::publishCloud(builtin_interfaces::msg::Time time_){
+  UpdateCloud();
+  std::lock_guard<std::mutex> lock_guarde(cloudmtx);
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  pcl::toROSMsg(cloud,cloud_msg);
+  cloud_msg.header.frame_id=frame_id;
+  cloud_msg.header.stamp=time_;
+  point_cloud_pub_->publish(cloud_msg);
+  #ifdef cloudelog
+  RCLCPP_INFO(this->get_logger(),"publishCloud successfully.");
+  #endif
+}

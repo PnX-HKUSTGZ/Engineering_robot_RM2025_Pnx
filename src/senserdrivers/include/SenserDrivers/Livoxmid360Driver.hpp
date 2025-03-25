@@ -69,7 +69,7 @@ private:
     void addPoint(const LivoxLidarEthernetPacket* data);
 
     //function will get mutex
-    void publishCloud(builtin_interfaces::msg::Time time_=rclcpp::Clock().now());
+    void publishCloud(builtin_interfaces::msg::Time time_);
 
 
 private:
