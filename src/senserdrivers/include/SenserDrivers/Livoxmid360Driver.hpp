@@ -32,7 +32,7 @@
 
 #include <yaml-cpp/yaml.h>
 
-#define cloudelog
+// #define cloudelog
 
 using namespace std::placeholders;
 
