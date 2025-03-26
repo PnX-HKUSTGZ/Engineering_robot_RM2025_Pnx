@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(LIVOX_AVIA_Driver)
+project(aviadriver)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -7,8 +7,15 @@ endif()
 
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories("/opt/ros/humble/include/**")
+include_directories("/opt/ros/humble/include/**")
+include_directories("/usr/include/**/")
+include_directories("/usr/include/pcl-1.12/")
+include_directories("/opt/ros/humble/include/pcl_msgs/")
+include_directories("/opt/ros/humble/include/pcl_conversions/")
+include_directories("/usr/include/eigen3/")
+include_directories("/usr/include/opencv4/")
 link_directories(${PROJECT_SOURCE_DIR}/lib)
-
 # link_libraries(/usr/local/lib)
 
 # find dependencies
@@ -37,6 +44,7 @@ ament_target_dependencies(AVIA_Driver
 
 target_link_libraries(AVIA_Driver
   yaml-cpp::yaml-cpp
+  liblivox_sdk_static.a
 )
 
 install(TARGETS 

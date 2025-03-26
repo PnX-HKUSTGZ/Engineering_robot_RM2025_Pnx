@@ -22,14 +22,14 @@
 // SOFTWARE.
 //
 
-#include "lds_lidar.h"
+#include "aviadriver/lds_lidar.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <thread>
 #include <memory>
 
-extern std::shared_ptr<AVIADriver> node;
+std::shared_ptr<AVIADriver> node;
 
 /** Const varible ------------------------------------------------------------------------------- */
 /** User add broadcast code here */
