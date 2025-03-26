@@ -114,8 +114,8 @@ mid_360:
 
 AVIA:
   AVIASendTimeInterval: 10 # ms int
-  buffertime: [0,100000000] # [s,ns]
-  broadcast_code: ["3JEDM4R0010S17"]
+  buffertime: [10,100000000] # [s,ns]
+  broadcast_code: []
 
 
 object_pos:

@@ -65,6 +65,8 @@
 #include "livox_def.h"
 #include "livox_sdk.h"
 
+#define cloudelog
+
 
 typedef enum {
   kConnectStateOff = 0,
@@ -176,6 +178,7 @@ class AVIADriver : public rclcpp::Node {
   public:
       //function will get mutex
       void addPoint(const LivoxRawPoint* data, int DataSize);
+      void addPoint(const LivoxExtendRawPoint* data, int DataSize);
       YAML::Node config;
   
       //function will get mutex
