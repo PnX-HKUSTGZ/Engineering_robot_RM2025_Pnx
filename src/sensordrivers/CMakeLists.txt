@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(senserdrivers)
+project(sensordrivers)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -28,9 +28,10 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
-add_executable(camera_driver src/CameraDriver.cpp)
 
-ament_target_dependencies(camera_driver
+add_library(camera_driver src/CameraDriver.cpp)
+
+ament_target_dependencies(camera_driver 
   rclcpp
   OpenCV
   sensor_msgs
@@ -44,6 +45,18 @@ ament_target_dependencies(camera_driver
 target_link_libraries(camera_driver
   MvCameraControl
   yaml-cpp::yaml-cpp
+)
+
+rclcpp_components_register_node(
+  camera_driver
+  PLUGIN "Engineering_robot_RM2025_Pnx::CameraDriver"
+  EXECUTABLE camera_driver_node
+)
+
+install(TARGETS camera_driver
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 add_executable(mid360_driver src/Livoxmid360Driver.cpp)
@@ -62,18 +75,15 @@ target_link_libraries(mid360_driver
   )
 
 install(TARGETS 
-  camera_driver
   mid360_driver
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY
-  config
-  DESTINATION share/${PROJECT_NAME}/
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
-install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME}/
+install(DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
