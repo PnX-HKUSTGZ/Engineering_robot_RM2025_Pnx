@@ -7,7 +7,7 @@ camera:
   camera_matrix: [2461.868075481564, 0, 631.7015039289838 , 0, 2513.93935296834, 687.8131716949171, 0.0, 0.0, 1.0]
   ExposureTimeLower: 10000
   ExposureTimeUpper: 10000
-  Gain: 7
+  Gain: 7.
 
 redeem_box:
 # 兑换框的四个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系

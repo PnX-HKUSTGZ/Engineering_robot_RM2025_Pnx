@@ -29,7 +29,7 @@ find_package(tf2_ros REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 
-add_library(camera_driver src/CameraDriver.cpp)
+add_library(camera_driver SHARED src/CameraDriver.cpp)
 
 ament_target_dependencies(camera_driver 
   rclcpp

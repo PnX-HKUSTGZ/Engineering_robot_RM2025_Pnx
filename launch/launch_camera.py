@@ -3,17 +3,31 @@ from launch_ros.actions import Node
 from launch_ros.actions import PushRosNamespace
 from launch.substitutions import LaunchConfiguration
 import os
-from ament_index_python import get_package_share_directory
-
+import launch
+import ament_index_python.packages
+from ament_index_python.packages import get_package_share_directory
+import launch
+import launch_ros.actions
+import launch_ros.descriptions
 
 def generate_launch_description():
-    Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
 
-    return LaunchDescription([
-        Node(
-            package='senserdrivers',
-            executable='camera_driver',
-            name='camera_driver',
-            parameters=[Path],
-        )
+    Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
+    camera_container = launch_ros.actions.ComposableNodeContainer(
+        name="sensor_container",
+        namespace="",
+        package="rclcpp_components",
+        executable='component_container_mt',
+        composable_node_descriptions=[
+            launch_ros.descriptions.ComposableNode(
+                package="sensordrivers",
+                plugin="Engineering_robot_RM2025_Pnx::CameraDriver",
+                name="camera_driver",
+                parameters=[Path],
+            )
+        ],
+        output="screen"
+    )
+    return launch.LaunchDescription([
+        camera_container,
     ])

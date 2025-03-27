@@ -9,7 +9,7 @@
 #include <string>
 #include "interfaces/srv/imagerequest.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "SenserDrivers/MvCameraControl.h"
+#include "SensorDrivers/MvCameraControl.h"
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2/utils.hpp>
@@ -240,7 +240,7 @@ class CameraDriver : public rclcpp::Node{
         try{
             ExposureTimeLower=this->config["camera"]["ExposureTimeLower"].as<int>();
             ExposureTimeUpper=this->config["camera"]["ExposureTimeUpper"].as<int>();
-            GainValue=this->config["camera"]["GainValue"].as<double>();
+            GainValue=this->config["camera"]["Gain"].as<float>();
         }
         catch(YAML::Exception& e){
             RCLCPP_ERROR(this->get_logger(),"error reading config file while load camera gain and exposure time: %s",e.what());
@@ -378,3 +378,7 @@ class CameraDriver : public rclcpp::Node{
 };//CameraDriver
 
 }//Engineering_robot_RM2025_Pnx
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(
+    Engineering_robot_RM2025_Pnx::CameraDriver);

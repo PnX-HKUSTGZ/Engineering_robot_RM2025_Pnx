@@ -1,4 +1,4 @@
-#include "SenserDrivers/Livoxmid360Driver.hpp"
+#include "SensorDrivers/Livoxmid360Driver.hpp"
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
