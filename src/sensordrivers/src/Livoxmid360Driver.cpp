@@ -1,9 +1,5 @@
 #include "SensorDrivers/Livoxmid360Driver.hpp"
 
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
-#include <pcl_conversions/pcl_conversions.h>
-
 std::shared_ptr<Mid360Driver> node;
 
 void PointCloudCallback(uint32_t handle, const uint8_t dev_type, LivoxLidarEthernetPacket* data, void* client_data) {

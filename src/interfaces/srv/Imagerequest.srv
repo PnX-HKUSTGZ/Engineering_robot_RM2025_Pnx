@@ -1,3 +1,4 @@
+uint32 clineid
 ---
 sensor_msgs/Image image
-bool ok
+bool ok # if ture, means you have get Image.

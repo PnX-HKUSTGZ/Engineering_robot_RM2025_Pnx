@@ -81,7 +81,7 @@ class CameraDriver : public rclcpp::Node{
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_broadcaster_;
     YAML::Node config;
     sensor_msgs::msg::Image::SharedPtr current_image;
-    bool current_image_check=0;
+    std::map<u_int32_t,bool> cline_id;
     // mtx for current_image
     std::mutex image_mutex;
 
@@ -102,10 +102,10 @@ class CameraDriver : public rclcpp::Node{
         interfaces::srv::Imagerequest::Response::SharedPtr response){
         (void)request;
         std::lock_guard<std::mutex> lock(image_mutex);
-        response->ok=current_image_check;
+        response->ok=cline_id[request->clineid];
         response->image = *(this->current_image);
         RCLCPP_INFO(this->get_logger(),"Image service called!");
-        current_image_check=0;
+        cline_id[request->clineid]=1;
 
     }
 
@@ -371,7 +371,7 @@ class CameraDriver : public rclcpp::Node{
 
         std::lock_guard<std::mutex>(node->image_mutex);
         node->current_image=image_ptr;
-        node->current_image_check=1;
+        node->cline_id.clear();
 
     }
 
