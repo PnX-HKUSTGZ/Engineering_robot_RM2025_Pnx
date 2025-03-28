@@ -23,7 +23,18 @@ Engineering_robot_RM2025_Pnx::Mid360Driver::Mid360Driver(const rclcpp::NodeOptio
   }
 
   // mid360 init
-  LivoxLidarSdkInit(mid360_config_path.c_str());
+  bool initok=false;
+  while(!initok){
+    try{
+      LivoxLidarSdkInit(mid360_config_path.c_str());
+      initok=1;
+    }
+    catch(std::exception& e){
+      initok=0;
+      RCLCPP_ERROR(this->get_logger(), "LivoxLidarSdkInit failed. %s", e.what());
+    }
+  }
+  
   SetLivoxLidarPointCloudCallBack(PointCloudCallback, this);
   SetLivoxLidarImuDataCallback(ImuDataCallback, this);
   SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, nullptr);

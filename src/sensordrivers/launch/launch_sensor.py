@@ -14,8 +14,10 @@ def generate_launch_description():
 
     Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
     mid360_config_path = {"mid360_config_path":get_package_share_directory("sensordrivers")+"/config/mid360_config.json"}
+    print(Path)
+    print(mid360_config_path)
     container = launch_ros.actions.ComposableNodeContainer(
-        name="camera_driver",
+        name="sensordrivers_container",
         namespace="",
         package="rclcpp_components",
         executable='component_container_mt',
