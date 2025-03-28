@@ -10,10 +10,9 @@ include_directories("/usr/include/pcl-1.12/")
 include_directories("/usr/include/eigen3/")
 include_directories("/usr/include/opencv4/")
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/include/SensorDrivers)
 link_directories(${PROJECT_SOURCE_DIR}/lib)
 
-# link_libraries(/usr/local/lib)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -59,24 +58,33 @@ install(TARGETS camera_driver
         RUNTIME DESTINATION bin
 )
 
-add_executable(mid360_driver src/Livoxmid360Driver.cpp)
+add_library(mid360_driver SHARED src/Livoxmid360Driver.cpp src/Livoxmid360DriverDebug.cpp)
 
 ament_target_dependencies(mid360_driver
   rclcpp
   sensor_msgs
   pcl_conversions
+  rclcpp_components
   tf2
   tf2_ros
 )
 
 target_link_libraries(mid360_driver 
-  livox_lidar_sdk_static
+  livox_lidar_sdk_shared
   yaml-cpp::yaml-cpp
-  )
+)
 
-install(TARGETS 
+rclcpp_components_register_node(
   mid360_driver
-  DESTINATION lib/${PROJECT_NAME})
+  PLUGIN "Engineering_robot_RM2025_Pnx::Mid360Driver"
+  EXECUTABLE mid360_driver_node
+)
+
+install(TARGETS mid360_driver
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
 
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}

@@ -9,7 +9,7 @@
 #include <string>
 #include "interfaces/srv/imagerequest.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "SensorDrivers/MvCameraControl.h"
+#include "MvCameraControl.h"
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2/utils.hpp>
