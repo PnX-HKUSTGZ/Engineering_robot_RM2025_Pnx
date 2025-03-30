@@ -159,7 +159,7 @@ void mid360_init(){
 Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
 : Node("mid360_driver", options) {
     // init pose
-    this->declare_parameter<std::string>("Location","/home/lqx/code/Engineering_robot_RM2025_Pnx/");
+    this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
     config=YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
     Mid360SendTimeInterval=config["mid_360"]["Mid360SendTimeInterval"].as<int>();
     buffertime=rclcpp::Duration(config["mid_360"]["buffertime"].as<std::vector<int>>()[0],config["mid_360"]["buffertime"].as<std::vector<int>>()[1]) ;
@@ -169,7 +169,7 @@ Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
     }
 
     std::ifstream iff(this->get_parameter("Location").as_string()+"/src/config.yaml");
-    configpath=this->get_parameter("Location").as_string()+"src/senserdrivers/config/mid360_config.json";
+    configpath=this->get_parameter("Location").as_string()+"src/sensordrivers/config/mid360_config.json";
     RCLCPP_INFO(this->get_logger(),"mid360_configpath:%s",configpath.c_str());
     RCLCPP_INFO(this->get_logger(),"Location config : %s",(this->get_parameter("Location").as_string()+"/src/config.yaml").c_str());
 
