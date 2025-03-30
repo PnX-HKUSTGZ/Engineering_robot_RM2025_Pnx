@@ -57,19 +57,33 @@ Engineering_robot_RM2025_Pnx::Mid360Driver::Mid360Driver(const rclcpp::NodeOptio
   tf_static_transform_broadcaster->sendTransform(static_transformStamped);
   RCLCPP_INFO(this->get_logger(), "tf2 broadcaster init successfully.");
 
-  // mid360 init
-  while(!LivoxLidarSdkInit(mid360_config_path.c_str())){
-    RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit failed, retry after 0.2s.");
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    LivoxLidarSdkUninit();
-  }
-  RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
+
   
-  // SetLivoxLidarPointCloudCallBack(PointCloudCallback, this);
-  // SetLivoxLidarImuDataCallback(ImuDataCallback, this);
-  // SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, this);
-  // SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, this);
-  // RCLCPP_INFO(this->get_logger(), "LivoxLidar callbacks set successfully.");
+  // mid360InitThread=std::make_shared<std::thread>([this,mid360_config_path](){
+  //   // mid360 init
+  //   std::this_thread::sleep_for(1s);
+  //   while(!LivoxLidarSdkInit(mid360_config_path.c_str())){
+  //     RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit failed, retry after 0.2s.");
+  //     std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  //     LivoxLidarSdkUninit();
+  //   }
+  //   RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
+  //   SetLivoxLidarPointCloudCallBack(PointCloudCallback, this);
+  //   SetLivoxLidarImuDataCallback(ImuDataCallback, this);
+  //   SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, this);
+  //   SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, this);
+  //   RCLCPP_INFO(this->get_logger(), "LivoxLidar callbacks set successfully.");
+  // });
+    while(!LivoxLidarSdkInit(mid360_config_path.c_str())){
+      RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit failed, retry after 0.2s.");
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      LivoxLidarSdkUninit();
+    }
+  SetLivoxLidarPointCloudCallBack(PointCloudCallback, this);
+  SetLivoxLidarImuDataCallback(ImuDataCallback, this);
+  SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, this);
+  SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, this);
+  RCLCPP_INFO(this->get_logger(), "LivoxLidar callbacks set successfully.");
 
   // try{
   //   if(config["debug"]["mid360"].IsDefined()&&config["debug"]["mid360"].as<bool>()){
@@ -92,13 +106,13 @@ Engineering_robot_RM2025_Pnx::Mid360Driver::~Mid360Driver() {
 void Engineering_robot_RM2025_Pnx::Mid360Driver::PointCloudCallback(uint32_t handle, uint8_t dev_type, LivoxLidarEthernetPacket* data, void* client_data) {
   Mid360Driver* node = static_cast<Mid360Driver*>(client_data);
   #ifdef cloudelog
-  RCLCPP_INFO(node->get_logger(),"PointCloudCallback called.");
+  printf("PointCloudCallback called.");
   #endif
   if(data == nullptr) {
     return;
   }
   if(data->data_type == kLivoxLidarSphericalCoordinateData) {
-    RCLCPP_ERROR(node->get_logger(),"data_type is kLivoxLidarSphericalCoordinateData not supported.");
+     printf("data_type is kLivoxLidarSphericalCoordinateData not supported.");
     return;
   }
 
@@ -108,14 +122,14 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::PointCloudCallback(uint32_t han
 
 
   #ifdef cloudelog
-  RCLCPP_INFO(node->get_logger(),"""Received %d points.", data->dot_num);
+  printf("""Received %d points.", data->dot_num);
   #endif
 
   for(int i = 0; i < data->dot_num; i++) {
     if(p_point_data[i].tag != 0) continue;
     cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
     #ifdef cloudelog
-    RCLCPP_INFO(node->get_logger(),"x:%f, y:%f, z:%f.",p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0);
+    printf("x:%f, y:%f, z:%f.",p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0);
     #endif
   }
   cloud.width=cloud.size();
@@ -138,7 +152,7 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::ImuDataCallback(uint32_t handle
     return;
   } 
   #ifdef cloudelog
-  RCLCPP_INFO(node->get_logger(),"Imu data callback handle:%u, data_num:%u, data_type:%u, length:%u, frame_counter:%u.\n",
+  printf("Imu data callback handle:%u, data_num:%u, data_type:%u, length:%u, frame_counter:%u.\n",
       handle, data->dot_num, data->data_type, data->length, data->frame_cnt);
   #endif
 }
@@ -146,10 +160,10 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::ImuDataCallback(uint32_t handle
 void Engineering_robot_RM2025_Pnx::Mid360Driver::LidarInfoChangeCallback(const uint32_t handle, const LivoxLidarInfo* info, void* client_data) {
   Mid360Driver* node = static_cast<Mid360Driver*>(client_data);
   if (info == nullptr) {
-      RCLCPP_ERROR(node->get_logger(),"lidar info change callback failed, the info is nullptr.\n");
+       printf("lidar info change callback failed, the info is nullptr.\n");
       return;
   }
-  else RCLCPP_INFO(node->get_logger(),"LidarInfoChangeCallback Lidar handle: %u SN: %s\n", handle, info->sn);
+  else printf("LidarInfoChangeCallback Lidar handle: %u SN: %s\n", handle, info->sn);
 
   SetLivoxLidarWorkMode(handle, kLivoxLidarNormal, WorkModeCallback, nullptr);
 
@@ -162,8 +176,8 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::LivoxLidarPushMsgCallback(const
   tmp_addr.s_addr = handle; 
   std::stringstream ss; 
   ss << "handle: " << handle << ", ip: " << inet_ntoa(tmp_addr) << ", push msg info: ";
-  RCLCPP_INFO(node->get_logger(),"%s", ss.str().c_str());
-  RCLCPP_INFO(node->get_logger(),"%s", info);
+  printf("%s", ss.str().c_str());
+  printf("%s", info);
   return;
 }
 
@@ -172,14 +186,14 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::WorkModeCallback(livox_status s
   if (response == nullptr) {
       return;
   }
-  RCLCPP_INFO(node->get_logger(),"WorkModeCallack, status:%u, handle:%u, ret_code:%u, error_key:%u",
+  printf("WorkModeCallack, status:%u, handle:%u, ret_code:%u, error_key:%u",
         status, handle, response->ret_code, response->error_key);
 }
 
 void Engineering_robot_RM2025_Pnx::Mid360Driver::QueryInternalInfoCallback(livox_status status, uint32_t handle, LivoxLidarDiagInternalInfoResponse* response, void* client_data) {
   Mid360Driver* node = static_cast<Mid360Driver*>(client_data);
   if (status != kLivoxLidarStatusSuccess) {
-    RCLCPP_ERROR(node->get_logger(),"Query lidar internal info failed.\n");
+     printf("Query lidar internal info failed.\n");
     QueryLivoxLidarInternalInfo(handle, QueryInternalInfoCallback, client_data);
     return;
   }
@@ -212,10 +226,10 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::QueryInternalInfoCallback(livox
     off += kv->length;
   }
 
-  RCLCPP_INFO(node->get_logger(),"Host point cloud ip addr:%u.%u.%u.%u, host point cloud port:%u, lidar point cloud port:%u.\n",
+  printf("Host point cloud ip addr:%u.%u.%u.%u, host point cloud port:%u, lidar point cloud port:%u.\n",
       host_point_ipaddr[0], host_point_ipaddr[1], host_point_ipaddr[2], host_point_ipaddr[3], host_point_port, lidar_point_port);
 
-  RCLCPP_INFO(node->get_logger(),"Host imu ip addr:%u.%u.%u.%u, host imu port:%u, lidar imu port:%u.\n",
+  printf("Host imu ip addr:%u.%u.%u.%u, host imu port:%u, lidar imu port:%u.\n",
     host_imu_ipaddr[0], host_imu_ipaddr[1], host_imu_ipaddr[2], host_imu_ipaddr[3], host_imu_data_port, lidar_imu_data_port);
 }
 

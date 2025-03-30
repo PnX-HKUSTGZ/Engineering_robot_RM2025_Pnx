@@ -13,6 +13,8 @@
 #include <queue>
 #include <chrono>
 #include <string>
+#include <thread>
+
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/duration.hpp>
@@ -54,6 +56,7 @@ namespace Engineering_robot_RM2025_Pnx{
         std::string frame_id="sensor/mid360";
         rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
         std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_transform_broadcaster;
+        std::shared_ptr<std::thread> mid360InitThread;
         
     private: // Callback function
         static void PointCloudCallback(uint32_t handle, uint8_t dev_type, LivoxLidarEthernetPacket* data, void* client_data);
