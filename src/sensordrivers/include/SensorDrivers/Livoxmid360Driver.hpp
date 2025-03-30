@@ -37,7 +37,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-// #define cloudelog
+#define cloudelog
 
 namespace Engineering_robot_RM2025_Pnx{
 

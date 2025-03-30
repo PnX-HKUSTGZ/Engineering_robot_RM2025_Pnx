@@ -13,37 +13,28 @@ Engineering_robot_RM2025_Pnx::Mid360Driver::Mid360Driver(const rclcpp::NodeOptio
     return;
   }
 
+  RCLCPP_INFO(this->get_logger(), "Location: %s", Location.c_str());
+  RCLCPP_INFO(this->get_logger(), "mid360_config_path: %s", mid360_config_path.c_str());
+  RCLCPP_INFO(this->get_logger(), "Load config from YAML file: %s", yaml_path.c_str());
+
   // yaml init
   try{
     config = YAML::LoadFile(yaml_path);
   }
-  catch(YAML::BadFile& e){
-    RCLCPP_ERROR(this->get_logger(), "YAML file not found. %s PATH: %s", e.what(),yaml_path.c_str());
+  catch(const std::exception& e){
+    RCLCPP_ERROR(this->get_logger(), "error reading config file: %s", e.what());
     return;
   }
+  RCLCPP_INFO(this->get_logger(), "Config load successfully.");
 
-  // mid360 init
-  bool initok=false;
-  while(!initok){
-    try{
-      LivoxLidarSdkInit(mid360_config_path.c_str());
-      initok=1;
-    }
-    catch(std::exception& e){
-      initok=0;
-      RCLCPP_ERROR(this->get_logger(), "LivoxLidarSdkInit failed. %s", e.what());
-    }
-  }
-  
-  SetLivoxLidarPointCloudCallBack(PointCloudCallback, this);
-  SetLivoxLidarImuDataCallback(ImuDataCallback, this);
-  SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, nullptr);
-  SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, this);
-  RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
+
 
   //ros2 publisher broadcaster init
   point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/mid360/point_cloud", 10);
+  RCLCPP_INFO(this->get_logger(), "point_cloud_pub_ create successfully.");
+  
   tf_static_transform_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+  RCLCPP_INFO(this->get_logger(), "tf2_static_transform_broadcaster create successfully.");
 
   // tf2 broadcaster init
   geometry_msgs::msg::TransformStamped static_transformStamped;
@@ -59,24 +50,39 @@ Engineering_robot_RM2025_Pnx::Mid360Driver::Mid360Driver(const rclcpp::NodeOptio
     static_transformStamped.transform.rotation.z = config["object_pos"]["mid360"]["rotate"]["z"].as<double>();
     static_transformStamped.transform.rotation.w = config["object_pos"]["mid360"]["rotate"]["w"].as<double>();
   }
-  catch(YAML::BadFile& e){
+  catch(const std::exception& e){
     RCLCPP_ERROR(this->get_logger(), "tf2 config not found. %s", e.what());
     return;
   }
   tf_static_transform_broadcaster->sendTransform(static_transformStamped);
   RCLCPP_INFO(this->get_logger(), "tf2 broadcaster init successfully.");
 
-  try{
-    if(config["debug"]["mid360"].IsDefined()&&config["debug"]["mid360"].as<bool>()){
-      DEBUGInit();
-    }
+  // mid360 init
+  while(!LivoxLidarSdkInit(mid360_config_path.c_str())){
+    RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit failed, retry after 0.2s.");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    LivoxLidarSdkUninit();
   }
-  catch(YAML::BadFile& e){
-    RCLCPP_ERROR(this->get_logger(), "debug config not found. %s", e.what());
-  }
+  RCLCPP_INFO(this->get_logger(), "LivoxLidarSdkInit successfully.");
+  
+  // SetLivoxLidarPointCloudCallBack(PointCloudCallback, this);
+  // SetLivoxLidarImuDataCallback(ImuDataCallback, this);
+  // SetLivoxLidarInfoCallback(LivoxLidarPushMsgCallback, this);
+  // SetLivoxLidarInfoChangeCallback(LidarInfoChangeCallback, this);
+  // RCLCPP_INFO(this->get_logger(), "LivoxLidar callbacks set successfully.");
+
+  // try{
+  //   if(config["debug"]["mid360"].IsDefined()&&config["debug"]["mid360"].as<bool>()){
+  //     DEBUGInit();
+  //   }
+  // }
+  // catch(std::exception& e){
+  //   RCLCPP_ERROR(this->get_logger(), "debug config not found. %s", e.what());
+  // }
 
   RCLCPP_INFO(this->get_logger(), "Mid360Driver init successfully.");
 }
+
 
 Engineering_robot_RM2025_Pnx::Mid360Driver::~Mid360Driver() {
   LivoxLidarSdkUninit();
@@ -100,10 +106,22 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::PointCloudCallback(uint32_t han
   sensor_msgs::msg::PointCloud2 cloud_msg;
   pcl::PointCloud<pcl::PointXYZ> cloud;
 
+
+  #ifdef cloudelog
+  RCLCPP_INFO(node->get_logger(),"""Received %d points.", data->dot_num);
+  #endif
+
   for(int i = 0; i < data->dot_num; i++) {
     if(p_point_data[i].tag != 0) continue;
     cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
+    #ifdef cloudelog
+    RCLCPP_INFO(node->get_logger(),"x:%f, y:%f, z:%f.",p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0);
+    #endif
   }
+  cloud.width=cloud.size();
+  cloud.height = 1;
+  cloud_msg.is_dense = true;
+
   pcl::toROSMsg(cloud, cloud_msg);
   
   cloud_msg.header.frame_id = node->frame_id;
@@ -162,7 +180,7 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::QueryInternalInfoCallback(livox
   Mid360Driver* node = static_cast<Mid360Driver*>(client_data);
   if (status != kLivoxLidarStatusSuccess) {
     RCLCPP_ERROR(node->get_logger(),"Query lidar internal info failed.\n");
-    QueryLivoxLidarInternalInfo(handle, QueryInternalInfoCallback, nullptr);
+    QueryLivoxLidarInternalInfo(handle, QueryInternalInfoCallback, client_data);
     return;
   }
 
@@ -204,3 +222,5 @@ void Engineering_robot_RM2025_Pnx::Mid360Driver::QueryInternalInfoCallback(livox
 #include <rclcpp_components/register_node_macro.hpp>
 RCLCPP_COMPONENTS_REGISTER_NODE(
     Engineering_robot_RM2025_Pnx::Mid360Driver);
+
+// ros2 run --prefix 'gdb -ex run --args'  sensordrivers mid360_driver_node --ros-args -p Location:="/home/pnx/code/Engineering_robot_RM2025_Pnx/install/interfaces/share/interfaces/../../../../" -p mid360_config_path:="/home/pnx/code/Engineering_robot_RM2025_Pnx/install/sensordrivers/share/sensordrivers/config/mid360_config.json"

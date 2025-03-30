@@ -2,13 +2,12 @@ cmake_minimum_required(VERSION 3.8)
 project(sensordrivers)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -fPIC)
 endif()
 
 include_directories("/opt/ros/humble/include/**")
 include_directories("/usr/include/pcl-1.12/")
 include_directories("/usr/include/eigen3/")
-include_directories("/usr/include/opencv4/")
 
 include_directories(${PROJECT_SOURCE_DIR}/include/SensorDrivers)
 link_directories(${PROJECT_SOURCE_DIR}/lib)
@@ -105,5 +104,4 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
-
 ament_package()

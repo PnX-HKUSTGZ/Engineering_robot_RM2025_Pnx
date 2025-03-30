@@ -22,12 +22,12 @@ def generate_launch_description():
         package="rclcpp_components",
         executable='component_container_mt',
         composable_node_descriptions=[
-            launch_ros.descriptions.ComposableNode(
-                package="sensordrivers",
-                plugin="Engineering_robot_RM2025_Pnx::CameraDriver",
-                name="camera_driver",
-                parameters=[Path],
-            ),
+            # launch_ros.descriptions.ComposableNode(
+            #     package="sensordrivers",
+            #     plugin="Engineering_robot_RM2025_Pnx::CameraDriver",
+            #     name="camera_driver",
+            #     parameters=[Path],
+            # ),
             launch_ros.descriptions.ComposableNode(
                 package="sensordrivers",
                 plugin="Engineering_robot_RM2025_Pnx::Mid360Driver",
