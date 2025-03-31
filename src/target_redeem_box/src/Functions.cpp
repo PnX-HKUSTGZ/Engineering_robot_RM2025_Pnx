@@ -1,4 +1,4 @@
-#include "DetectArrow.hpp"
+#include "RedeemBox_detector.hpp"
 
 double DistanceBetweenPointAndLine(const cv::Point & p,const Line & l){
     double r=l.val[0],theta=l.val[1];

@@ -1,7 +1,7 @@
-#include "DetectArrow.hpp"
+#include "RedeemBox_detector.hpp"
 
 
-void Arrow_detector::PointCloudeInit(){
+void RedeemBox_detector::PointCloudeInit(){
 
     YAML::Node PCLManagerConfig=config["arrow_detect"]["PCLManager"];
 
@@ -13,7 +13,7 @@ void Arrow_detector::PointCloudeInit(){
 
     sync_.reset(new Sync(SyncPolicy(10),msgfillter_cloudpoint_sub,msgfillter_image_sub));
     sync_->setMaxIntervalDuration(rclcpp::Duration(1,0));
-    sync_->registerCallback(&Arrow_detector::ImageCloudPointCallBack,this);
+    sync_->registerCallback(&RedeemBox_detector::ImageCloudPointCallBack,this);
 
     # ifdef test_pcl_manage
 
@@ -28,7 +28,7 @@ void Arrow_detector::PointCloudeInit(){
 
 }
 
-void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
+void RedeemBox_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr& image_msg){
     
     tf2::TimePoint image_time_point = tf2::TimePoint(std::chrono::seconds(image_msg->header.stamp.sec)+std::chrono::nanoseconds(image_msg->header.stamp.nanosec));
@@ -189,7 +189,7 @@ void Arrow_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2
 
 }
 
-bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> & pointcloud, Counter2d CornerPoints, cv::Mat & tvec, cv::Mat & rvec){
+bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> & pointcloud, Counter2d CornerPoints, cv::Mat & tvec, cv::Mat & rvec){
     
     // pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(
     //     std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(pointcloud)));
@@ -311,7 +311,7 @@ bool Arrow_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> 
 
 }
 
-bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const Eigen::VectorXf & plant, std::vector<cv::Point3d> &Points3D){
+bool RedeemBox_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const Eigen::VectorXf & plant, std::vector<cv::Point3d> &Points3D){
     Points3D.clear();
 
     std::vector<Eigen::Matrix<double,3,1>> Points3DnoZEigen;
@@ -340,7 +340,7 @@ bool Arrow_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const 
     return 0;
 }
 
-bool Arrow_detector::inCircle(const cv::Point2f & Center,
+bool RedeemBox_detector::inCircle(const cv::Point2f & Center,
     const float & CornerPointsRadius,
     const Eigen::Matrix<double,3,1>& TestPoint){
 

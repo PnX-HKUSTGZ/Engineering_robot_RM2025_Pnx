@@ -1,6 +1,6 @@
-#include "DetectArrow.hpp"
+#include "RedeemBox_detector.hpp"
 
-cv::Mat Arrow_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
+cv::Mat RedeemBox_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
     std::vector<cv::Mat> SplitImage;
     cv::split(OriginalImage,SplitImage);
 
@@ -79,7 +79,7 @@ cv::Mat Arrow_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
 }
 
 
-std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryImage,cv::Mat & Image){
+std::vector<cv::Point2f> RedeemBox_detector::TargetRectangle(const cv::Mat & BinaryImage,cv::Mat & Image){
     static double eps=1e-9;
     Counters FirstCornerscounters,TargetCornerscounters;
     std::vector<cv::RotatedRect> CounterRotatedRects;
@@ -330,7 +330,7 @@ std::vector<cv::Point2f> Arrow_detector::TargetRectangle(const cv::Mat & BinaryI
     return Corners;
 }
 
-bool Arrow_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
+bool RedeemBox_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
     OriginalImage.copyTo(OriginalImage_Rectangle);
     cv::Mat BinaryImage=Adapted_PreProgress(OriginalImage_Rectangle);
     
@@ -372,7 +372,7 @@ bool Arrow_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
 
 }
 
-void Arrow_detector::RectangleDetectorInit(){
+void RedeemBox_detector::RectangleDetectorInit(){
     try{
         for(int i=0;i<4;i++){
             const std::vector<double> & RectanglePoints=config["RectanglePoints"][i].as<std::vector<double>>();
@@ -416,7 +416,7 @@ void Arrow_detector::RectangleDetectorInit(){
     RCLCPP_INFO(this->get_logger(),"RectangleDetectorInit finish");
 }
 
-bool Arrow_detector::GetFourCornersPair(const Counters & Corners,Counters & OutputCorners){
+bool RedeemBox_detector::GetFourCornersPair(const Counters & Corners,Counters & OutputCorners){
     CombGenerator combg(Corners.size(),4);
     std::vector<int> comb;
     Circle<float> AllCounterCircles;

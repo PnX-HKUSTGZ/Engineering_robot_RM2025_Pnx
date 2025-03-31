@@ -115,15 +115,16 @@ class CombGenerator{
     bool update();
 };
 
-class Arrow_detector:public rclcpp::Node{
+class RedeemBox_detector:public rclcpp::Node{
     public:
     // using Imagerequest=interfaces::srv::Imagerequest;
-    Arrow_detector(double k);
+    RedeemBox_detector(rclcpp::NodeOptions options=rclcpp::NodeOptions());
 
     // static cv::Mat OOriginalImage;
     private:
     // rclcpp::Client<Imagerequest>::SharedPtr client_;
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+    // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+    rclcpp::Client<interfaces::srv::Imagerequest>::SharedPtr image_client_;
     rclcpp::Publisher<interfaces::msg::RedeemBoxPosition>::SharedPtr RedeemBoxPosition_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr label_image_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -133,7 +134,7 @@ class Arrow_detector:public rclcpp::Node{
     cv::Mat GreyImage;
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
-    FilterCorner filter_;
+    // FilterCorner filter_;
 
     void DetectArrowInit();
 
