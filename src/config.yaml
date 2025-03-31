@@ -106,6 +106,8 @@ rectangle_detect:
   TargetRectangleSlopeHorizonThreshold: 15
   TargetRectanglePairFourCornersThreshold: 100
   
+c_strake_conmunication:
+  interval_time: 10 #ms
 
 
 mid_360:

@@ -22,9 +22,7 @@
 #include <thread>
 #include <vector>
 
-
-#include "interfaces/msg/redeem_box_position.hpp"
-
+namespace Engineering_robot_RM2025_Pnx{
 
 class RMSerialDriver : public rclcpp::Node
 {
@@ -38,13 +36,13 @@ private:
 
     void receiveData();
 
-    void sendData(const interfaces::msg::RedeemBoxPosition::SharedPtr msg);
-
     void reopenPort();
 
     void setParam(const rclcpp::Parameter & param);
 
     void resetTracker();
+
+    void send_pos();
 
     // Serial port
     std::unique_ptr<IoContext> owned_ctx_;
@@ -69,23 +67,19 @@ private:
     double timestamp_offset_ = 0;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-    rclcpp::Subscription<interfaces::msg::RedeemBoxPosition>::SharedPtr target_sub_;
-
     // For debug usage
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr latency_pub_;
     // rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
     std::thread receive_thread_;
 
-    rclcpp::TimerBase::SharedPtr clock_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     tf2_ros::Buffer::SharedPtr tf_buffer;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener;
 
-    rclcpp::Time last_send_time;
-    rclcpp::Time interval_time;
-
 };
 
+} // namespace Engineering_robot_RM2025_Pnx
 
 #endif  // RM_SERIAL_DRIVER__RM_SERIAL_DRIVER_HPP_

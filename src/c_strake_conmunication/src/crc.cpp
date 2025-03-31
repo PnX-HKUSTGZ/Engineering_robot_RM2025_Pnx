@@ -3,6 +3,9 @@
 
 #include "c_strake_conmunication/crc.hpp"
 
+namespace Engineering_robot_RM2025_Pnx{
+
+
 // CRC16 Table
 const uint16_t CRC16_INIT = 0xFFFF;
 const uint16_t W_CRC16_TABLE[256] = {
@@ -150,3 +153,5 @@ uint32_t Verify_CRC8_Check_Sum(const uint8_t *pchMessage, uint16_t dwLength)
 
   return (ucExpected == pchMessage[dwLength - 1]);
 }
+
+} // namespace Engineering_robot_RM2025_Pnx

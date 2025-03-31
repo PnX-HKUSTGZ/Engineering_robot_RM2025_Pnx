@@ -5,6 +5,8 @@
 #define RM_SERIAL_DRIVER__CRC_HPP_
 
 #include <stdint.h>
+namespace Engineering_robot_RM2025_Pnx{
+
 
 /**
  * @brief CRC16 Verify function
@@ -56,3 +58,5 @@ void Append_CRC8_Check_Sum(uint8_t *pchMessage, uint16_t dwLength);
 uint8_t Get_CRC8_Check_Sum(const uint8_t *pchMessage, uint16_t dwLength, uint8_t ucCRC8);
 
 #endif // RM_SERIAL_DRIVER__CRC_HPP_
+
+} // namespace Engineering_robot_RM2025_Pnx

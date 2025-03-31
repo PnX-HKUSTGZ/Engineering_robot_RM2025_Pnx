@@ -8,14 +8,13 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(serial_driver REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
-
+find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(OpenCV REQUIRED)
 
@@ -26,11 +25,10 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-add_executable(c_strake_conmunication src/main.cpp src/crc.cpp)
+add_library(RMSerialDriver SHARED src/main.cpp src/crc.cpp)
 
-ament_target_dependencies(c_strake_conmunication
+ament_target_dependencies(RMSerialDriver
   rclcpp
-  interfaces
   tf2
   serial_driver
   std_msgs
@@ -41,9 +39,20 @@ ament_target_dependencies(c_strake_conmunication
   OpenCV
 )
 
-install(TARGETS
-  c_strake_conmunication
-  DESTINATION lib/${PROJECT_NAME}
+target_link_libraries(RMSerialDriver
+  yaml-cpp::yaml-cpp
+)
+
+rclcpp_components_register_node(
+  RMSerialDriver
+  PLUGIN "Engineering_robot_RM2025_Pnx::RMSerialDriver"
+  EXECUTABLE RMSerialDriver_node
+)
+
+install(TARGETS RMSerialDriver
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 if(BUILD_TESTING)

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <vector>
+namespace Engineering_robot_RM2025_Pnx{
 
 #pragma pack(push, 1)
 struct target_location{
@@ -50,3 +51,5 @@ inline std::vector<uint8_t> toVector(const target_location & data)
 
 
 #endif  // RM_SERIAL_DRIVER__PACKET_HPP_
+
+}  // namespace Engineering_robot_RM2025_Pnx

@@ -12,6 +12,9 @@
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+
+#include <yaml-cpp/yaml.h>
+
 // C++ system
 #include <cstdint>
 #include <functional>
@@ -29,7 +32,9 @@
 #include "c_strake_conmunication/serial_driver.hpp"
 #include "c_strake_conmunication/packet.hpp"
 #include "c_strake_conmunication/crc.hpp"
-#include <interfaces/msg/redeem_box_position.hpp>
+
+namespace Engineering_robot_RM2025_Pnx{
+
 
 RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
     : Node("rm_serial_driver", options),
@@ -39,15 +44,16 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
   RCLCPP_INFO(get_logger(), "Start RMSerialDriver!");
 
   getParams();
+  std::string Location=this->declare_parameter<std::string>("Location","");
 
   RCLCPP_INFO(this->get_logger(), "finish getParams");
 
   // TF broadcaster
-  timestamp_offset_ = this->declare_parameter("timestamp_offset", 0.0);
-  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+  // timestamp_offset_ = this->declare_parameter("timestamp_offset", 0.0);
+  // tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   // Create Publisher
-  latency_pub_ = this->create_publisher<std_msgs::msg::Float64>("/c_strake_conmunication/latency", 10);
+  // latency_pub_ = this->create_publisher<std_msgs::msg::Float64>("/c_strake_conmunication/latency", 10);
   //   marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("/aiming_point", 10);
 
   // Detect parameter client
@@ -77,41 +83,27 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
     }
   }
 
-  //   aiming_point_.header.frame_id = "odom";
-  //   aiming_point_.ns = "aiming_point";
-  //   aiming_point_.type = visualization_msgs::msg::Marker::SPHERE;
-  //   aiming_point_.action = visualization_msgs::msg::Marker::ADD;
-  //   aiming_point_.scale.x = aiming_point_.scale.y = aiming_point_.scale.z = 0.12;
-  //   aiming_point_.color.r = 1.0;
-  //   aiming_point_.color.g = 1.0;
-  //   aiming_point_.color.b = 1.0;
-  //   aiming_point_.color.a = 1.0;
-  //   aiming_point_.lifetime = rclcpp::Duration::from_seconds(0.1);
+  YAML::Node config;
+
+  try{
+    config = YAML::LoadFile(Location+"/src/config.yaml");
+  }
+  catch (const YAML::Exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Error loading YAML file: %s", e.what());
+    // 处理异常，例如返回错误码或抛出异常
+    return;
+  }
+  RCLCPP_INFO(this->get_logger(), "YAML file loaded successfully");
 
   // Create Subscription
-  target_sub_ = this->create_subscription<interfaces::msg::RedeemBoxPosition>(
-      "/arrow_detect/RedeemBoxPosition", rclcpp::SensorDataQoS(),
-      std::bind(&RMSerialDriver::sendData, this, std::placeholders::_1));
-  using namespace std::chrono_literals;
-  clock_ = this->create_wall_timer(33ms, [this]()
-                                   {
-    interfaces::msg::RedeemBoxPosition msg;
-    msg.header.stamp=this->now();
-    msg.header.frame_id="odom";
-    msg.homogeneous_transformation_matrix={
-      1.1,1.2,1.3,1.4,
-      2.1,2.2,2.3,2.4,
-      3.1,3.2,3.3,3.4,
-      4.1,4.2,4.3,4.4
-    };
-    this->sendData(std::make_shared<interfaces::msg::RedeemBoxPosition>(msg));
-    RCLCPP_INFO_STREAM(this->get_logger(),"debug send"); });
 
   tf_buffer = std::make_shared<tf2_ros::Buffer>(this->get_clock());
   tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer, this);
 
-  last_send_time=this->now();
-  interval_time=rclcpp::Time(0,20000000);
+  this->create_wall_timer(
+    std::chrono::milliseconds(config["c_strake_conmunication"]["interval_time"].as<int>()),
+    std::bind(&RMSerialDriver::send_pos, this)
+  );
 
   RCLCPP_INFO(get_logger(), "c_strake_conmunication init finish");
 }
@@ -214,18 +206,13 @@ Eigen::Matrix3d quaternionToRotationMatrix(const cv::Vec4d &q)
 
 bool send1 = 0;
 
-void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPtr msg)
-{
-  if(rclcpp::Time((this->now()-last_send_time).seconds(),(this->now()-last_send_time).nanoseconds())<interval_time){
-    return;
-  }
-  last_send_time=this->now();
+void RMSerialDriver::send_pos(){
+
   const static std::map<std::string, uint8_t> id_unit8_map{
       {"", 0}, {"outpost", 0}, {"1", 1}, {"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"guard", 6}, {"base", 7}};
 
   geometry_msgs::msg::TransformStamped transform_box_to_arm;
-  try
-  {
+  try {
     transform_box_to_arm = tf_buffer->lookupTransform("object/box", "object/arm", this->now(), rclcpp::Duration::from_seconds(1));
   }
   catch (tf2::TransformException &ex)
@@ -250,20 +237,18 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
   // 0,1,0,0,
   // 0,0,1,0;
 
-  try
-  {
+  try{
     target_location packet;
 
     std::stringstream ss_result, ss_pack;
     ss_result << result;
-    std::ofstream file("/home/pnx/code/Engineering_robot_RM2025_Pnx/target.txt", std::ios::app);
+    std::ofstream file(this->get_parameter("Location").as_string()+"/target.txt", std::ios::app);
     file << result << std::endl;
     file<<"original"<<transform_box_to_arm.transform.translation.x <<" "<<transform_box_to_arm.transform.translation.y<<" "<<transform_box_to_arm.transform.translation.z<<std::endl;
 
     RCLCPP_INFO(rclcpp::get_logger("send"), "result: %s", ss_result.str().c_str());
 
-    for (int i = 0; i < 12; i++)
-    {
+    for (int i = 0; i < 12; i++){
       packet.a[i] = float(result(i / 4, i % 4));
       RCLCPP_INFO(rclcpp::get_logger("a[]"), "%f", float(result(i / 4, i % 4)));
     }
@@ -282,16 +267,13 @@ void RMSerialDriver::sendData(const interfaces::msg::RedeemBoxPosition::SharedPt
 
     serial_driver_->port()->send(data);
 
-    std_msgs::msg::Float64 latency;
-    latency.data = (this->now() - msg->header.stamp).seconds() * 1000.0;
     RCLCPP_INFO(rclcpp::get_logger("send"), "send ok!");
-    latency_pub_->publish(latency);
   }
-  catch (const std::exception &ex)
-  {
+  catch (const std::exception &ex){
     RCLCPP_ERROR(get_logger(), "Error while sending data: %s", ex.what());
     reopenPort();
   }
+
 }
 
 void RMSerialDriver::getParams()
@@ -474,18 +456,7 @@ void RMSerialDriver::resetTracker()
   RCLCPP_INFO(get_logger(), "Reset tracker!");
 }
 
-int main(int argc, char **argv)
-{
-  rclcpp::init(argc, argv);
+} // namespace Engineering_robot_RM2025_Pnx
 
-  rclcpp::spin(std::make_shared<RMSerialDriver>());
-  rclcpp::shutdown();
-  return 0;
-}
-
-// #include "rclcpp_components/register_node_macro.hpp"
-
-// Register the component with class_loader.
-// This acts as a sort of entry point, allowing the component to be discoverable when its library
-// is being loaded into a running process.
-// RCLCPP_COMPONENTS_REGISTER_NODE(rm_serial_driver::RMSerialDriver)
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(Engineering_robot_RM2025_Pnx::RMSerialDriver)
