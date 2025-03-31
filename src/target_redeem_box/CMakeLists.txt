@@ -32,9 +32,11 @@ find_package(pcl_conversions REQUIRED)
 include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
 include_directories(/usr/include/eigen3)
 
-add_executable(detect_arrow src/DetectArrow.cpp src/Functions.cpp src/Filter.cpp src/PclManage.cpp src/DetectArrowFuntion.cpp src/TargetRectangle.cpp)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-ament_target_dependencies(detect_arrow
+add_library(RargetRedeemBox SHARED ${GLOB_RECURSE})
+
+ament_target_dependencies(RargetRedeemBox
   rclcpp
   OpenCV
   sensor_msgs
@@ -48,17 +50,18 @@ ament_target_dependencies(detect_arrow
   tf2_sensor_msgs
 )
 
-target_link_libraries(detect_arrow yaml-cpp::yaml-cpp)
+target_link_libraries(RargetRedeemBox yaml-cpp::yaml-cpp)
 
-install(TARGETS
-  detect_arrow
-  DESTINATION lib/${PROJECT_NAME}
+rclcpp_components_register_node(
+  RMSerialDriver
+  PLUGIN "Engineering_robot_RM2025_Pnx::RargetRedeemBox"
+  EXECUTABLE RMSerialDriver_node
 )
 
-install(DIRECTORY
-  config
-  launch
-  DESTINATION share/${PROJECT_NAME}
+install(TARGETS RargetRedeemBox
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 if(BUILD_TESTING)
