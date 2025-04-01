@@ -569,8 +569,6 @@ cv::Mat RedeemBox_detector::PreProgress(const cv::Mat & OriginalImage){
             1,0
     });
 
-    this->GreyImage=GreyImage;
-
     cv::Mat GaussBinaryImage;
     cv::GaussianBlur(GreyImage,
         GaussBinaryImage,

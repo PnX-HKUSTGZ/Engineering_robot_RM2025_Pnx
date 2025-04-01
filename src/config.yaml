@@ -110,6 +110,7 @@ RedeemBox_detector:
         queuesiz: 20
         syncThresehold: [1,10000000]
         PubInterval: 10    
+      ImageClinentCallInterval: 10 #ms
 
   
 

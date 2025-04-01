@@ -229,89 +229,51 @@ void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Ma
 }
 
 void RedeemBox_detector::SyncPubBoxPos(){
-    //     std::lock_guard<std::mutex> pnp_guard(pnpressMtx);
-    //     std::lock_guard<std::mutex> cloud_guard(cloudressMtx);
-    
-    //     rclcpp::Time now=this->now();
-    //     while(!pnpress.empty()){
-    //         if((now-pnpress.front().stamp)>syncThresehold){
-    //             pnpress.pop();
-    //         }
-    //         else{
-    //             break;
-    //         }
-    //     }
-    //     while(!cloudress.empty()){
-    //         if((now-cloudress.front().stamp)>syncThresehold){
-    //             cloudress.pop();
-    //         }
-    //         else{
-    //             break;
-    //         }
-    //     }
-    
-    //     if(pnpress.empty()&&cloudress.empty()){
-    //         RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : both are empty return");
-    //         return;
-    //     }
-    
-    //     if(pnpress.empty()){
-    //         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
-    //         cloudress.pop();
-    //         return;
-    //     }
-    //     if(pnpress.empty()){
-    //         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
-    //         cloudress.pop();
-    //         return;
-    //     }
-    
-    //     //现在的策略：直接发布点云的
-    
-    //     SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
-    //     cloudress.pop();
-    //     RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : send!");
-    //     return;
-    }
-    
+//     std::lock_guard<std::mutex> pnp_guard(pnpressMtx);
+//     std::lock_guard<std::mutex> cloud_guard(cloudressMtx);
 
-void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
-    if(!rclcpp::ok()){
-        rclcpp::shutdown();
-    }
-    // if((this->now()-msg->header.stamp)>=rclcpp::Duration(1,5000'000000)){
-        //超过10ms丢弃
-        // RCLCPP_INFO(this->get_logger(),"Time out.");
-        // return;
-    // }
-    cv_bridge::CvImagePtr cv_ptr;
-    try{
-        cv_ptr=cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
-    }
-    catch(cv_bridge::Exception& e){
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
-        return;
-    }
-    cv::Mat originalframe=cv_ptr->image,undistortimage;
-    cv::undistort(originalframe,undistortimage,[&](){
-        cv::Mat ans(cv::Size(3,3),CV_64F);
-        for(int i=0;i<9;i++){
-            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
-        }
-        return ans;
-    }(),distCoeffs);
-    // originalframe.copyTo(OriginalImage_);
-    // RCLCPP_INFO(this->get_logger(), "Get frame");
-    #ifdef DetectorArrow
-    MainDetectArrow(undistortimage);
-    #endif
-    
-    #ifdef DetectorRectangle
-    MainDetectArrow_Rectangle(undistortimage);
-    #endif
+//     rclcpp::Time now=this->now();
+//     while(!pnpress.empty()){
+//         if((now-pnpress.front().stamp)>syncThresehold){
+//             pnpress.pop();
+//         }
+//         else{
+//             break;
+//         }
+//     }
+//     while(!cloudress.empty()){
+//         if((now-cloudress.front().stamp)>syncThresehold){
+//             cloudress.pop();
+//         }
+//         else{
+//             break;
+//         }
+//     }
 
+//     if(pnpress.empty()&&cloudress.empty()){
+//         RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : both are empty return");
+//         return;
+//     }
+
+//     if(pnpress.empty()){
+//         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//         cloudress.pop();
+//         return;
+//     }
+//     if(pnpress.empty()){
+//         SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//         cloudress.pop();
+//         return;
+//     }
+
+//     //现在的策略：直接发布点云的
+
+//     SendBoxPosition(cloudress.front().tvec,cloudress.front().rvec);
+//     cloudress.pop();
+//     RCLCPP_INFO(this->get_logger(),"SyncPubBoxPos : send!");
+//     return;
 }
-
+    
 void RedeemBox_detector::SyncPubBoxPosInit(){
     YAML::Node syncconfig=config["arrow_detect"]["SyncPubBoxPos"];
     queuesiz=syncconfig["queuesiz"].as<int>();
@@ -321,6 +283,67 @@ void RedeemBox_detector::SyncPubBoxPosInit(){
     respubtimer_=this->create_wall_timer(std::chrono::milliseconds(syncconfig["PubInterval"].as<int>()),std::bind(&RedeemBox_detector::SyncPubBoxPos,this));
 }
 
+void RedeemBox_detector::ImageClinentHandle(){
+    auto request=std::make_shared<interfaces::srv::Imagerequest::Request>();
+    request->clineid=1;
+    if(!image_client_->service_is_ready()){
+        RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : service not ready");
+        return;
+    }
+    auto future=image_client_->async_send_request(request);
+
+    if(future.wait_for(std::chrono::milliseconds(20))!=std::future_status::ready){
+        RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : future not ready");
+        return;
+    }
+
+    auto response=future.get();
+    if(!response->ok){
+        RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : response not ok");
+        return;
+    }
+    cv::Mat OriginalImage;
+    try{
+        OriginalImage=cv_bridge::toCvCopy(response->image,sensor_msgs::image_encodings::BGR8)->image;
+    }
+    catch(cv_bridge::Exception& e){
+        RCLCPP_ERROR(this->get_logger(),"ImageClinentHandle : cv_bridge exception : %s",e.what());
+        return;
+    }
+
+    cv::undistort(OriginalImage,OriginalImage,[&](){
+        cv::Mat ans(cv::Size(3,3),CV_64F);
+        for(int i=0;i<9;i++){
+            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
+        }
+        return ans;
+    }(),distCoeffs);
+
+    std::vector<std::thread> threads;
+    // recorde time
+    struct callTime{
+        std::chrono::_V2::system_clock::time_point begin;
+        std::chrono::_V2::system_clock::time_point end;
+        std::string name;
+    };
+    std::vector<callTime> times;
+    for(int i=0;i<callback_functions.size();i++){
+        threads.push_back(std::thread([&i,&OriginalImage,&times,this](){
+            callTime ct;
+            ct.begin=std::chrono::high_resolution_clock::now();
+            ct.name=callback_functions_names[i];
+            callback_functions[i](OriginalImage);
+            ct.end=std::chrono::high_resolution_clock::now();
+            times.push_back(ct);
+        }));
+    }
+    for(auto & i : threads){
+        i.join();
+    }
+    for(auto & i : times){
+        RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : %s time : %ld ms",i.name.c_str(),std::chrono::duration_cast<std::chrono::milliseconds>(i.end-i.begin).count());
+    }
+}
 
 
 RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
@@ -351,8 +374,8 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
             Object2cornersEigen.push_back(Eigen::Vector4d(line[0],line[1],line[2],1));
         }
         frontfacecenter=Eigen::Matrix<double,4,1>(config["RedeemBox_detector"]["KeyPoints"]["redeem_box"]["center"][0].as<double>(),
-            config["redeem_box"]["center"][1].as<double>(),
-            config["redeem_box"]["center"][2].as<double>(),
+            config["RedeemBox_detector"]["KeyPoints"]["redeem_box"]["center"][1].as<double>(),
+            config["RedeemBox_detector"]["KeyPoints"]["redeem_box"]["center"][2].as<double>(),
             1.0
         );
 
@@ -398,17 +421,29 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     if(config["RedeemBox_detector"]["LaunchMode"]["DetectArrow"].as<bool>()){
         DetectArrowInit();
         callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow,this,_1));
+        callback_functions_names.push_back("DetectArrow");
     }
     if(config["RedeemBox_detector"]["LaunchMode"]["TargetRectangle"].as<bool>()){
         RectangleDetectorInit();
         callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow_Rectangle,this,_1));
+        callback_functions_names.push_back("TargetRectangle");
     }
     if(config["RedeemBox_detector"]["LaunchMode"]["PclManage"].as<bool>()){
         PointCloudeInit();
         callback_functions.push_back(std::bind(&RedeemBox_detector::MainPclManager,this,_1));
+        callback_functions_names.push_back("PclManage");
     }
 
     #ifdef SyncPubBoxPos
     SyncPubBoxPosInit();
     #endif
+
+    try{
+        ImageClinentHandleTimer_=this->create_wall_timer(std::chrono::milliseconds(config["RedeemBox_detector"]["Parameters"]["Main"]["ImageClinentCallInterval"].as<int>()), 
+            std::bind(&RedeemBox_detector::ImageClinentHandle,this));
+    }
+    catch(const std::exception& e){
+        RCLCPP_ERROR(this->get_logger(),"Fail to create ImageClinentHandleTimer_ : %s",e.what());
+        rclcpp::shutdown();
+    }
 }

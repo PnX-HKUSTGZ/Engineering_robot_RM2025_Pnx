@@ -130,8 +130,7 @@ class RedeemBox_detector:public rclcpp::Node{
     rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
     // rclcpp::Node::SharedPtr node_shred_ptr;
-    cv::Mat OriginalImage_;
-    cv::Mat GreyImage;
+    // cv::Mat GreyImage;
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     // FilterCorner filter_;
@@ -155,10 +154,16 @@ class RedeemBox_detector:public rclcpp::Node{
     // callback function for client
 
     std::vector<std::function<int(const cv::Mat&)> > callback_functions;
+    std::vector<std::string> callback_functions_names;
+
+    void ImageClinentHandle();
+
+    rclcpp::TimerBase::SharedPtr ImageClinentHandleTimer_;
 
     private: // arrow detect
 
     int MainDetectArrow(const cv::Mat & OriginalImage);
+    cv::Mat OriginalImage_;
 
     // detect params
     int ArrowDetectorPixelNumMax;
