@@ -1,71 +1,35 @@
 #include "RedeemBox_detector.hpp"
 
-
-void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
-    if(!rclcpp::ok()){
-        rclcpp::shutdown();
-    }
-    // if((this->now()-msg->header.stamp)>=rclcpp::Duration(1,5000'000000)){
-        //超过10ms丢弃
-        // RCLCPP_INFO(this->get_logger(),"Time out.");
-        // return;
-    // }
-    cv_bridge::CvImagePtr cv_ptr;
-    try{
-        cv_ptr=cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
-    }
-    catch(cv_bridge::Exception& e){
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
-        return;
-    }
-    cv::Mat originalframe=cv_ptr->image,undistortimage;
-    cv::undistort(originalframe,undistortimage,[&](){
-        cv::Mat ans(cv::Size(3,3),CV_64F);
-        for(int i=0;i<9;i++){
-            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
-        }
-        return ans;
-    }(),distCoeffs);
-    // originalframe.copyTo(OriginalImage_);
-    // RCLCPP_INFO(this->get_logger(), "Get frame");
-    #ifdef DetectorArrow
-    MainDetectArrow(undistortimage);
-    #endif
-    
-    #ifdef DetectorRectangle
-    MainDetectArrow_Rectangle(undistortimage);
-    #endif
-
-}
-
 void RedeemBox_detector::DetectArrowInit(){
+    YAML::Node configDetectArrowInit;
     try{
+    configDetectArrowInit=config["RedeemBox_detector"]["Parameters"]["arrow_detect"];
 
     for(int i=0;i<8;i++){
-        const std::vector<double> & arrowPoints=config["arrow"]["arrowPoints"][i].as<std::vector<double>>();
+        const std::vector<double> & arrowPoints=config["RedeemBox_detector"]["KeyPoints"]["arrow"]["arrowPoints"][i].as<std::vector<double>>();
         objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
         objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));
     }
     
-    ArrowDetectorPixelNumMax=config["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
-    ArrowDetectorPixelNumMin=config["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
-    ArrowDetectorLengthWidthRatioMax=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
-    ArrowDetectorLengthWidthRatioMin=config["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
-    ArrowDetectorApproxSizeMax=config["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
-    ArrowDetectorApproxSizeMin=config["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
-    ArrowDetectorCannyThreshold1=config["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
-    ArrowDetectorCannyThreshold2=config["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
-    ArrowDetectorHoughRho=config["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
-    ArrowDetectorHoughTheta=config["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
-    ArrowDetectorHoughThreshold=config["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
-    ArrowDetectParallelThreshold=config["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
-    ArrowDetectorThresholdThresh=config["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
-    ArrowDetectorThresholdMaxval=config["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();
-    ArrowDetectorThresholdThreshold=config["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
-    ArrowDetectorIterations=config["arrow_detect"]["ArrowDetectorIterations"].as<double>();
-    ArrowDetectorapproxPolyDPEpsilon=config["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
-    ArrowDetectorLongShortRateMax=config["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
-    ArrowDetectorLongShortRateMin=config["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
+    ArrowDetectorPixelNumMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
+    ArrowDetectorPixelNumMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
+    ArrowDetectorLengthWidthRatioMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
+    ArrowDetectorLengthWidthRatioMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
+    ArrowDetectorApproxSizeMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
+    ArrowDetectorApproxSizeMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
+    ArrowDetectorCannyThreshold1=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
+    ArrowDetectorCannyThreshold2=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
+    ArrowDetectorHoughRho=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
+    ArrowDetectorHoughTheta=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
+    ArrowDetectorHoughThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
+    ArrowDetectParallelThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
+    ArrowDetectorThresholdThresh=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
+    ArrowDetectorThresholdMaxval=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();
+    ArrowDetectorThresholdThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
+    ArrowDetectorIterations=configDetectArrowInit["arrow_detect"]["ArrowDetectorIterations"].as<double>();
+    ArrowDetectorapproxPolyDPEpsilon=configDetectArrowInit["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
+    ArrowDetectorLongShortRateMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
+    ArrowDetectorLongShortRateMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
 
     }
     catch(const std::exception& e){
@@ -632,4 +596,31 @@ cv::Mat RedeemBox_detector::PreProgress(const cv::Mat & OriginalImage){
     # endif
 
     return BinaryImage;
+}
+
+
+int RedeemBox_detector::MainDetectArrow(const cv::Mat & OriginalImage){
+    OriginalImage.copyTo(OriginalImage_);
+    cv::Mat Binary=PreProgress(OriginalImage);
+
+    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary,OriginalImage_);
+    if(!TargetArrowResult.size()){
+        RCLCPP_INFO(this->get_logger(),"fail to target arrow.");
+        return 0;
+    }
+
+    cv::Mat rvec,tvec;
+    bool PnPsolverCheck=PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
+
+    if(PnPsolverCheck) return 1;
+
+    #ifdef SyncPubBoxPos
+    pnpressMtx.lock();
+    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
+    pnpress.push(PnPresult(tvec,rvec,this->now()));
+    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
+    pnpressMtx.unlock();
+    #endif
+
+    return 0;
 }

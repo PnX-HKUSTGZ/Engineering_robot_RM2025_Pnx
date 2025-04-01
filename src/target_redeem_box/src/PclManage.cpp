@@ -3,7 +3,7 @@
 
 void RedeemBox_detector::PointCloudeInit(){
 
-    YAML::Node PCLManagerConfig=config["arrow_detect"]["PCLManager"];
+    YAML::Node PCLManagerConfig=config["RedeemBox_detector"]["Parameters"]["PCLManager"];
 
     tf2_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_listener_=std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_,this);

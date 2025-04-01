@@ -330,7 +330,7 @@ std::vector<cv::Point2f> RedeemBox_detector::TargetRectangle(const cv::Mat & Bin
     return Corners;
 }
 
-bool RedeemBox_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
+int RedeemBox_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage){
     OriginalImage.copyTo(OriginalImage_Rectangle);
     cv::Mat BinaryImage=Adapted_PreProgress(OriginalImage_Rectangle);
     
@@ -373,41 +373,42 @@ bool RedeemBox_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage
 }
 
 void RedeemBox_detector::RectangleDetectorInit(){
+    YAML::Node RDIconfig=config["RedeemBox_detector"]["Parameters"]["rectangle_detect"];
     try{
         for(int i=0;i<4;i++){
-            const std::vector<double> & RectanglePoints=config["RectanglePoints"][i].as<std::vector<double>>();
+            const std::vector<double> & RectanglePoints=config["RedeemBox_detector"]["KeyPoints"]["RectanglePoints"][i].as<std::vector<double>>();
             RectangleOuterlayerCorners.push_back(cv::Point3d(RectanglePoints[0],RectanglePoints[1],RectanglePoints[2]));
             RectangleOuterlayerCornersEigen.push_back(Eigen::Vector4d(RectanglePoints[0],RectanglePoints[1],RectanglePoints[2],1));
         }
         for(int i=4;i<8;i++){
-            const std::vector<double> & RectanglePoints=config["RectanglePoints"][i].as<std::vector<double>>();
+            const std::vector<double> & RectanglePoints=config["RedeemBox_detector"]["KeyPoints"]["RectanglePoints"][i].as<std::vector<double>>();
             RectangleInnerlayerCorners.push_back(cv::Point3d(RectanglePoints[0],RectanglePoints[1],RectanglePoints[2]));
             RectangleInnerlayerCornersEigen.push_back(Eigen::Vector4d(RectanglePoints[0],RectanglePoints[1],RectanglePoints[2],1));
         }
 
-        DetectRectangleBlockSize=config["rectangle_detect"]["DetectRectangleBlockSize"].as<int>();
-        DetectRectangleC=config["rectangle_detect"]["DetectRectangleC"].as<double>();
-        TargetRectangleapproxPolyDPepsilon=config["rectangle_detect"]["TargetRectangleapproxPolyDPepsilon"].as<double>();
-        TargetRectangleApproxSizeMin=config["rectangle_detect"]["TargetRectangleApproxSizeMin"].as<int>();
-        TargetRectangleApproxSizeMax=config["rectangle_detect"]["TargetRectangleApproxSizeMax"].as<int>();
-        TargetRectanglePixelNumMin=config["rectangle_detect"]["TargetRectanglePixelNumMin"].as<int>();
-        TargetRectanglePixelNumMax=config["rectangle_detect"]["TargetRectanglePixelNumMax"].as<int>();
-        TargetRectangleHWRateMin=config["rectangle_detect"]["TargetRectangleHWRateMin"].as<double>();
-        TargetRectangleHWRateMax=config["rectangle_detect"]["TargetRectangleHWRateMax"].as<double>();
-        DetectRectangleMaxValue=config["rectangle_detect"]["DetectRectangleMaxValue"].as<double>();
-        TargetRectanglee4f2rateMin=config["rectangle_detect"]["TargetRectanglee4f2rateMin"].as<double>();
-        TargetRectanglee4f2rateMax=config["rectangle_detect"]["TargetRectanglee4f2rateMax"].as<double>();
-        TargetRectangleErodeCoreSize=cv::Size(config["rectangle_detect"]["TargetRectangleErodeCoreSize"].as<std::vector<int>>()[0],
-            config["rectangle_detect"]["TargetRectangleErodeCoreSize"].as<std::vector<int>>()[1]);
-        TargetRectangleErodeItrations=config["rectangle_detect"]["TargetRectangleErodeItrations"].as<int>();
-        TargetRectangleDilateItrations=config["rectangle_detect"]["TargetRectangleDilateItrations"].as<int>();
-        TargetRectangleDilateCoreSize=cv::Size(config["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[0],
-            config["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[1]);
-        DetectRectangleAlpha=config["rectangle_detect"]["DetectRectangleAlpha"].as<double>();
-        DetectRectangleBeta=config["rectangle_detect"]["DetectRectangleBeta"].as<double>();
-        TargetRectangleSlopeVarianceThreshold=config["rectangle_detect"]["TargetRectangleSlopeVarianceThreshold"].as<double>();
-        TargetRectangleSlopeHorizonThreshold=config["rectangle_detect"]["TargetRectangleSlopeHorizonThreshold"].as<double>();
-        TargetRectanglePairFourCornersThreshold=config["rectangle_detect"]["TargetRectanglePairFourCornersThreshold"].as<double>();
+        DetectRectangleBlockSize=RDIconfig["rectangle_detect"]["DetectRectangleBlockSize"].as<int>();
+        DetectRectangleC=RDIconfig["rectangle_detect"]["DetectRectangleC"].as<double>();
+        TargetRectangleapproxPolyDPepsilon=RDIconfig["rectangle_detect"]["TargetRectangleapproxPolyDPepsilon"].as<double>();
+        TargetRectangleApproxSizeMin=RDIconfig["rectangle_detect"]["TargetRectangleApproxSizeMin"].as<int>();
+        TargetRectangleApproxSizeMax=RDIconfig["rectangle_detect"]["TargetRectangleApproxSizeMax"].as<int>();
+        TargetRectanglePixelNumMin=RDIconfig["rectangle_detect"]["TargetRectanglePixelNumMin"].as<int>();
+        TargetRectanglePixelNumMax=RDIconfig["rectangle_detect"]["TargetRectanglePixelNumMax"].as<int>();
+        TargetRectangleHWRateMin=RDIconfig["rectangle_detect"]["TargetRectangleHWRateMin"].as<double>();
+        TargetRectangleHWRateMax=RDIconfig["rectangle_detect"]["TargetRectangleHWRateMax"].as<double>();
+        DetectRectangleMaxValue=RDIconfig["rectangle_detect"]["DetectRectangleMaxValue"].as<double>();
+        TargetRectanglee4f2rateMin=RDIconfig["rectangle_detect"]["TargetRectanglee4f2rateMin"].as<double>();
+        TargetRectanglee4f2rateMax=RDIconfig["rectangle_detect"]["TargetRectanglee4f2rateMax"].as<double>();
+        TargetRectangleErodeCoreSize=cv::Size(RDIconfig["rectangle_detect"]["TargetRectangleErodeCoreSize"].as<std::vector<int>>()[0],
+            RDIconfig["rectangle_detect"]["TargetRectangleErodeCoreSize"].as<std::vector<int>>()[1]);
+        TargetRectangleErodeItrations=RDIconfig["rectangle_detect"]["TargetRectangleErodeItrations"].as<int>();
+        TargetRectangleDilateItrations=RDIconfig["rectangle_detect"]["TargetRectangleDilateItrations"].as<int>();
+        TargetRectangleDilateCoreSize=cv::Size(RDIconfig["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[0],
+            RDIconfig["rectangle_detect"]["TargetRectangleDilateCoreSize"].as<std::vector<int>>()[1]);
+        DetectRectangleAlpha=RDIconfig["rectangle_detect"]["DetectRectangleAlpha"].as<double>();
+        DetectRectangleBeta=RDIconfig["rectangle_detect"]["DetectRectangleBeta"].as<double>();
+        TargetRectangleSlopeVarianceThreshold=RDIconfig["rectangle_detect"]["TargetRectangleSlopeVarianceThreshold"].as<double>();
+        TargetRectangleSlopeHorizonThreshold=RDIconfig["rectangle_detect"]["TargetRectangleSlopeHorizonThreshold"].as<double>();
+        TargetRectanglePairFourCornersThreshold=RDIconfig["rectangle_detect"]["TargetRectanglePairFourCornersThreshold"].as<double>();
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());

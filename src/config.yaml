@@ -9,103 +9,111 @@ camera:
   ExposureTimeUpper: 10000
   Gain: 7.
 
-redeem_box:
-# 兑换框的四个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
-  redeemptionBoxCornerPoints:
-    - [-0.12, 0.12, 0]
-    - [0.12, 0.12, 0]
-    - [0.12, -0.12, 0]
-    - [-0.12, -0.12, 0]
-    # 箭头指向的那边的那条直线的起点和终点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
-  line:
-    - [0.144, 0.144, 0.]
-    - [0.144, -0.144, 0.]
-  # frontface center
-  center: [0.0, 0.0, 0.0]
+RedeemBox_detector:
+  LaunchMode:
+    DetectArrow: True
+    TargetRectangle: True
+    PclManage: True
+  KeyPoints:
+    redeem_box:
+    # 兑换框的四个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
+      redeemptionBoxCornerPoints:
+        - [-0.12, 0.12, 0]
+        - [0.12, 0.12, 0]
+        - [0.12, -0.12, 0]
+        - [-0.12, -0.12, 0]
+        # 箭头指向的那边的那条直线的起点和终点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
+      line:
+        - [0.144, 0.144, 0.]
+        - [0.144, -0.144, 0.]
+      # frontface center
+      center: [0.0, 0.0, 0.0]
 
-arrow:
-  # 箭头的8个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
-  # 顺序是：
-  # 1. 外侧顶点
-  # 2. 内侧顶点
-  # 3. x轴外侧
-  # 4. x轴内侧
-  # 5. y轴外侧
-  # 6. y轴内侧
-  # 7. 内侧y轴与外侧x轴的交点
-  # 8. 内侧x轴与外侧y轴的交点
-  arrowPoints:
-  - [0.144, 0, 0.0455]
-  - [0.144, 0, 0.059642135623730955]
-  - [0.144, -0.1, 0.1455]
-  - [0.144, -0.08585786437626905, 0.1455]
-  - [0.144, 0.1, 0.1455]
-  - [0.144, 0.08585786437626905, 0.1455]
-  - [0.144, -0.007071067811865476, 0.05257106781186548]
-  - [0.144, 0.007071067811865476, 0.05257106781186548]
+    arrow:
+      # 箭头的8个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
+      # 顺序是：
+      # 1. 外侧顶点
+      # 2. 内侧顶点
+      # 3. x轴外侧
+      # 4. x轴内侧
+      # 5. y轴外侧
+      # 6. y轴内侧
+      # 7. 内侧y轴与外侧x轴的交点
+      # 8. 内侧x轴与外侧y轴的交点
+      arrowPoints:
+      - [0.144, 0, 0.0455]
+      - [0.144, 0, 0.059642135623730955]
+      - [0.144, -0.1, 0.1455]
+      - [0.144, -0.08585786437626905, 0.1455]
+      - [0.144, 0.1, 0.1455]
+      - [0.144, 0.08585786437626905, 0.1455]
+      - [0.144, -0.007071067811865476, 0.05257106781186548]
+      - [0.144, 0.007071067811865476, 0.05257106781186548]
 
-RectanglePoints:
-- [0.144, 0.144, 0]
-- [0.144, -0.144, 0]
-- [-0.144, -0.144, 0]
-- [-0.144, 0.144, 0]
-- [0.120, 0.120, 0]
-- [0.120, -0.120, 0]
-- [-0.120, -0.120, 0]
-- [-0.120, 0.120, 0]
+    RectanglePoints:
+    - [0.144, 0.144, 0]
+    - [0.144, -0.144, 0]
+    - [-0.144, -0.144, 0]
+    - [-0.144, 0.144, 0]
+    - [0.120, 0.120, 0]
+    - [0.120, -0.120, 0]
+    - [-0.120, -0.120, 0]
+    - [-0.120, 0.120, 0]
+  Parameters:
+    arrow_detect:
+      ArrowDetectorPixelNumMax: 80000
+      ArrowDetectorPixelNumMin: 5000
+      ArrowDetectorLengthWidthRatioMax: 3
+      ArrowDetectorLengthWidthRatioMin: 1.1
+      ArrowDetectorApproxSizeMax: 8.
+      ArrowDetectorApproxSizeMin: 6.
+      ArrowDetectorCannyThreshold1: 200.
+      ArrowDetectorCannyThreshold2: 300.
+      ArrowDetectorHoughRho: 0.25
+      ArrowDetectorHoughTheta: 0.00436332312998582394230922638889
+      ArrowDetectorHoughThreshold: 35.
+      ArrowDetectParallelThreshold: 0.523598775598298873077
+      ArrowDetectorThresholdThresh: 100.
+      ArrowDetectorThresholdMaxval: 300.
+      ArrowDetectorThresholdThreshold: 5.
+      ArrowDetectorIterations: 5.
+      ArrowDetectorapproxPolyDPEpsilon: 10.
+      ArrowDetectorLongShortRateMax: 20.
+      ArrowDetectorLongShortRateMin: 5.
+    rectangle_detect:
+      DetectRectangleBlockSize: 9
+      DetectRectangleC: 0
+      DetectRectangleMaxValue: 250
+      TargetRectangleapproxPolyDPepsilon: 6
+      TargetRectanglePixelNumMax: 10000
+      TargetRectanglePixelNumMin: 400
+      TargetRectangleApproxSizeMax: 6
+      TargetRectangleApproxSizeMin: 6
+      TargetRectangleHWRateMax: 10
+      TargetRectangleHWRateMin: 0.5
+      TargetRectangleErodeCoreSize: [2,2]
+      TargetRectangleErodeItrations: 3
+      TargetRectangleDilateCoreSize: [2,2]
+      TargetRectangleDilateItrations: 2
+      TargetRectanglee4f2rateMin: 1.5
+      TargetRectanglee4f2rateMax: 5
+      DetectRectangleAlpha: 1.3
+      DetectRectangleBeta: 0
+      TargetRectangleSlopeVarianceThreshold: 30
+      TargetRectangleSlopeHorizonThreshold: 15
+      TargetRectanglePairFourCornersThreshold: 100
+    PCLManager:
+      ransacDistanceThreshold: 1
+      ransacMaxIterations: 1000
+    Main:
+      SyncPubBoxPos:
+        queuesiz: 20
+        syncThresehold: [1,10000000]
+        PubInterval: 10    
 
-# 存一些箭头检测的参数
-arrow_detect:
-  ArrowDetectorPixelNumMax: 80000
-  ArrowDetectorPixelNumMin: 5000
-  ArrowDetectorLengthWidthRatioMax: 3
-  ArrowDetectorLengthWidthRatioMin: 1.1
-  ArrowDetectorApproxSizeMax: 8.
-  ArrowDetectorApproxSizeMin: 6.
-  ArrowDetectorCannyThreshold1: 200.
-  ArrowDetectorCannyThreshold2: 300.
-  ArrowDetectorHoughRho: 0.25
-  ArrowDetectorHoughTheta: 0.00436332312998582394230922638889
-  ArrowDetectorHoughThreshold: 35.
-  ArrowDetectParallelThreshold: 0.523598775598298873077
-  ArrowDetectorThresholdThresh: 100.
-  ArrowDetectorThresholdMaxval: 300.
-  ArrowDetectorThresholdThreshold: 5.
-  ArrowDetectorIterations: 5.
-  ArrowDetectorapproxPolyDPEpsilon: 10.
-  ArrowDetectorLongShortRateMax: 20.
-  ArrowDetectorLongShortRateMin: 5.
-  PCLManager:
-    ransacDistanceThreshold: 1
-    ransacMaxIterations: 1000
-  SyncPubBoxPos:
-    queuesiz: 20
-    syncThresehold: [1,10000000]
-    PubInterval: 10
-
-rectangle_detect:
-  DetectRectangleBlockSize: 9
-  DetectRectangleC: 0
-  DetectRectangleMaxValue: 250
-  TargetRectangleapproxPolyDPepsilon: 6
-  TargetRectanglePixelNumMax: 10000
-  TargetRectanglePixelNumMin: 400
-  TargetRectangleApproxSizeMax: 6
-  TargetRectangleApproxSizeMin: 6
-  TargetRectangleHWRateMax: 10
-  TargetRectangleHWRateMin: 0.5buffertime
-  TargetRectangleErodeCoreSize: [2,2]
-  TargetRectangleErodeItrations: 3
-  TargetRectangleDilateCoreSize: [2,2]
-  TargetRectangleDilateItrations: 2
-  TargetRectanglee4f2rateMin: 1.5
-  TargetRectanglee4f2rateMax: 5
-  DetectRectangleAlpha: 1.3
-  DetectRectangleBeta: 0
-  TargetRectangleSlopeVarianceThreshold: 30
-  TargetRectangleSlopeHorizonThreshold: 15
-  TargetRectanglePairFourCornersThreshold: 100
   
+
+
 c_strake_conmunication:
   interval_time: 10 #ms
 
@@ -129,7 +137,7 @@ object_pos:
     rotate:
       w: 0.7071068
       x: 0.
-      y: 0.buffertime
+      y: 0.
       z: 0.7071068
   camera: # camera to map
     translation:

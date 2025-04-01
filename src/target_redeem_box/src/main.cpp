@@ -275,30 +275,41 @@ void RedeemBox_detector::SyncPubBoxPos(){
     }
     
 
-bool RedeemBox_detector::MainDetectArrow(const cv::Mat & OriginalImage){
-    OriginalImage.copyTo(OriginalImage_);
-    cv::Mat Binary=PreProgress(OriginalImage);
-
-    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary,OriginalImage_);
-    if(!TargetArrowResult.size()){
-        RCLCPP_INFO(this->get_logger(),"fail to target arrow.");
-        return 0;
+void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
+    if(!rclcpp::ok()){
+        rclcpp::shutdown();
     }
-
-    cv::Mat rvec,tvec;
-    bool PnPsolverCheck=PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
-
-    if(PnPsolverCheck) return 1;
-
-    #ifdef SyncPubBoxPos
-    pnpressMtx.lock();
-    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
-    pnpress.push(PnPresult(tvec,rvec,this->now()));
-    RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
-    pnpressMtx.unlock();
+    // if((this->now()-msg->header.stamp)>=rclcpp::Duration(1,5000'000000)){
+        //超过10ms丢弃
+        // RCLCPP_INFO(this->get_logger(),"Time out.");
+        // return;
+    // }
+    cv_bridge::CvImagePtr cv_ptr;
+    try{
+        cv_ptr=cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
+    }
+    catch(cv_bridge::Exception& e){
+        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        return;
+    }
+    cv::Mat originalframe=cv_ptr->image,undistortimage;
+    cv::undistort(originalframe,undistortimage,[&](){
+        cv::Mat ans(cv::Size(3,3),CV_64F);
+        for(int i=0;i<9;i++){
+            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
+        }
+        return ans;
+    }(),distCoeffs);
+    // originalframe.copyTo(OriginalImage_);
+    // RCLCPP_INFO(this->get_logger(), "Get frame");
+    #ifdef DetectorArrow
+    MainDetectArrow(undistortimage);
+    #endif
+    
+    #ifdef DetectorRectangle
+    MainDetectArrow_Rectangle(undistortimage);
     #endif
 
-    return 0;
 }
 
 void RedeemBox_detector::SyncPubBoxPosInit(){
@@ -315,7 +326,7 @@ void RedeemBox_detector::SyncPubBoxPosInit(){
 RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     Node("RedeemBox_detector",options){
     // this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/image",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
-    this->image_client_=this->create_client<interfaces::srv::Imagerequest>("/sensor/camera/images",10,);
+    this->image_client_=this->create_client<interfaces::srv::Imagerequest>("/sensor/camera/images");
     this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
     RCLCPP_INFO(this->get_logger(),"RedeemBox_detector client created !");
 
@@ -324,22 +335,22 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     try{
         config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
         cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
-        distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();    
+        distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
         for(int i=0;i<9;i++){
             cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
         }
         InverseCameraMatrixEigen=cameraMatrixEigen.inverse();
 
         for(int i=0;i<4;i++){
-            const std::vector<double> & redeemptionBoxCornerPoints=config["redeem_box"]["redeemptionBoxCornerPoints"][i].as<std::vector<double>>();
+            const std::vector<double> & redeemptionBoxCornerPoints=config["RedeemBox_detector"]["KeyPoints"]["redeem_box"]["redeemptionBoxCornerPoints"][i].as<std::vector<double>>();
             ObjRedemptionBoxCornerPoint.push_back(cv::Point3d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2]));
             ObjRedemptionBoxCornerPointEigen.push_back(Eigen::Vector4d(redeemptionBoxCornerPoints[0],redeemptionBoxCornerPoints[1],redeemptionBoxCornerPoints[2],1));
         }
         for(int i=0;i<2;i++){
-            const std::vector<double> & line=config["redeem_box"]["line"][i].as<std::vector<double>>();
+            const std::vector<double> & line=config["RedeemBox_detector"]["KeyPoints"]["redeem_box"]["line"][i].as<std::vector<double>>();
             Object2cornersEigen.push_back(Eigen::Vector4d(line[0],line[1],line[2],1));
         }
-        frontfacecenter=Eigen::Matrix<double,4,1>(config["redeem_box"]["center"][0].as<double>(),
+        frontfacecenter=Eigen::Matrix<double,4,1>(config["RedeemBox_detector"]["KeyPoints"]["redeem_box"]["center"][0].as<double>(),
             config["redeem_box"]["center"][1].as<double>(),
             config["redeem_box"]["center"][2].as<double>(),
             1.0
@@ -384,17 +395,18 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
 
     RCLCPP_INFO(this->get_logger(),"MainInit finish");
 
-    #ifdef DetectorArrow
-    DetectArrowInit();
-    #endif
-
-    #ifdef DetectorRectangle
-    RectangleDetectorInit();
-    #endif
-
-    #ifdef PCLManager
-    PointCloudeInit();
-    #endif
+    if(config["RedeemBox_detector"]["LaunchMode"]["DetectArrow"].as<bool>()){
+        DetectArrowInit();
+        callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow,this,_1));
+    }
+    if(config["RedeemBox_detector"]["LaunchMode"]["TargetRectangle"].as<bool>()){
+        RectangleDetectorInit();
+        callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow_Rectangle,this,_1));
+    }
+    if(config["RedeemBox_detector"]["LaunchMode"]["PclManage"].as<bool>()){
+        PointCloudeInit();
+        callback_functions.push_back(std::bind(&RedeemBox_detector::MainPclManager,this,_1));
+    }
 
     #ifdef SyncPubBoxPos
     SyncPubBoxPosInit();

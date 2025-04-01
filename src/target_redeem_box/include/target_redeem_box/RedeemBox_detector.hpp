@@ -143,7 +143,6 @@ class RedeemBox_detector:public rclcpp::Node{
     void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
     bool PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
         cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
-    bool MainDetectArrow(const cv::Mat & OriginalImage);
     std::vector<cv::Point2d> TargetArrow(const cv::Mat & BinaryImage,cv::Mat & Image);
 
     void DrawPnPResult(cv::Mat & Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
@@ -153,10 +152,13 @@ class RedeemBox_detector:public rclcpp::Node{
     // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
     void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & OriginalImage);
 
-    // cv::VideoWriter ddd("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.mp4",cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0,cv::Size(1440,1080));
-    // cv::VideoWriter videowriter=cv::VideoWriter("/home/lqx/code/Engineering_robot_RM2025_Pnx/video.avi",cv::VideoWriter::fourcc('X', 'V', 'I', 'D'),30.0,cv::Size(1440,1080));
+    // callback function for client
 
-    // parameters setting
+    std::vector<std::function<int(const cv::Mat&)> > callback_functions;
+
+    private: // arrow detect
+
+    int MainDetectArrow(const cv::Mat & OriginalImage);
 
     // detect params
     int ArrowDetectorPixelNumMax;
@@ -239,6 +241,8 @@ private:
     // Init Function for pointcloud part;
     void PointCloudeInit();
 
+    int MainPclManager(const cv::Mat& OriginalImage);
+
     void ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr& image_msg);
     
@@ -284,7 +288,7 @@ private://Rectangle_Detector
     //using adaptthreshold instead of threshold
     cv::Mat Adapted_PreProgress(const cv::Mat & OriginalImage);
     
-    bool MainDetectArrow_Rectangle(const cv::Mat & OriginalImage);
+    int MainDetectArrow_Rectangle(const cv::Mat & OriginalImage);
 
     void RectangleDetectorInit();
 
