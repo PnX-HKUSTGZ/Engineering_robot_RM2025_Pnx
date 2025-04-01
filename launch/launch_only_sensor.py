@@ -13,8 +13,8 @@ import launch_ros.descriptions
 def generate_launch_description():
 
     Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
-    camera_container = launch_ros.actions.ComposableNodeContainer(
-        name="sensor_container",
+    all = launch_ros.actions.ComposableNodeContainer(
+        name="Engineering_robot_RM2025_Pnx",
         namespace="",
         package="rclcpp_components",
         executable='component_container_mt',
@@ -24,10 +24,18 @@ def generate_launch_description():
                 plugin="Engineering_robot_RM2025_Pnx::CameraDriver",
                 name="camera_driver",
                 parameters=[Path],
-            )
+            ),
         ],
         output="screen"
     )
-    return launch.LaunchDescription([
-        camera_container,
+    mid360 = Node(
+        package='sensordrivers',
+        executable='mid360_driver',
+        name='mid360_driver',
+        output='screen',
+        parameters=[Path]
+    )
+    return LaunchDescription([
+        all,
+        mid360,
     ])
