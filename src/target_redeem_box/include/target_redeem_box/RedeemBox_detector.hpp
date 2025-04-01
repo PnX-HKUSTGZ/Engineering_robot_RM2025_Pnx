@@ -2,7 +2,6 @@
 #define __DetectArrow__
 
 #include "interfaces/srv/imagerequest.hpp"
-#include "interfaces/msg/redeem_box_position.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "Filter.hpp"
 
@@ -123,7 +122,6 @@ class RedeemBox_detector:public rclcpp::Node{
     // rclcpp::Client<Imagerequest>::SharedPtr client_;
     // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::Client<interfaces::srv::Imagerequest>::SharedPtr image_client_;
-    rclcpp::Publisher<interfaces::msg::RedeemBoxPosition>::SharedPtr RedeemBoxPosition_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr label_image_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -231,9 +229,16 @@ private:
     message_filters::Subscriber<sensor_msgs::msg::Image> msgfillter_image_sub;
 
     // set sync policy as Approximate
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
-    typedef message_filters::Synchronizer<SyncPolicy> Sync;
-    std::shared_ptr<Sync> sync_;
+    // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
+    // typedef message_filters::Synchronizer<SyncPolicy> Sync;
+    // std::shared_ptr<Sync> sync_;
+
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
+    pcl::PointCloud<pcl::PointXYZ> InTimeCloud;
+    // mtx for InTimeCloud
+    std::mutex Cloudmtx;
+
+    void PclManageStoreCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg);
 
     tf2_ros::Buffer::SharedPtr tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
@@ -246,8 +251,8 @@ private:
 
     int MainPclManager(const cv::Mat& OriginalImage);
 
-    void ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
-        const sensor_msgs::msg::Image::ConstSharedPtr& image_msg);
+    // void ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
+    //     const sensor_msgs::msg::Image::ConstSharedPtr& image_msg);
     
     template<typename T>
     void DrawCircleMask(cv::Mat Image,std::vector<cv::Point_<T>> counter);

@@ -21,8 +21,8 @@ def generate_launch_description():
         composable_node_descriptions=[
             launch_ros.descriptions.ComposableNode(
                 package="target_redeem_box",
-                plugin='Engineering_robot_RM2025_Pnx::RargetRedeemBox',
-                name='RargetRedeemBox',
+                plugin='Engineering_robot_RM2025_Pnx::RedeemBox_detector',
+                name='RedeemBox_detector',
                 parameters=[Path],
             )
         ],

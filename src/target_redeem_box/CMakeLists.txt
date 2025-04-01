@@ -29,16 +29,16 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(yaml-cpp REQUIRED)
 find_package(pcl_conversions REQUIRED)
 
-include_directories(${PROJECT_SOURCE_DIR}/include/target_redeem_box)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(/usr/include/eigen3)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 message(${SOURCES})
 
-add_library(RargetRedeemBox SHARED ${SOURCES})
+add_library(RedeemBox_detector SHARED ${SOURCES})
 
-ament_target_dependencies(RargetRedeemBox
+ament_target_dependencies(RedeemBox_detector
   rclcpp
   OpenCV
   sensor_msgs
@@ -52,15 +52,15 @@ ament_target_dependencies(RargetRedeemBox
   tf2_sensor_msgs
 )
 
-target_link_libraries(RargetRedeemBox yaml-cpp::yaml-cpp)
+target_link_libraries(RedeemBox_detector yaml-cpp::yaml-cpp)
 
 rclcpp_components_register_node(
-  RargetRedeemBox
-  PLUGIN "Engineering_robot_RM2025_Pnx::RargetRedeemBox"
-  EXECUTABLE RargetRedeemBox_node
+  RedeemBox_detector
+  PLUGIN "Engineering_robot_RM2025_Pnx::RedeemBox_detector"
+  EXECUTABLE RedeemBox_detector_node
 )
 
-install(TARGETS RargetRedeemBox
+install(TARGETS RedeemBox_detector
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin

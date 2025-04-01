@@ -1,43 +1,44 @@
-#include "RedeemBox_detector.hpp"
+#include "target_redeem_box/RedeemBox_detector.hpp"
 
 namespace Engineering_robot_RM2025_Pnx{
 
 void RedeemBox_detector::DetectArrowInit(){
     YAML::Node configDetectArrowInit;
     try{
-    configDetectArrowInit=config["RedeemBox_detector"]["Parameters"]["arrow_detect"];
+        configDetectArrowInit=config["RedeemBox_detector"]["Parameters"];
 
-    for(int i=0;i<8;i++){
-        const std::vector<double> & arrowPoints=config["RedeemBox_detector"]["KeyPoints"]["arrow"]["arrowPoints"][i].as<std::vector<double>>();
-        objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
-        objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));
-    }
-    
-    ArrowDetectorPixelNumMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
-    ArrowDetectorPixelNumMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
-    ArrowDetectorLengthWidthRatioMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
-    ArrowDetectorLengthWidthRatioMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
-    ArrowDetectorApproxSizeMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
-    ArrowDetectorApproxSizeMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
-    ArrowDetectorCannyThreshold1=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
-    ArrowDetectorCannyThreshold2=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
-    ArrowDetectorHoughRho=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
-    ArrowDetectorHoughTheta=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
-    ArrowDetectorHoughThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
-    ArrowDetectParallelThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
-    ArrowDetectorThresholdThresh=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
-    ArrowDetectorThresholdMaxval=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();
-    ArrowDetectorThresholdThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
-    ArrowDetectorIterations=configDetectArrowInit["arrow_detect"]["ArrowDetectorIterations"].as<double>();
-    ArrowDetectorapproxPolyDPEpsilon=configDetectArrowInit["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
-    ArrowDetectorLongShortRateMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
-    ArrowDetectorLongShortRateMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
+        for(int i=0;i<8;i++){
+            const std::vector<double> & arrowPoints=config["RedeemBox_detector"]["KeyPoints"]["arrow"]["arrowPoints"][i].as<std::vector<double>>();
+            objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
+            objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));
+        }
+        
+        ArrowDetectorPixelNumMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
+        ArrowDetectorPixelNumMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
+        ArrowDetectorLengthWidthRatioMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
+        ArrowDetectorLengthWidthRatioMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
+        ArrowDetectorApproxSizeMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
+        ArrowDetectorApproxSizeMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
+        ArrowDetectorCannyThreshold1=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
+        ArrowDetectorCannyThreshold2=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
+        ArrowDetectorHoughRho=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
+        ArrowDetectorHoughTheta=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
+        ArrowDetectorHoughThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
+        ArrowDetectParallelThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
+        ArrowDetectorThresholdThresh=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
+        ArrowDetectorThresholdMaxval=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();
+        ArrowDetectorThresholdThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
+        ArrowDetectorIterations=configDetectArrowInit["arrow_detect"]["ArrowDetectorIterations"].as<double>();
+        ArrowDetectorapproxPolyDPEpsilon=configDetectArrowInit["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
+        ArrowDetectorLongShortRateMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
+        ArrowDetectorLongShortRateMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
 
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
         rclcpp::shutdown();
     }
+    RCLCPP_INFO(this->get_logger(),"ArrowDetectorInit finish");
 }
 
 std::vector<cv::Point2d> RedeemBox_detector::TargetArrow(const cv::Mat & BinaryImage, cv::Mat & Image){
