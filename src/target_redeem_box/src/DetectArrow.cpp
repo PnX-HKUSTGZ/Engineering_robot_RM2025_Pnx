@@ -1,5 +1,7 @@
 #include "RedeemBox_detector.hpp"
 
+namespace Engineering_robot_RM2025_Pnx{
+
 void RedeemBox_detector::DetectArrowInit(){
     YAML::Node configDetectArrowInit;
     try{
@@ -622,3 +624,5 @@ int RedeemBox_detector::MainDetectArrow(const cv::Mat & OriginalImage){
 
     return 0;
 }
+
+} // end of namespace Engineering_robot_RM2025_Pnx

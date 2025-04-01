@@ -1,6 +1,9 @@
 #include "RedeemBox_detector.hpp"
 
-// this file place some base function
+// this file place some base class function
+
+namespace Engineering_robot_RM2025_Pnx{
+
 
 bool RedeemBox_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
     cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags){
@@ -447,3 +450,8 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
         rclcpp::shutdown();
     }
 }
+
+} // namespace Engineering_robot_RM2025_Pnx
+
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(Engineering_robot_RM2025_Pnx::RedeemBox_detector)

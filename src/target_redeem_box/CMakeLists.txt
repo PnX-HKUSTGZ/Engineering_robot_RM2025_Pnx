@@ -29,12 +29,14 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(yaml-cpp REQUIRED)
 find_package(pcl_conversions REQUIRED)
 
-include_directories(${PROJECT_SOURCE_DIR}/include/detect_arror)
+include_directories(${PROJECT_SOURCE_DIR}/include/target_redeem_box)
 include_directories(/usr/include/eigen3)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-add_library(RargetRedeemBox SHARED ${GLOB_RECURSE})
+message(${SOURCES})
+
+add_library(RargetRedeemBox SHARED ${SOURCES})
 
 ament_target_dependencies(RargetRedeemBox
   rclcpp
@@ -53,9 +55,9 @@ ament_target_dependencies(RargetRedeemBox
 target_link_libraries(RargetRedeemBox yaml-cpp::yaml-cpp)
 
 rclcpp_components_register_node(
-  RMSerialDriver
+  RargetRedeemBox
   PLUGIN "Engineering_robot_RM2025_Pnx::RargetRedeemBox"
-  EXECUTABLE RMSerialDriver_node
+  EXECUTABLE RargetRedeemBox_node
 )
 
 install(TARGETS RargetRedeemBox

@@ -57,13 +57,11 @@
 
 #define twopath_inoneline
 
-// #define DetectorArrow
-#define DetectorRectangle
-// #define PCLManager
-
 using namespace std::chrono;
 using namespace std::placeholders;
 using namespace std::chrono_literals;
+
+namespace Engineering_robot_RM2025_Pnx{
 
 typedef std::pair<int,int> pii;
 
@@ -442,5 +440,7 @@ template<typename T>
 void AppendCounters(const std::vector<std::vector<cv::Point_<T>>> & source,std::vector<cv::Point_<T>> & target);
 
 void DrawTrangle(cv::Mat & Image,Counter2f & CornerPoints,cv::Scalar color,int thickness);
+
+} // end namespace Engineering_robot_RM2025_Pnx
 
 #endif

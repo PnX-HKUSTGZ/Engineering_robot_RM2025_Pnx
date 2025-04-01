@@ -1,5 +1,6 @@
 #include "RedeemBox_detector.hpp"
 
+namespace Engineering_robot_RM2025_Pnx{
 
 void RedeemBox_detector::PointCloudeInit(){
 
@@ -361,3 +362,5 @@ bool RedeemBox_detector::inCircle(const cv::Point2f & Center,
 2. 直接通过选择的角点，得到的直线，从已知的点云中选择点来组成坐标系
 3. 直接边缘拟合，得到边框的确切边缘，然后用数学关系直接求得兑换框中心点位置
 */
+
+}

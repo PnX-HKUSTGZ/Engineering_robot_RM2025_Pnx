@@ -1,5 +1,7 @@
 #include "RedeemBox_detector.hpp"
 
+namespace Engineering_robot_RM2025_Pnx{
+
 double DistanceBetweenPointAndLine(const cv::Point & p,const Line & l){
     double r=l.val[0],theta=l.val[1];
     double t1=(p.y*std::cos(theta)-p.x*std::sin(theta));
@@ -615,3 +617,4 @@ void AppendCounters(const std::vector<std::vector<cv::Point_<T>>> & source,std::
 template void AppendCounters<int>(const std::vector<std::vector<cv::Point_<int>>> & source,std::vector<cv::Point_<int>> & target);
 template void AppendCounters<double>(const std::vector<std::vector<cv::Point_<double>>> & source,std::vector<cv::Point_<double>> & target);
 
+} // namespace 

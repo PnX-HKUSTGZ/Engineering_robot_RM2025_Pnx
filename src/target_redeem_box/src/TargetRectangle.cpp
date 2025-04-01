@@ -1,5 +1,7 @@
 #include "RedeemBox_detector.hpp"
 
+namespace Engineering_robot_RM2025_Pnx{
+
 cv::Mat RedeemBox_detector::Adapted_PreProgress(const cv::Mat & OriginalImage){
     std::vector<cv::Mat> SplitImage;
     cv::split(OriginalImage,SplitImage);
@@ -469,3 +471,5 @@ bool RedeemBox_detector::GetFourCornersPair(const Counters & Corners,Counters & 
     }
     return 0;
 }
+
+}// Engineering_robot_RM2025_Pnx

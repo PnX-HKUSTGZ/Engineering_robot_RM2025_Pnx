@@ -1,5 +1,7 @@
 #include "RedeemBox_detector.hpp"
 
+namespace Engineering_robot_RM2025_Pnx{
+
 template<typename T>
 cv::Point_<T> LocalCornerOpitimize(const cv::Mat & BinaryImage ,cv::Point_<T> Corner, int MaskRadius, int blockSize, int ksize, double k){
 
@@ -88,3 +90,5 @@ cv::Point_<T> LocalCornerOpitimize(const cv::Mat & BinaryImage ,cv::Point_<T> Co
 }
 
 template cv::Point_<double> LocalCornerOpitimize<double>(const cv::Mat & BinaryImage ,cv::Point_<double> Corner, int MaskRadius, int blockSize, int ksize, double k);
+
+} // end namespace 
