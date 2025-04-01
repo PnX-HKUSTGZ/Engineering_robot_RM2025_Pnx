@@ -25,12 +25,12 @@ def generate_launch_description():
                 name="camera_driver",
                 parameters=[Path],
             ),
-            launch_ros.descriptions.ComposableNode(
-                package="c_strake_conmunication",
-                plugin="Engineering_robot_RM2025_Pnx::RMSerialDriver",
-                name="RMSerialDriver",
-                parameters=[Path],
-            ),
+            # launch_ros.descriptions.ComposableNode(
+            #     package="c_strake_conmunication",
+            #     plugin="Engineering_robot_RM2025_Pnx::RMSerialDriver",
+            #     name="RMSerialDriver",
+            #     parameters=[Path],
+            # ),
             launch_ros.descriptions.ComposableNode(
                 package="target_redeem_box",
                 plugin='Engineering_robot_RM2025_Pnx::RedeemBox_detector',

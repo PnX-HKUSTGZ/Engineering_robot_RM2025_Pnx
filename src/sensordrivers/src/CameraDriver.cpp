@@ -27,7 +27,7 @@ class CameraDriver : public rclcpp::Node{
     CameraDriver(rclcpp::NodeOptions options=rclcpp::NodeOptions()):
         rclcpp::Node("camera_driver", options){
         
-        this->declare_parameter<std::string>("Location", "");
+        this->declare_parameter<std::string>("Location", "/home/pnx/code/Engineering_robot_RM2025_Pnx/");
         try{
             config=YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
         }
