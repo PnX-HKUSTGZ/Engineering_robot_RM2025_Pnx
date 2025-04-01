@@ -43,6 +43,7 @@ class CameraDriver : public rclcpp::Node{
         });
 
         tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+        current_image=nullptr;
         Image_service = this->create_service<interfaces::srv::Imagerequest>("/sensor/camera/images",
             std::bind(&CameraDriver::Image_service_callback,this,_1,_2));
 
@@ -98,15 +99,28 @@ class CameraDriver : public rclcpp::Node{
 
     private: //camera related
 
-    void Image_service_callback(interfaces::srv::Imagerequest::Request::SharedPtr request, 
-        interfaces::srv::Imagerequest::Response::SharedPtr response){
-        (void)request;
+    void Image_service_callback(
+        interfaces::srv::Imagerequest::Request::SharedPtr request, 
+        interfaces::srv::Imagerequest::Response::SharedPtr response) {
         std::lock_guard<std::mutex> lock(image_mutex);
-        response->ok=cline_id[request->clineid];
+        RCLCPP_INFO(this->get_logger(), "Image service called with clineid: %d", request->clineid);
+    
+        if (current_image == nullptr) {
+            RCLCPP_WARN(this->get_logger(), "Image service: current_image is nullptr");
+            response->ok = 0;
+            return;
+        }
+    
+        if (cline_id[request->clineid]) {
+            RCLCPP_WARN(this->get_logger(), "Image service: clineid %d is already in use", request->clineid);
+            response->ok = 0;
+            return;
+        }
+    
+        response->ok = 1;
         response->image = *(this->current_image);
-        RCLCPP_INFO(this->get_logger(),"Image service called!");
-        cline_id[request->clineid]=1;
-
+        cline_id[request->clineid] = 1;
+        RCLCPP_INFO(this->get_logger(), "Image service: response sent successfully");
     }
 
     void get_image(){
@@ -369,9 +383,13 @@ class CameraDriver : public rclcpp::Node{
         node->debug_pub->publish(*image_ptr);
         #endif
 
-        std::lock_guard<std::mutex>(node->image_mutex);
+        node->image_mutex.lock();
         node->current_image=image_ptr;
+        node->current_image->header.stamp=node->now();
+        node->current_image->header.frame_id="/sensor/camera";
         node->cline_id.clear();
+        node->image_mutex.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     }
 

@@ -293,14 +293,35 @@ void RedeemBox_detector::ImageClinentHandle(){
         RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : service not ready");
         return;
     }
+    RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : image service ready for call");
     auto future=image_client_->async_send_request(request);
+    RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : send!");
 
-    if(future.wait_for(std::chrono::milliseconds(20))!=std::future_status::ready){
-        RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : future not ready");
-        return;
+    std::chrono::_V2::system_clock::time_point start_time = std::chrono::system_clock::now();
+
+    std::future_status state;
+    int timeout_count = 0;
+    while ((state = future.wait_for(std::chrono::milliseconds(2000))) != std::future_status::ready) { // 增加超时时间到 2 秒
+        if (state == std::future_status::deferred) {
+            RCLCPP_WARN(this->get_logger(), "ImageClinentHandle: future deferred");
+            continue;
+        }
+        if (state == std::future_status::timeout) {
+            RCLCPP_WARN(this->get_logger(), "ImageClinentHandle: future timeout, count: %d", ++timeout_count);
+            if (timeout_count >= 3) { // 如果超时 3 次，退出循环
+                RCLCPP_ERROR(this->get_logger(), "ImageClinentHandle: future timeout too many times, exiting");
+                return;
+            }
+            continue;
+        }
     }
+    RCLCPP_INFO(this->get_logger(), "ImageClinentHandle: out loop!");
 
     auto response=future.get();
+
+    std::chrono::_V2::system_clock::time_point end_time=std::chrono::system_clock::now();
+    RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : request sent successfully with latency %d ms",std::chrono::duration_cast<std::chrono::milliseconds>(start_time-end_time).count());
+
     if(!response->ok){
         RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : response not ok");
         return;
@@ -321,6 +342,8 @@ void RedeemBox_detector::ImageClinentHandle(){
         }
         return ans;
     }(),distCoeffs);
+
+    cv::imshow("Original",OriginalImage);
 
     std::vector<std::thread> threads;
     // recorde time
@@ -419,7 +442,7 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
         rclcpp::shutdown();
     }
 
-    RCLCPP_INFO(this->get_logger(),"MainInit finish");
+    RCLCPP_INFO(this->get_logger(),"MainInit finish, start function laod");
 
     if(config["RedeemBox_detector"]["LaunchMode"]["DetectArrow"].as<bool>()){
         DetectArrowInit();
@@ -449,6 +472,7 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
         RCLCPP_ERROR(this->get_logger(),"Fail to create ImageClinentHandleTimer_ : %s",e.what());
         rclcpp::shutdown();
     }
+    RCLCPP_INFO(this->get_logger(),"MainLoop finish");
 }
 
 } // namespace Engineering_robot_RM2025_Pnx

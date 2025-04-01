@@ -14,7 +14,7 @@ def generate_launch_description():
 
     Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
     all = launch_ros.actions.ComposableNodeContainer(
-        name="Engineering_robot_RM2025_Pnx",
+        name="Engineering_robot_RM2025_Pnx_detect",
         namespace="",
         package="rclcpp_components",
         executable='component_container_mt',

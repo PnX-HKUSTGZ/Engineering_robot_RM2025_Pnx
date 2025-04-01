@@ -44,7 +44,8 @@ void RedeemBox_detector::PclManageStoreCloud(const sensor_msgs::msg::PointCloud2
         transform=tf2_buffer_->lookupTransform(
             "sensor/camera",
             "sensor/mid360",
-            this->now()
+            this->now(),
+            rclcpp::Duration(1,0)
             );
 
         #ifdef test_pcl_manage

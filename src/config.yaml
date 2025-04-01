@@ -12,8 +12,8 @@ camera:
 RedeemBox_detector:
   LaunchMode:
     DetectArrow: True
-    TargetRectangle: True
-    PclManage: True
+    TargetRectangle: false
+    PclManage: false
   KeyPoints:
     redeem_box:
     # 兑换框的四个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
