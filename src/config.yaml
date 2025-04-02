@@ -11,8 +11,8 @@ camera:
 
 RedeemBox_detector:
   LaunchMode:
-    DetectArrow: True
-    TargetRectangle: false
+    DetectArrow: false
+    TargetRectangle: True
     PclManage: false
   KeyPoints:
     redeem_box:

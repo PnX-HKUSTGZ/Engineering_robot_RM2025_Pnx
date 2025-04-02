@@ -122,23 +122,26 @@ class RedeemBox_detector:public rclcpp::Node{
     // rclcpp::Client<Imagerequest>::SharedPtr client_;
     // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::Client<interfaces::srv::Imagerequest>::SharedPtr image_client_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr Image_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr label_image_pub_;
-    rclcpp::TimerBase::SharedPtr timer_;
     // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
     // rclcpp::Node::SharedPtr node_shred_ptr;
-    // cv::Mat GreyImage;
+
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
     // FilterCorner filter_;
 
-    void DetectArrowInit();
+    // OriginalImage For main image
+    cv::Mat OriginalImage;
 
-    cv::Mat PreProgress(const cv::Mat & OriginalImage);
-    // void InitialArrowDetector();
+    // for OriginalImage_ to store intime Image
+    std::mutex OriginalImage_mutex;
+
+    // for Image_sub_ to store intime Image
     void GetImage(const sensor_msgs::msg::Image::SharedPtr msg);
+
     bool PnPsolver(const std::vector<cv::Point2d > & ImagePoints2D,const std::vector<cv::Point3d > & ObjectPoints3D,const std::vector<double> & cameraMatrix,const std::vector<double> & distCoeffs,
         cv::Mat & rvec, cv::Mat & tvec, bool useExtrinsicGuess, int flags);
-    std::vector<cv::Point2d> TargetArrow(const cv::Mat & BinaryImage,cv::Mat & Image);
 
     void DrawPnPResult(cv::Mat & Image, const cv::Mat & rvec, const cv::Mat & tvec, cv::Scalar color, int thickness, cv::Point textpos);
 
@@ -146,19 +149,27 @@ class RedeemBox_detector:public rclcpp::Node{
     // @param tvec translate vec
     // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
     void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & OriginalImage);
+    
+    void CallDetectorFunctions();
 
     // callback function for client
 
     std::vector<std::function<int(const cv::Mat&)> > callback_functions;
     std::vector<std::string> callback_functions_names;
 
-    void ImageClinentHandle();
 
     rclcpp::TimerBase::SharedPtr ImageClinentHandleTimer_;
 
     private: // arrow detect
 
+    void DetectArrowInit();
+
+    cv::Mat PreProgress(const cv::Mat & OriginalImage);
+
+    std::vector<cv::Point2d> TargetArrow(const cv::Mat & BinaryImage,cv::Mat & Image);
+
     int MainDetectArrow(const cv::Mat & OriginalImage);
+
     cv::Mat OriginalImage_;
 
     // detect params

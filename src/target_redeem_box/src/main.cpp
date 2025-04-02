@@ -286,62 +286,7 @@ void RedeemBox_detector::SyncPubBoxPosInit(){
     respubtimer_=this->create_wall_timer(std::chrono::milliseconds(syncconfig["PubInterval"].as<int>()),std::bind(&RedeemBox_detector::SyncPubBoxPos,this));
 }
 
-void RedeemBox_detector::ImageClinentHandle(){
-    auto request=std::make_shared<interfaces::srv::Imagerequest::Request>();
-    request->clineid=1;
-    if(!image_client_->service_is_ready()){
-        RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : service not ready");
-        return;
-    }
-    RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : image service ready for call");
-    auto future=image_client_->async_send_request(request);
-    RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : send!");
-
-    std::chrono::_V2::system_clock::time_point start_time = std::chrono::system_clock::now();
-
-    std::future_status state;
-    int timeout_count = 0;
-    while ((state = future.wait_for(std::chrono::milliseconds(2000))) != std::future_status::ready) { // 增加超时时间到 2 秒
-        if (state == std::future_status::deferred) {
-            RCLCPP_WARN(this->get_logger(), "ImageClinentHandle: future deferred");
-            continue;
-        }
-        if (state == std::future_status::timeout) {
-            RCLCPP_WARN(this->get_logger(), "ImageClinentHandle: future timeout, count: %d", ++timeout_count);
-            if (timeout_count >= 3) { // 如果超时 3 次，退出循环
-                RCLCPP_ERROR(this->get_logger(), "ImageClinentHandle: future timeout too many times, exiting");
-                return;
-            }
-            continue;
-        }
-    }
-    RCLCPP_INFO(this->get_logger(), "ImageClinentHandle: out loop!");
-
-    auto response=future.get();
-
-    std::chrono::_V2::system_clock::time_point end_time=std::chrono::system_clock::now();
-    RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : request sent successfully with latency %d ms",std::chrono::duration_cast<std::chrono::milliseconds>(start_time-end_time).count());
-
-    if(!response->ok){
-        RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : response not ok");
-        return;
-    }
-    cv::Mat OriginalImage;
-    try{
-        OriginalImage=cv_bridge::toCvCopy(response->image,sensor_msgs::image_encodings::BGR8)->image;
-    }
-    catch(cv_bridge::Exception& e){
-        RCLCPP_ERROR(this->get_logger(),"ImageClinentHandle : cv_bridge exception : %s",e.what());
-        return;
-    }
-
-    cv::undistort(OriginalImage,OriginalImage,[&](){
-        cv::Mat ans(cv::Size(3,3),CV_64F);
-        for(int i=0;i<9;i++){
-            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
-        }
-        return ans;
-    }(),distCoeffs);
+void RedeemBox_detector::CallDetectorFunctions(){
 
     cv::imshow("Original",OriginalImage);
 
@@ -352,9 +297,10 @@ void RedeemBox_detector::ImageClinentHandle(){
         std::chrono::_V2::system_clock::time_point end;
         std::string name;
     };
+    std::lock_guard<std::mutex> lock(OriginalImage_mutex);
     std::vector<callTime> times;
     for(int i=0;i<callback_functions.size();i++){
-        threads.push_back(std::thread([&i,&OriginalImage,&times,this](){
+        threads.push_back(std::thread([&i,&times,this](){
             callTime ct;
             ct.begin=std::chrono::high_resolution_clock::now();
             ct.name=callback_functions_names[i];
@@ -372,11 +318,39 @@ void RedeemBox_detector::ImageClinentHandle(){
 }
 
 
+void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
+    std::chrono::_V2::system_clock::time_point GetImageBegine=std::chrono::high_resolution_clock::now();
+    while(OriginalImage_mutex.try_lock()==false){
+        if((std::chrono::high_resolution_clock::now()-GetImageBegine)>std::chrono::milliseconds(10)){
+            RCLCPP_WARN(this->get_logger(),"ImageClinentHandle : GetImage timeout");
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    try{
+        OriginalImage=std::move(cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8)->image);
+    }
+    catch(cv_bridge::Exception& e){
+        RCLCPP_ERROR(this->get_logger(),"ImageClinentHandle : cv_bridge exception : %s",e.what());
+        OriginalImage_mutex.unlock();
+        return;
+    }
+    cv::undistort(OriginalImage,OriginalImage,[&](){
+        cv::Mat ans(cv::Size(3,3),CV_64F);
+        for(int i=0;i<9;i++){
+            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
+        }
+        return ans;
+    }(),distCoeffs);
+    OriginalImage_mutex.unlock();
+}
+
 RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     Node("RedeemBox_detector",options){
     // this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/image",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
     this->image_client_=this->create_client<interfaces::srv::Imagerequest>("/sensor/camera/images");
     this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
+    this->Image_sub_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/camera/images",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
     RCLCPP_INFO(this->get_logger(),"RedeemBox_detector client created !");
 
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
@@ -466,7 +440,7 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
 
     try{
         ImageClinentHandleTimer_=this->create_wall_timer(std::chrono::milliseconds(config["RedeemBox_detector"]["Parameters"]["Main"]["ImageClinentCallInterval"].as<int>()), 
-            std::bind(&RedeemBox_detector::ImageClinentHandle,this));
+            std::bind(&RedeemBox_detector::CallDetectorFunctions,this));
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to create ImageClinentHandleTimer_ : %s",e.what());
