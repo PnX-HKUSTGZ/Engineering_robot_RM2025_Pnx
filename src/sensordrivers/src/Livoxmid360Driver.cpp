@@ -203,6 +203,7 @@ Mid360Driver::Mid360Driver(const rclcpp::NodeOptions & options)
         publishCloud(this->now());
     });
 
+    point_cloud_pub_all = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud_all", 10);
     point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/mid360/point_cloud", 10);
     imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("sensor/mid360/imu", 10);
     frame_id="sensor/mid360";
@@ -222,9 +223,14 @@ void Mid360Driver::addPoint(const LivoxLidarEthernetPacket* data) {
   std::lock_guard<std::mutex> lock_guarde(cloudmtx);
   LivoxLidarCartesianHighRawPoint *p_point_data = (LivoxLidarCartesianHighRawPoint *)data->data;
   std::pair<int,rclcpp::Time> tmp=std::make_pair(0,this->now());
+
+  pcl::PointCloud<pcl::PointXYZ> PartCloud;
+
   for(size_t i=0;i<data->dot_num;i++){
       if(p_point_data[i].tag != 0) continue;
-      cloud.push_back(pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0));
+      pcl::PointXYZ p = pcl::PointXYZ(p_point_data[i].x/1000.0,p_point_data[i].y/1000.0,p_point_data[i].z/1000.0);
+      cloud.push_back(p);
+      PartCloud.push_back(p);
       tmp.first++;
       // RCLCPP_INFO(node->get_logger(),"point: %f, %f, %f, %f",cloud.points.back().x,cloud.points.back().y,cloud.points.back().z);
   }
@@ -232,6 +238,17 @@ void Mid360Driver::addPoint(const LivoxLidarEthernetPacket* data) {
   cloud.height=1;
   cloud.is_dense=true;
   CloudTimeStamp.push(tmp);
+
+
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+  pcl::toROSMsg(PartCloud,cloud_msg);
+  cloud_msg.header.frame_id=frame_id;
+  cloud_msg.header.stamp=this->now();
+  cloud_msg.is_dense=true;
+  cloud_msg.height=1;
+  cloud_msg.width=PartCloud.size();
+  point_cloud_pub_->publish(cloud_msg);
+
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(),"addPoint successfully. with add size %ld , all size : %ld",tmp.first,cloud.size());
   #endif
@@ -244,7 +261,7 @@ void Mid360Driver::publishCloud(builtin_interfaces::msg::Time time_) {
   pcl::toROSMsg(cloud,cloud_msg);
   cloud_msg.header.frame_id=frame_id;
   cloud_msg.header.stamp=time_;
-  point_cloud_pub_->publish(cloud_msg);
+  point_cloud_pub_all->publish(cloud_msg);
   #ifdef cloudelog
   RCLCPP_INFO(this->get_logger(),"publishCloud successfully. size: %ld",cloud.size());
   #endif

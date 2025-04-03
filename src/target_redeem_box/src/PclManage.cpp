@@ -6,13 +6,6 @@ void RedeemBox_detector::PointCloudeInit(){
 
     YAML::Node PCLManagerConfig=config["RedeemBox_detector"]["Parameters"]["PCLManager"];
 
-    tf2_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
-    tf2_listener_=std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_,this);
-
-    cloud_sub_=this->create_subscription<sensor_msgs::msg::PointCloud2>("/sensor/mid360/point_cloud",
-        10,
-        std::bind(&RedeemBox_detector::PclManageStoreCloud, this, std::placeholders::_1));
-
     // msgfillter_cloudpoint_sub.subscribe(this,"/sensor/mid360/point_cloud");
     // msgfillter_image_sub.subscribe(this,"/sensor/image");
 
@@ -33,83 +26,16 @@ void RedeemBox_detector::PointCloudeInit(){
 
 }
 
-void RedeemBox_detector::PclManageStoreCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg){
-    if(!Cloudmtx.try_lock()){
-        return;
-    }
-    sensor_msgs::msg::PointCloud2 TransformedCloudPoint;
-    geometry_msgs::msg::TransformStamped transform;
-
-    try{
-        transform=tf2_buffer_->lookupTransform(
-            "sensor/camera",
-            "sensor/mid360",
-            this->now(),
-            rclcpp::Duration(1,0)
-            );
-
-        #ifdef test_pcl_manage
-        std::stringstream transformsss;
-        transformsss<<"rotation: "<<
-        transform.transform.rotation.x<<" "<<
-        transform.transform.rotation.y<<" "<<
-        transform.transform.rotation.z<<" "<<
-        transform.transform.rotation.w<<"\n";
-        transformsss<<"translation: "<<
-        transform.transform.translation.x<<" "<<
-        transform.transform.translation.y<<" "<<
-        transform.transform.translation.z;
-        RCLCPP_INFO(this->get_logger(),"transform %s",transformsss.str().c_str());
-        #endif
-    }
-    catch (tf2::TransformException &ex){
-        RCLCPP_WARN(this->get_logger(),"[ImageCloudPointCallBack]: %s",ex.what());
-        return;
-    }
-    tf2::doTransform(*cloud_msg,TransformedCloudPoint,transform);
-    pcl::fromROSMsg(TransformedCloudPoint,InTimeCloud);
-
-    Cloudmtx.unlock();
-
-}
-
-// void RedeemBox_detector::ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
-//     const sensor_msgs::msg::Image::ConstSharedPtr& image_msg){
-    
-//     tf2::TimePoint image_time_point = tf2::TimePoint(std::chrono::seconds(image_msg->header.stamp.sec)+std::chrono::nanoseconds(image_msg->header.stamp.nanosec));
-//     tf2::TimePoint cloud_time_point = tf2::TimePoint(std::chrono::seconds(cloud_msg->header.stamp.sec)+std::chrono::nanoseconds(cloud_msg->header.stamp.nanosec));
-
-
-//     // transform.transform.rotation.x=0;
-//     // transform.transform.rotation.y=-0.7071068;
-//     // transform.transform.rotation.z=0.7071068;
-//     // transform.transform.rotation.w=0;
-//     // transform.transform.translation.x=0.06623;
-//     // // transform.transform.translation.y=-0.0333;
-//     // transform.transform.translation.y=-0.03257;
-//     // // transform.transform.translation.z=0.03257;
-//     // transform.transform.translation.z=-0.0333;
-
-//     //get Image
-//     cv_bridge::CvImagePtr cv_ptr;
-//     try{
-//         cv_ptr=cv_bridge::toCvCopy(image_msg,sensor_msgs::image_encodings::BGR8);
-//     }
-//     catch(cv_bridge::Exception& e){
-//         RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
-//         return;
-//     }
-//     cv::Mat originalframe=cv_ptr->image;
-//     originalframe.copyTo(OriginalImage_pcl);
-    
-
-//     // Target Arrow
-
-
-// }
-
 bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> & pointcloud, Counter2d CornerPoints, cv::Mat & tvec, cv::Mat & rvec){
-    
+    if (pointcloud.empty()) {
+        RCLCPP_WARN(this->get_logger(), "Input point cloud is empty");
+        return 1;
+    }
+    if (CornerPoints.empty()) {
+        RCLCPP_WARN(this->get_logger(), "No corner points provided");
+        return 1;
+    }
+
     // pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(
     //     std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(pointcloud)));
     // pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model);
@@ -131,6 +57,15 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
     seg.segment(*inliers, *coefficients);
 
+    if (inliers->indices.empty()) {
+        RCLCPP_WARN(this->get_logger(), "RANSAC plane segmentation failed - no inliers found");
+        return 1;
+    }
+    if (!coefficients || coefficients->values.size() < 4) {
+        RCLCPP_WARN(this->get_logger(), "Invalid coefficients from RANSAC (size=%zu)", 
+                   coefficients ? coefficients->values.size() : 0);
+        return 1;
+    }
 
     pcl::ExtractIndices<pcl::PointXYZ> extract;
     extract.setInputCloud(pointcloudptr);
@@ -273,6 +208,7 @@ bool RedeemBox_detector::inCircle(const cv::Point2f & Center,
 
 
 int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
+    InTimeCloudUpdate();
     OriginalImage.copyTo(OriginalImage_pcl);
     RCLCPP_INFO(this->get_logger(), "Get frame");
 
@@ -341,15 +277,6 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     }
 
     DrawRotatedRect(OriginalImage_pcl,rotateRectCounterPoints,cv::Scalar(102,32,210),1);
-
-    // sensor_msgs::msg::PointCloud2 inarrowPointCloudRos;
-    // pcl::toROSMsg<pcl::PointXYZ>(CloudPointOnArrow,inarrowPointCloudRos);
-    // inarrowPointCloudRos.header.frame_id="sensor/camera";
-    // inarrowPointCloudRos.header.stamp=this->now();
-    // RCLCPP_INFO(this->get_logger(),"Before %ld After %ld",CloudPointpcl.size(),CloudPointOnArrow.size());
-    // TransformedCloudPoint.header.frame_id="sensor/camera";
-    // TransformedCloudPoint.header.stamp=this->now();
-    // pcl_test_point_cloud_pub->publish(inarrowPointCloudRos);
 
     # endif
 

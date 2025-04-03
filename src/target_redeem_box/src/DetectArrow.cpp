@@ -569,10 +569,10 @@ cv::Mat RedeemBox_detector::PreProgress(const cv::Mat & OriginalImage){
 
 
 int RedeemBox_detector::MainDetectArrow(const cv::Mat & OriginalImage){
-    OriginalImage.copyTo(OriginalImage_);
-    cv::Mat Binary=PreProgress(OriginalImage);
+    OriginalImage.copyTo(OriginalImage_ArrowDetect);
+    cv::Mat Binary=PreProgress(OriginalImage_ArrowDetect);
 
-    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary,OriginalImage_);
+    std::vector<cv::Point2d> TargetArrowResult=TargetArrow(Binary,OriginalImage_ArrowDetect);
     if(!TargetArrowResult.size()){
         RCLCPP_INFO(this->get_logger(),"fail to target arrow.");
         return 0;
@@ -581,10 +581,23 @@ int RedeemBox_detector::MainDetectArrow(const cv::Mat & OriginalImage){
     cv::Mat rvec,tvec;
     bool PnPsolverCheck=PnPsolver(TargetArrowResult,objpoints,cameraMatrix,distCoeffs,rvec,tvec,0,cv::SOLVEPNP_IPPE);
 
+    if(!PnPsolverCheck) return 1;
+
     SendBoxPosition(tvec,rvec);
 
 
-    if(PnPsolverCheck) return 1;
+    # ifdef arrow_draw
+
+    DrawPnPResult(OriginalImage_ArrowDetect,rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(20,160));
+    auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_ArrowDetect).toImageMsg();
+    lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
+    lable_msg_ptr->header.stamp=this->get_clock()->now();
+    this->label_image_pub_->publish(*lable_msg_ptr);
+
+    cv::imshow("pnp result",OriginalImage_ArrowDetect);
+
+    cv::waitKey(10);
+    # endif
 
     #ifdef SyncPubBoxPos
     pnpressMtx.lock();
@@ -593,6 +606,8 @@ int RedeemBox_detector::MainDetectArrow(const cv::Mat & OriginalImage){
     RCLCPP_INFO(this->get_logger(),"QWQWQWQ");
     pnpressMtx.unlock();
     #endif
+
+    RCLCPP_INFO(this->get_logger(),"MainDetectArrow finish");
 
     return 0;
 }

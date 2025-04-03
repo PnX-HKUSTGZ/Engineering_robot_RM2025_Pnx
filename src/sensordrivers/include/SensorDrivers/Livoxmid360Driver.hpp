@@ -57,6 +57,7 @@ private:
     void update_pose_translate(double dt,sensor_msgs::msg::Imu::SharedPtr msg);
     void pub_pose(rclcpp::Time time=rclcpp::Clock().now());
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_all;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_transform_broadcaster;

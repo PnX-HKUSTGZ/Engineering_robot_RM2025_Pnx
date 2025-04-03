@@ -23,27 +23,6 @@ bool RedeemBox_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints
         useExtrinsicGuess,
         flags);
 
-    std::vector<cv::Mat> rvecs,tvecs;
-    bool PnPsuccessed=cv::solvePnPGeneric(
-        ObjectPoints3D,
-        ImagePoints2D,
-        cameraMatrixCV,
-        distCoeffsCV,
-        rvecs,
-        tvecs,
-        1,
-        cv::SOLVEPNP_IPPE
-    );
-
-
-    RCLCPP_INFO(this->get_logger(),"pnp solves num : %ld",rvecs.size());
-    std::stringstream ss_vecs;
-    for(std::size_t i=0;i<rvecs.size();i++){
-        ss_vecs<<"\n rvecs :"<< rvecs[i]<<std::endl;
-        ss_vecs<<"\n tvecs :"<< tvecs[i]<<std::endl;
-    }
-    RCLCPP_INFO(this->get_logger(),"pnp solves disp: %s",ss_vecs.str().c_str() );
-
     //check pnp success
 
     for(int i=0;i<3;i++){
@@ -52,7 +31,7 @@ bool RedeemBox_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints
             return 0;
         }
     }
-    if(!PnPsuccess||!PnPsuccessed){
+    if(!PnPsuccess){
         RCLCPP_WARN(this->get_logger(),"PnP fail");
         return 0;
     }
@@ -85,20 +64,6 @@ bool RedeemBox_detector::PnPsolver(const std::vector<cv::Point2d > & ImagePoints
     rtvecEigen(3, 3) = 1.0;
 
     // SendBoxPosition(tvec,rvec);
-
-    # ifdef arrow_draw
-    DrawPnPResult(OriginalImage_Rectangle,rvecs[0],tvecs[0],cv::Scalar(225,0,0),2,cv::Point(20,40));
-    DrawPnPResult(OriginalImage_Rectangle,rvecs[1],tvecs[1],cv::Scalar(100,0,200),2,cv::Point(20,100));
-    DrawPnPResult(OriginalImage_Rectangle,rvec,tvec,cv::Scalar(100,100,200),2,cv::Point(20,160));
-    auto lable_msg_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),sensor_msgs::image_encodings::BGR8,OriginalImage_).toImageMsg();
-    lable_msg_ptr->header.frame_id="/arrow_detect/label_image";
-    lable_msg_ptr->header.stamp=this->get_clock()->now();
-    this->label_image_pub_->publish(*lable_msg_ptr);
-
-    cv::imshow("pnp result",OriginalImage_Rectangle);
-
-    cv::waitKey(10);
-    # endif
 
     RCLCPP_INFO(this->get_logger(),"PnPsolver finish");
     return 1;
@@ -391,18 +356,89 @@ void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
     OriginalImage_mutex.unlock();
 }
 
+void RedeemBox_detector::CloudSubManage(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg){
+    sensor_msgs::msg::PointCloud2 TransformedCloudPoint;
+    geometry_msgs::msg::TransformStamped transform;
+    std::pair<int,rclcpp::Time> tmp=std::make_pair(cloud_msg->width*cloud_msg->height,cloud_msg->header.stamp);
+    pcl::PointCloud<pcl::PointXYZ> InputCloud;
+
+    try{
+        transform=tf2_buffer_->lookupTransform(
+            "sensor/camera",
+            "sensor/mid360",
+            this->now(),
+            rclcpp::Duration(1,0)
+            );
+
+        #ifdef test_pcl_manage
+        std::stringstream transformsss;
+        transformsss<<"rotation: "<<
+        transform.transform.rotation.x<<" "<<
+        transform.transform.rotation.y<<" "<<
+        transform.transform.rotation.z<<" "<<
+        transform.transform.rotation.w<<"\n";
+        transformsss<<"translation: "<<
+        transform.transform.translation.x<<" "<<
+        transform.transform.translation.y<<" "<<
+        transform.transform.translation.z;
+        RCLCPP_INFO(this->get_logger(),"transform %s",transformsss.str().c_str());
+        #endif
+    }
+    catch (tf2::TransformException &ex){
+        RCLCPP_WARN(this->get_logger(),"[ImageCloudPointCallBack]: %s",ex.what());
+        return;
+    }
+    tf2::doTransform(*cloud_msg,TransformedCloudPoint,transform);
+    pcl::fromROSMsg(TransformedCloudPoint,InputCloud);
+
+    InTimeCloudUpdate();
+
+    Cloudmtx.lock();
+
+    for(auto &point :InputCloud){
+        InTimeCloud.push_back(point);
+    }
+    InTimeCloud.width=InTimeCloud.size();
+    InTimeCloud.height=1;
+    InTimeCloud.is_dense=true;
+    CloudTimeStamp.push(tmp);
+
+    # ifdef test_pointcloud_main_log
+
+    RCLCPP_INFO(this->get_logger(),"[CloudSubManage] : add point cloud %d , now point cloud size %d", 
+        InputCloud.size(), 
+        InTimeCloud.size());
+
+    // PCL可视化
+    // static pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    // viewer->removeAllPointClouds();
+    // viewer->addPointCloud<pcl::PointXYZ>(InputCloud.makeShared(), "input_cloud");
+    // viewer->spinOnce(10);
+
+    #endif
+
+    Cloudmtx.unlock();
+}
+
+void RedeemBox_detector::InTimeCloudUpdate(){
+    std::lock_guard<std::mutex> lock_guarde(Cloudmtx);
+    while(!CloudTimeStamp.empty()&&(this->now()-CloudTimeStamp.front().second)>buffertime){
+        InTimeCloud.erase(InTimeCloud.begin(),InTimeCloud.begin()+CloudTimeStamp.front().first);
+      this->CloudTimeStamp.pop();
+    }
+}
+
+
 RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     Node("RedeemBox_detector",options){
-    // this->subscription_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/image",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
-    this->image_client_=this->create_client<interfaces::srv::Imagerequest>("/sensor/camera/images");
-    this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
-    this->Image_sub_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/camera/images",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
-    RCLCPP_INFO(this->get_logger(),"RedeemBox_detector client created !");
 
     OriginalImage=cv::Mat::zeros(cv::Size(0,0),CV_8UC1);
 
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
     
+    tf2_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    tf2_listener_=std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_,this);
+
     try{
         config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
         
@@ -468,11 +504,14 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
             1.0
         );
 
+        buffertime=rclcpp::Duration(config["RedeemBox_detector"]["Parameters"]["Main"]["buffertime"].as<std::vector<int>>()[0],config["RedeemBox_detector"]["Parameters"]["Main"]["buffertime"].as<std::vector<int>>()[1]) ;
+
     }
     catch(const std::exception& e){
         RCLCPP_ERROR(this->get_logger(),"Fail to load config file : %s",e.what());
         rclcpp::shutdown();
     }
+
     signMat<<1,0,0,0,
         0,1,0,0,
         0,0,1,0;
@@ -506,6 +545,14 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     }
 
     RCLCPP_INFO(this->get_logger(),"MainInit finish, start function laod");
+
+    this->image_client_=this->create_client<interfaces::srv::Imagerequest>("/sensor/camera/images");
+    this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
+    this->Image_sub_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/camera/images",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
+    this->cloud_sub_=this->create_subscription<sensor_msgs::msg::PointCloud2>("/sensor/mid360/point_cloud",
+        10,
+        std::bind(&RedeemBox_detector::CloudSubManage, this, std::placeholders::_1));
+    RCLCPP_INFO(this->get_logger(),"RedeemBox_detector client created !");
 
     bool detectArrowInitialized = false;
     bool rectangleDetectorInitialized = false;
@@ -569,6 +616,7 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
                 if(!rclcpp::ok()){
                     rclcpp::shutdown();
                 }
+                std::this_thread::sleep_for(std::chrono::milliseconds(3));
             }
         });
     }

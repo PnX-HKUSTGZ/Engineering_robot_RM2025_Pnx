@@ -39,6 +39,7 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/PointIndices.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 
 #include <message_filters/subscriber.h>
@@ -49,6 +50,7 @@
 #define Imageshow
 // #define TargetArrowtest
 #define test_pcl_manage
+#define test_pointcloud_main_log
 // #define test_LocalCornerOpitimize
 // #define drawFinalres
 #define DetectorRectangle_test
@@ -114,18 +116,26 @@ class CombGenerator{
 
 class RedeemBox_detector:public rclcpp::Node{
     public:
-    // using Imagerequest=interfaces::srv::Imagerequest;
     RedeemBox_detector(rclcpp::NodeOptions options=rclcpp::NodeOptions());
 
-    // static cv::Mat OOriginalImage;
     private:
-    // rclcpp::Client<Imagerequest>::SharedPtr client_;
-    // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::Client<interfaces::srv::Imagerequest>::SharedPtr image_client_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr Image_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr label_image_pub_;
-    // void MainArrowDetector(const sensor_msgs::msg::Image::SharedPtr msg);
-    // rclcpp::Node::SharedPtr node_shred_ptr;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
+
+    tf2_ros::Buffer::SharedPtr tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+
+    // mid360 Cloud
+    pcl::PointCloud<pcl::PointXYZ> InTimeCloud;
+    // mtx for InTimeCloud and CloudTimeStamp
+    std::mutex Cloudmtx;
+
+    // cloud queue
+    std::queue<std::pair<int,rclcpp::Time>> CloudTimeStamp;
+    // cloud queue buffertime
+    rclcpp::Duration buffertime=rclcpp::Duration(0,0);
 
     std::vector<cv::Point2d> ArrowPeaks;
     std::vector<cv::Point2i> ImageRedemptionBoxCornerPoints;
@@ -152,7 +162,12 @@ class RedeemBox_detector:public rclcpp::Node{
     
     void CallDetectorFunctions();
 
-    // callback function for client
+    // this function will get mtx Cloudmtx
+    void CloudSubManage(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg);
+
+    // InTimeCloudUpdate for InTime to clear some pass point cloud
+    // this function will get mtx Cloudmtx
+    void InTimeCloudUpdate();
 
     std::vector<std::function<int(const cv::Mat&)> > callback_functions;
     std::vector<std::string> callback_functions_names;
@@ -190,7 +205,7 @@ class RedeemBox_detector:public rclcpp::Node{
     // 降维矩阵
     Eigen::Matrix<double,3,4> signMat;
 
-    private: // arrow detect
+private: // arrow detect
 
     void DetectArrowInit();
 
@@ -200,7 +215,7 @@ class RedeemBox_detector:public rclcpp::Node{
 
     int MainDetectArrow(const cv::Mat & OriginalImage);
 
-    cv::Mat OriginalImage_;
+    cv::Mat OriginalImage_ArrowDetect;
 
     // detect params
     int ArrowDetectorPixelNumMax;
@@ -238,23 +253,6 @@ public: //pcl manage
     std::string targetframe);
 
 private:
-    message_filters::Subscriber<sensor_msgs::msg::PointCloud2> msgfillter_cloudpoint_sub;
-    message_filters::Subscriber<sensor_msgs::msg::Image> msgfillter_image_sub;
-
-    // set sync policy as Approximate
-    // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::Image> SyncPolicy;
-    // typedef message_filters::Synchronizer<SyncPolicy> Sync;
-    // std::shared_ptr<Sync> sync_;
-
-    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
-    pcl::PointCloud<pcl::PointXYZ> InTimeCloud;
-    // mtx for InTimeCloud
-    std::mutex Cloudmtx;
-
-    void PclManageStoreCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg);
-
-    tf2_ros::Buffer::SharedPtr tf2_buffer_;
-    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     //OriginalImage_ for plc manage
     cv::Mat OriginalImage_pcl;
@@ -262,10 +260,8 @@ private:
     // Init Function for pointcloud part;
     void PointCloudeInit();
 
+    // this function will get mtx Cloudmtx
     int MainPclManager(const cv::Mat& OriginalImage);
-
-    // void ImageCloudPointCallBack(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg,
-    //     const sensor_msgs::msg::Image::ConstSharedPtr& image_msg);
     
     template<typename T>
     void DrawCircleMask(cv::Mat Image,std::vector<cv::Point_<T>> counter);
