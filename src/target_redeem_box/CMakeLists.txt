@@ -30,6 +30,7 @@ find_package(yaml-cpp REQUIRED)
 find_package(pcl_conversions REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/../..)  # Add project root directory
 include_directories(/usr/include/eigen3)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")

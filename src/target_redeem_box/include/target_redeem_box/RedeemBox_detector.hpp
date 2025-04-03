@@ -46,7 +46,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #define arrow_draw
-// #define Imageshow
+#define Imageshow
 // #define TargetArrowtest
 #define test_pcl_manage
 // #define test_LocalCornerOpitimize
@@ -148,7 +148,7 @@ class RedeemBox_detector:public rclcpp::Node{
     // send box position in camera to tf2
     // @param tvec translate vec
     // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
-    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & OriginalImage);
+    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat);
     
     void CallDetectorFunctions();
 
@@ -158,7 +158,37 @@ class RedeemBox_detector:public rclcpp::Node{
     std::vector<std::string> callback_functions_names;
 
 
-    rclcpp::TimerBase::SharedPtr ImageClinentHandleTimer_;
+    std::thread ImageProcessorThread;
+
+    // object params
+
+    // 相机外参
+    std::vector<double> cameraMatrix;
+    // 相机外参 Mat
+    cv::Mat cameraMatrixMat;
+    // 相机外参 Eigen
+    Eigen::Matrix<double,3,3> cameraMatrixEigen;
+    // 相机外参 Eigen Inverse
+    Eigen::Matrix<double,3,3> InverseCameraMatrixEigen;
+    // 相机内参
+    std::vector<double> distCoeffs;
+    // 箭头上的点
+    std::vector<cv::Point3d> objpoints;
+    // 箭头上的点  Eigen
+    std::vector<Eigen::Matrix<double,4,1>> objpointsEigen;
+    //  redemption box 上的点 
+    std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint;
+    //  redemption box 上的点  Eigen
+    std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen;
+    // 箭头旁的直线
+    std::vector<Eigen::Matrix<double,4,1>> Object2cornersEigen;
+    //frontface center of redemption 
+    Eigen::Matrix<double,4,1> frontfacecenter;
+    // 兑换框正面到箭头的变换矩阵
+    // Eigen::Matrix<double,4,4> CenterToArrowvec;
+
+    // 降维矩阵
+    Eigen::Matrix<double,3,4> signMat;
 
     private: // arrow detect
 
@@ -192,34 +222,6 @@ class RedeemBox_detector:public rclcpp::Node{
     double ArrowDetectorapproxPolyDPEpsilon;
     double ArrowDetectorLongShortRateMax;
     double ArrowDetectorLongShortRateMin;
-
-    // object params
-
-    // 相机外参
-    std::vector<double> cameraMatrix;
-    // 相机外参 Eigen
-    Eigen::Matrix<double,3,3> cameraMatrixEigen;
-    // 相机外参 Eigen Inverse
-    Eigen::Matrix<double,3,3> InverseCameraMatrixEigen;
-    // 相机内参
-    std::vector<double> distCoeffs;
-    // 箭头上的点
-    std::vector<cv::Point3d> objpoints;
-    // 箭头上的点  Eigen
-    std::vector<Eigen::Matrix<double,4,1>> objpointsEigen;
-    //  redemption box 上的点 
-    std::vector<cv::Point3d> ObjRedemptionBoxCornerPoint;
-    //  redemption box 上的点  Eigen
-    std::vector<Eigen::Matrix<double,4,1>> ObjRedemptionBoxCornerPointEigen;
-    // 箭头旁的直线
-    std::vector<Eigen::Matrix<double,4,1>> Object2cornersEigen;
-    //frontface center of redemption 
-    Eigen::Matrix<double,4,1> frontfacecenter;
-    // 兑换框正面到箭头的变换矩阵
-    // Eigen::Matrix<double,4,4> CenterToArrowvec;
-
-    // 降维矩阵
-    Eigen::Matrix<double,3,4> signMat;
 
     // box to camera
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_box_to_camera;

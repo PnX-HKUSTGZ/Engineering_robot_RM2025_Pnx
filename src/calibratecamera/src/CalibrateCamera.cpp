@@ -132,8 +132,8 @@ int main (int argc,char** argv){
     rclcpp::init(argc,argv);
     node=std::make_shared<rclcpp::Node>("calibrate_camera");
     InitCalibrationParam();
-    node->declare_parameter<std::string>("Location","");
-    subscriber_=node->create_subscription<sensor_msgs::msg::Image>("/sensor/camera/image",10,ImageCallback);
+    node->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
+    subscriber_=node->create_subscription<sensor_msgs::msg::Image>("/sensor/camera/images",10,ImageCallback);
     rclcpp::spin(node);
     rclcpp::shutdown();
 }

@@ -356,7 +356,7 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     cv::Mat tvec,rvec;
     GetTRvecPointCloud_PC(CloudPointOnArrow,CornerPoints,tvec,rvec);
 
-    SendBoxPosition(tvec,rvec,OriginalImage_pcl);
+    SendBoxPosition(tvec,rvec);
 
     #ifdef SyncPubBoxPos
     cloudressMtx.lock();

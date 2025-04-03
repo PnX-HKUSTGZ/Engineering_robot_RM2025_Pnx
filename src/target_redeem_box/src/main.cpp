@@ -184,7 +184,7 @@ void RedeemBox_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, con
     return;
 }
 
-void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Mat & OriginalImage){
+void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
 
     CV_Assert((rvecmat.size()==cv::Size(3,3) || rvecmat.size()==cv::Size(3,1) || rvecmat.size()==cv::Size(1,3))&&
         (rvecmat.type()==CV_64F || rvecmat.type()==CV_32F));
@@ -197,19 +197,6 @@ void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,cv::Ma
     else{
         rmat=rvecmat;
     }
-
-    #ifdef drawFinalres
-
-        cv::Mat rvec;
-        cv::Rodrigues(rmat,rvec);
-        DrawPnPResult(OriginalImage,rvec,tvec,cv::Scalar(223,34,100),1,cv::Point(20,40));
-        std::stringstream drawFinalressss;
-        drawFinalressss<<rvec<<"\n"<<tvec;
-        RCLCPP_INFO(this->get_logger(),"drawFinalres : %s",drawFinalressss.str().c_str());
-        cv::imshow("Finalres",OriginalImage);
-        cv::waitKey(11);
-
-    #endif
 
     geometry_msgs::msg::TransformStamped box_to_camera;
 
@@ -287,33 +274,95 @@ void RedeemBox_detector::SyncPubBoxPosInit(){
 }
 
 void RedeemBox_detector::CallDetectorFunctions(){
+    // 获取图像拷贝
+    cv::Mat imageCopy;
+    {
+        std::lock_guard<std::mutex> lock(OriginalImage_mutex);
+        if(OriginalImage.empty() || OriginalImage.size()==cv::Size(0,0)){
+            RCLCPP_WARN(this->get_logger(),"OriginalImage is empty, can't detect.");
+            return;
+        }
+        imageCopy = OriginalImage.clone();
+    }
 
-    cv::imshow("Original",OriginalImage);
+    // 显示图像
+    try {
+        cv::imshow("Original", imageCopy);
+        cv::waitKey(1);
+    } catch (const cv::Exception& e) {
+        RCLCPP_ERROR(this->get_logger(), "OpenCV display error: %s", e.what());
+        return;
+    }
 
-    std::vector<std::thread> threads;
-    // recorde time
+    // 准备线程数据
     struct callTime{
         std::chrono::_V2::system_clock::time_point begin;
         std::chrono::_V2::system_clock::time_point end;
         std::string name;
+        bool success = false;
     };
-    std::lock_guard<std::mutex> lock(OriginalImage_mutex);
-    std::vector<callTime> times;
-    for(int i=0;i<callback_functions.size();i++){
-        threads.push_back(std::thread([&i,&times,this](){
-            callTime ct;
-            ct.begin=std::chrono::high_resolution_clock::now();
-            ct.name=callback_functions_names[i];
-            callback_functions[i](OriginalImage);
-            ct.end=std::chrono::high_resolution_clock::now();
-            times.push_back(ct);
-        }));
+    std::vector<callTime> times(callback_functions.size());
+    std::vector<std::thread> threads;
+    std::mutex times_mutex;
+
+    // 创建并运行线程
+    for(std::size_t i=0; i<callback_functions.size(); i++){
+        try {
+            if(!callback_functions[i]) {
+                RCLCPP_WARN(this->get_logger(), "Callback function %s is null", callback_functions_names[i].c_str());
+                continue;
+            }
+
+            threads.emplace_back([i, &times, &times_mutex, this, imageCopy](){
+                callTime ct;
+                ct.begin = std::chrono::high_resolution_clock::now();
+                ct.name = callback_functions_names[i];
+                
+                try {
+                    if(!imageCopy.empty()) {
+                        callback_functions[i](imageCopy);
+                        ct.success = true;
+                    } else {
+                        RCLCPP_WARN(this->get_logger(),"Skipping %s - empty image", ct.name.c_str());
+                    }
+                } catch (const std::exception& e) {
+                    RCLCPP_ERROR(this->get_logger(),"Error in %s: %s", ct.name.c_str(), e.what());
+                }
+
+                ct.end = std::chrono::high_resolution_clock::now();
+                
+                {
+                    std::lock_guard<std::mutex> lock(times_mutex);
+                    times[i] = ct;
+                }
+            });
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(this->get_logger(),"Failed to create thread for %s: %s", 
+                        callback_functions_names[i].c_str(), e.what());
+        }
     }
-    for(auto & i : threads){
-        i.join();
+
+    // 等待所有线程完成
+    for(auto& t : threads) {
+        if(t.joinable()) {
+            try {
+                t.join();
+            } catch (const std::exception& e) {
+                RCLCPP_ERROR(this->get_logger(),"Thread join error: %s", e.what());
+            }
+        }
     }
-    for(auto & i : times){
-        RCLCPP_INFO(this->get_logger(),"ImageClinentHandle : %s time : %ld ms",i.name.c_str(),std::chrono::duration_cast<std::chrono::milliseconds>(i.end-i.begin).count());
+
+    // 记录执行时间
+    for(const auto& ct : times) {
+        if(ct.name.empty()) continue; // 跳过无效记录
+        
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(ct.end - ct.begin);
+        if(ct.success) {
+            RCLCPP_INFO(this->get_logger(),"%s completed in %ld ms", ct.name.c_str(), duration.count());
+        } else {
+            RCLCPP_WARN(this->get_logger(),"%s failed after %ld ms", ct.name.c_str(), duration.count());
+        }
     }
 }
 
@@ -327,21 +376,18 @@ void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
+
+    cv::Mat image;
     try{
-        OriginalImage=std::move(cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8)->image);
+        image=std::move(cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8)->image);
     }
     catch(cv_bridge::Exception& e){
         RCLCPP_ERROR(this->get_logger(),"ImageClinentHandle : cv_bridge exception : %s",e.what());
         OriginalImage_mutex.unlock();
         return;
     }
-    cv::undistort(OriginalImage,OriginalImage,[&](){
-        cv::Mat ans(cv::Size(3,3),CV_64F);
-        for(int i=0;i<9;i++){
-            ans.at<double>(i/3,i%3)=this->cameraMatrix[i];
-        }
-        return ans;
-    }(),distCoeffs);
+
+    cv::undistort(image,OriginalImage,cameraMatrixMat,distCoeffs);
     OriginalImage_mutex.unlock();
 }
 
@@ -353,14 +399,57 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     this->Image_sub_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/camera/images",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
     RCLCPP_INFO(this->get_logger(),"RedeemBox_detector client created !");
 
+    OriginalImage=cv::Mat::zeros(cv::Size(0,0),CV_8UC1);
+
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
     
     try{
         config = YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
+        
+
+        //ArrowDetector part
+
+        YAML::Node configDetectArrowInit;
+        try{
+            configDetectArrowInit=config["RedeemBox_detector"]["Parameters"];
+    
+            for(int i=0;i<8;i++){
+                const std::vector<double> & arrowPoints=config["RedeemBox_detector"]["KeyPoints"]["arrow"]["arrowPoints"][i].as<std::vector<double>>();
+                objpoints.push_back(cv::Point3d(arrowPoints[0],arrowPoints[1],arrowPoints[2]));
+                objpointsEigen.push_back(Eigen::Vector4d(arrowPoints[0],arrowPoints[1],arrowPoints[2],1));
+            }
+            ArrowDetectorThresholdThresh=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThresh"].as<double>();
+            ArrowDetectorThresholdMaxval=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdMaxval"].as<double>();    
+            ArrowDetectorPixelNumMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMax"].as<int>();
+            ArrowDetectorPixelNumMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorPixelNumMin"].as<int>();
+            ArrowDetectorLengthWidthRatioMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMax"].as<double>();
+            ArrowDetectorLengthWidthRatioMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLengthWidthRatioMin"].as<double>();
+            ArrowDetectorApproxSizeMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMax"].as<double>();
+            ArrowDetectorApproxSizeMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorApproxSizeMin"].as<double>();
+            ArrowDetectorCannyThreshold1=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold1"].as<double>();
+            ArrowDetectorCannyThreshold2=configDetectArrowInit["arrow_detect"]["ArrowDetectorCannyThreshold2"].as<double>();
+            ArrowDetectorHoughRho=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughRho"].as<double>();
+            ArrowDetectorHoughTheta=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughTheta"].as<double>();
+            ArrowDetectorHoughThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorHoughThreshold"].as<double>();
+            ArrowDetectParallelThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectParallelThreshold"].as<double>();
+            ArrowDetectorThresholdThreshold=configDetectArrowInit["arrow_detect"]["ArrowDetectorThresholdThreshold"].as<double>();
+            ArrowDetectorIterations=configDetectArrowInit["arrow_detect"]["ArrowDetectorIterations"].as<double>();
+            ArrowDetectorapproxPolyDPEpsilon=configDetectArrowInit["arrow_detect"]["ArrowDetectorapproxPolyDPEpsilon"].as<double>();
+            ArrowDetectorLongShortRateMax=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMax"].as<double>();
+            ArrowDetectorLongShortRateMin=configDetectArrowInit["arrow_detect"]["ArrowDetectorLongShortRateMin"].as<double>();
+    
+        }
+        catch(const std::exception& e){
+            RCLCPP_ERROR(this->get_logger(),"DetectArrowInit failed - %s",e.what());
+            rclcpp::shutdown();
+        }
+
         cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
         distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
+        cameraMatrixMat=cv::Mat(cv::Size(3,3),CV_64F);
         for(int i=0;i<9;i++){
             cameraMatrixEigen(i/3,i%3)=cameraMatrix[i];
+            cameraMatrixMat.at<double>(i/3,i%3)=cameraMatrix[i];
         }
         InverseCameraMatrixEigen=cameraMatrixEigen.inverse();
 
@@ -418,32 +507,73 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
 
     RCLCPP_INFO(this->get_logger(),"MainInit finish, start function laod");
 
+    bool detectArrowInitialized = false;
+    bool rectangleDetectorInitialized = false;
+    bool pclManageInitialized = false;
+
     if(config["RedeemBox_detector"]["LaunchMode"]["DetectArrow"].as<bool>()){
-        DetectArrowInit();
-        callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow,this,_1));
-        callback_functions_names.push_back("DetectArrow");
+        try {
+            DetectArrowInit();
+            callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow,this,_1));
+            callback_functions_names.push_back("DetectArrow");
+            detectArrowInitialized = true;
+            RCLCPP_INFO(this->get_logger(),"DetectArrow module initialized successfully");
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(this->get_logger(),"Failed to initialize DetectArrow: %s", e.what());
+        }
     }
+
     if(config["RedeemBox_detector"]["LaunchMode"]["TargetRectangle"].as<bool>()){
-        RectangleDetectorInit();
-        callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow_Rectangle,this,_1));
-        callback_functions_names.push_back("TargetRectangle");
+        try {
+            RectangleDetectorInit();
+            callback_functions.push_back(std::bind(&RedeemBox_detector::MainDetectArrow_Rectangle,this,_1));
+            callback_functions_names.push_back("TargetRectangle");
+            rectangleDetectorInitialized = true;
+            RCLCPP_INFO(this->get_logger(),"TargetRectangle module initialized successfully");
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(this->get_logger(),"Failed to initialize TargetRectangle: %s", e.what());
+        }
     }
+
     if(config["RedeemBox_detector"]["LaunchMode"]["PclManage"].as<bool>()){
-        PointCloudeInit();
-        callback_functions.push_back(std::bind(&RedeemBox_detector::MainPclManager,this,_1));
-        callback_functions_names.push_back("PclManage");
+        try {
+            PointCloudeInit();
+            callback_functions.push_back(std::bind(&RedeemBox_detector::MainPclManager,this,_1));
+            callback_functions_names.push_back("PclManage");
+            pclManageInitialized = true;
+            RCLCPP_INFO(this->get_logger(),"PclManage module initialized successfully");
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR(this->get_logger(),"Failed to initialize PclManage: %s", e.what());
+        }
     }
+
+    if(callback_functions.empty()) {
+        RCLCPP_ERROR(this->get_logger(),"No detector modules initialized successfully, shutting down");
+        rclcpp::shutdown();
+    }
+
+    RCLCPP_INFO(this->get_logger(), "%ld Functions load completed",callback_functions.size());
+    for(auto & i : callback_functions_names){
+        RCLCPP_INFO(this->get_logger(),"function name : %s",i.c_str());
+    }
+    
 
     #ifdef SyncPubBoxPos
     SyncPubBoxPosInit();
     #endif
 
     try{
-        ImageClinentHandleTimer_=this->create_wall_timer(std::chrono::milliseconds(config["RedeemBox_detector"]["Parameters"]["Main"]["ImageClinentCallInterval"].as<int>()), 
-            std::bind(&RedeemBox_detector::CallDetectorFunctions,this));
+        ImageProcessorThread=std::thread([this](){
+            while(1){
+                CallDetectorFunctions();
+                if(!rclcpp::ok()){
+                    rclcpp::shutdown();
+                }
+            }
+        });
     }
     catch(const std::exception& e){
-        RCLCPP_ERROR(this->get_logger(),"Fail to create ImageClinentHandleTimer_ : %s",e.what());
+        RCLCPP_ERROR(this->get_logger(),"Fail to create ImageProcessorThread : %s",e.what());
         rclcpp::shutdown();
     }
     RCLCPP_INFO(this->get_logger(),"MainLoop finish");

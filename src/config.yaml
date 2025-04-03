@@ -3,8 +3,8 @@
 camera:
   height: 1080
   width: 1920
-  dist_coeffs: [-0.08103311788040146, 0.3232641812024377, -0.0009989978811517845, -0.00459932286882118, -1.64065459435693]
-  camera_matrix: [2461.868075481564, 0, 631.7015039289838 , 0, 2513.93935296834, 687.8131716949171, 0.0, 0.0, 1.0]
+  dist_coeffs: [-0.07807535960667517, 0.4561398877981337, 0.001014173252333453, 0.001055173981673902, -0.7555189787815824]
+  camera_matrix: [2384.568667818371, 0, 719.5006984838791 , 0, 2384.999951098244, 574.2751687415551, 0.0, 0.0, 1.0]
   ExposureTimeLower: 10000
   ExposureTimeUpper: 10000
   Gain: 7.
@@ -12,8 +12,8 @@ camera:
 RedeemBox_detector:
   LaunchMode:
     DetectArrow: false
-    TargetRectangle: True
-    PclManage: false
+    TargetRectangle: false
+    PclManage: True
   KeyPoints:
     redeem_box:
     # 兑换框的四个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系

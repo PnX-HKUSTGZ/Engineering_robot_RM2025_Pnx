@@ -368,7 +368,7 @@ int RedeemBox_detector::MainDetectArrow_Rectangle(const cv::Mat & OriginalImage)
     cv::waitKey(11);
     #endif
 
-    SendBoxPosition(tvec,rvec,OriginalImage_Rectangle);
+    SendBoxPosition(tvec,rvec);
     RCLCPP_INFO(this->get_logger(),"MainDetectArrow_Rectangle finish!");
     return 0;
 
