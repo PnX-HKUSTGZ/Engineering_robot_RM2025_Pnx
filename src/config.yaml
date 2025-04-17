@@ -111,7 +111,7 @@ RedeemBox_detector:
         syncThresehold: [1,10000000]
         PubInterval: 10    
       ImageClinentCallInterval: 10 #ms
-      buffertime: [0,500000000] # [s,ns]
+      buffertime: [0,100000000] # [s,ns]
 
   
 
