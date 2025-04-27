@@ -62,10 +62,13 @@ private:
 
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf2_static_pub_;
 
-    std::shared_ptr<std::thread> deal_pipe_thread_;
+    std::shared_ptr<std::thread> image_thread_;
+    std::shared_ptr<std::thread> point_cloud_thread_;
 
     // rs2 pip for encapsulating the actual device and sensors
-    std::shared_ptr<rs2::pipeline> pipe_;
+    std::shared_ptr<rs2::pipeline> pipe_pointcloud_;
+    // rs2 pip for encapsulating the actual device and sensors
+    std::shared_ptr<rs2::pipeline> pipe_image_;
     // rs2 pointcloud class for calculating pointclouds and texture mappings
     std::shared_ptr<rs2::pointcloud> pc_;
     // rs2 points for pointcloud store
@@ -76,7 +79,8 @@ private:
     // for the filter for pointcloud , unit: m
     double depmax,depmin;
 
-    void RS_image_pc_pub_callback();
+    void RS_pc_pub_callback();
+    void RS_image_pub_callback();
 
 };
 
@@ -93,3 +97,4 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr filterDepthRange(
     float depmax);
 
 }// Engineering_robot_RM2025_Pnx
+

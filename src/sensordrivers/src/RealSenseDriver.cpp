@@ -14,10 +14,6 @@ namespace Engineering_robot_RM2025_Pnx{
             RCLCPP_WARN(this->get_logger(),"not set depth_hight, use default 720");
             this->declare_parameter<int>("depth_hight",720);
         }
-        if(!this->has_parameter("depth_hight")){
-            RCLCPP_WARN(this->get_logger(),"not set depth_hight, use default 720");
-            this->declare_parameter<int>("depth_hight",720);
-        }
         if(!this->has_parameter("depmin")){
             RCLCPP_WARN(this->get_logger(),"not set depmin, use default 0.2");
             this->declare_parameter<double>("depmin",0.2);
@@ -38,23 +34,27 @@ namespace Engineering_robot_RM2025_Pnx{
         RCLCPP_INFO(this->get_logger(),"pc_pub_ init ok !");
 
 
-        geometry_msgs::msg::TransformStamped image_to_depth_msg;
+        geometry_msgs::msg::TransformStamped image_to_center_msg;
         geometry_msgs::msg::TransformStamped depth_to_center_msg;
 
-        rs2::config cfg;
+        rs2::config cfg_pointcloud;
+        rs2::config cfg_image;
         // cfg.enable_stream(RS2_STREAM_DEPTH,640,360,RS2_FORMAT_Z16,30);
         // cfg.enable_stream(RS2_STREAM_COLOR,1920,1080,RS2_FORMAT_YUYV,30);
-        cfg.enable_stream(RS2_STREAM_DEPTH,depth_wight,depth_hight);
-        cfg.enable_stream(RS2_STREAM_COLOR,1280,720);
+        cfg_pointcloud.enable_stream(RS2_STREAM_DEPTH,depth_wight,depth_hight,RS2_FORMAT_Z16);
+        cfg_image.enable_stream(RS2_STREAM_COLOR,1920,1080,RS2_FORMAT_RGB8);
 
         try{
-            pipe_=std::make_shared<rs2::pipeline>();
+            pipe_pointcloud_=std::make_shared<rs2::pipeline>();
+            pipe_image_=std::make_shared<rs2::pipeline>();
             pc_=std::make_shared<rs2::pointcloud>();
-            auto pipline_profile=pipe_->start(cfg);
-            RCLCPP_INFO(this->get_logger(),"rs2 init and start ok !");
+            auto pipline_profile_pc=pipe_pointcloud_->start(cfg_pointcloud);
+            RCLCPP_INFO(this->get_logger(),"rs2 pipe point cloud start ok !");
+            auto pipline_profile_image=pipe_image_->start(cfg_image);
+            RCLCPP_INFO(this->get_logger(),"rs2 pipe image start ok !");
 
-            auto depth_sensor = pipline_profile.get_device().first<rs2::depth_sensor>();
-            auto color_sensor = pipline_profile.get_device().first<rs2::color_sensor>();
+            auto depth_sensor = pipline_profile_pc.get_device().first<rs2::depth_sensor>();
+            auto color_sensor = pipline_profile_image.get_device().first<rs2::color_sensor>();
     
             rs2::stream_profile depth_profile;
             bool depth_profile_ok=0;
@@ -69,7 +69,6 @@ namespace Engineering_robot_RM2025_Pnx{
                         RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
                         RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
                     }
-                    break;
                 }
             }
     
@@ -86,7 +85,6 @@ namespace Engineering_robot_RM2025_Pnx{
                         RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
                         RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
                     }
-                    break;
                 }
 
             }
@@ -94,31 +92,15 @@ namespace Engineering_robot_RM2025_Pnx{
             if (!depth_profile_ok || !color_profile_ok) {
                 RCLCPP_FATAL(this->get_logger(),"fail to find the depth or color profile");
             }
-
-            rs2_extrinsics color_to_depth=color_profile.get_extrinsics_to(depth_profile);
-
-            auto qua=rotationMatrixToQuaternion(color_to_depth.rotation);
-
-            RCLCPP_INFO(this->get_logger(),"color to depth quaternion [x,y,z,w] : [%lf,%lf,%lf,%lf]",qua[0],qua[1],qua[2],qua[3]);
-            RCLCPP_INFO(this->get_logger(),"color to depth translation [x,y,z] : [%f,%f,%f]",color_to_depth.translation[0],color_to_depth.translation[1],color_to_depth.translation[2]);
-
-            image_to_depth_msg.header.frame_id="sensor/RealSense/depth";
-            image_to_depth_msg.child_frame_id="sensor/RealSense/image";
-            image_to_depth_msg.header.stamp=this->now();
-            image_to_depth_msg.transform.rotation.x=qua[0];
-            image_to_depth_msg.transform.rotation.y=qua[1];
-            image_to_depth_msg.transform.rotation.z=qua[2];
-            image_to_depth_msg.transform.rotation.w=qua[3];
-            // color_to_depth.translation in meters
-            image_to_depth_msg.transform.translation.x=color_to_depth.translation[0];
-            image_to_depth_msg.transform.translation.y=color_to_depth.translation[1];
-            image_to_depth_msg.transform.translation.z=color_to_depth.translation[2];
-
-            
         }
         catch(const std::exception & e){
             RCLCPP_FATAL(this->get_logger(),"pipe launch fail with %s",e.what());
+            rclcpp::shutdown();
         }
+
+        // set camera param
+
+
 
         tf2_static_pub_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
         RCLCPP_INFO(this->get_logger(),"static_tf2 init ok !");
@@ -152,19 +134,41 @@ namespace Engineering_robot_RM2025_Pnx{
         depth_to_center_msg.transform.rotation.z=0;
         depth_to_center_msg.transform.rotation.w=-0.7071068;
 
+        image_to_center_msg.header.frame_id="sensor/RealSense";
+        image_to_center_msg.child_frame_id="sensor/RealSense/image";
+        image_to_center_msg.header.stamp=this->now();
+        image_to_center_msg.transform.translation.x=-0.02;
+        image_to_center_msg.transform.translation.y=-1.1*1e-3;
+        image_to_center_msg.transform.translation.z=0;
+        image_to_center_msg.transform.rotation.x=0.7071068;
+        image_to_center_msg.transform.rotation.y=0;
+        image_to_center_msg.transform.rotation.z=0;
+        image_to_center_msg.transform.rotation.w=-0.7071068;
+
         tf2_static_pub_->sendTransform(depth_to_center_msg);
         RCLCPP_INFO(this->get_logger(),"send RealSense to depthcenter static transform OK!");
-        tf2_static_pub_->sendTransform(image_to_depth_msg);
-        RCLCPP_INFO(this->get_logger(),"send depthcenter to imagecenter static transform OK!");
+        tf2_static_pub_->sendTransform(image_to_center_msg);
+        RCLCPP_INFO(this->get_logger(),"send RealSense to imagecenter static transform OK!");
 
-        deal_pipe_thread_=std::make_shared<std::thread>([this](){
+        point_cloud_thread_=std::make_shared<std::thread>([this](){
             while(1){
                 auto start_time = std::chrono::steady_clock::now();
-                this->RS_image_pc_pub_callback();
+                this->RS_pc_pub_callback();
                 auto end_time = std::chrono::steady_clock::now();
                 auto duration = end_time - start_time;
                 auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-                RCLCPP_INFO_STREAM(this->get_logger(),"One loop cost :"<<duration_ms.count() <<" ms");
+                RCLCPP_INFO_STREAM(this->get_logger(),"One point cloud loop cost :"<<duration_ms.count() <<" ms");
+            }
+        });
+
+        image_thread_=std::make_shared<std::thread>([this](){
+            while(1){
+                auto start_time = std::chrono::steady_clock::now();
+                this->RS_image_pub_callback();
+                auto end_time = std::chrono::steady_clock::now();
+                auto duration = end_time - start_time;
+                auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+                RCLCPP_INFO_STREAM(this->get_logger(),"One image loop cost :"<<duration_ms.count() <<" ms");
             }
         });
 
@@ -172,10 +176,9 @@ namespace Engineering_robot_RM2025_Pnx{
 
     }
 
-    void RealSense::RS_image_pc_pub_callback(){
-        auto frames = pipe_->wait_for_frames();
+    void RealSense::RS_pc_pub_callback(){
+        auto frames = pipe_pointcloud_->wait_for_frames();
         
-        auto color = frames.get_color_frame();
         auto depth = frames.get_depth_frame();
 
         points=pc_->calculate(depth);
@@ -193,6 +196,12 @@ namespace Engineering_robot_RM2025_Pnx{
         
         pc_pub_->publish(pointcloudmsg);
         RCLCPP_INFO(this->get_logger(),"pc_pub_ publish ok! with point size : %ld",pcl_point_filtered->size());
+    }
+
+    void RealSense::RS_image_pub_callback(){
+        auto frames = pipe_image_->wait_for_frames();
+        
+        auto color = frames.get_color_frame();
 
         const int w = color.as<rs2::video_frame>().get_width();
         const int h = color.as<rs2::video_frame>().get_height();

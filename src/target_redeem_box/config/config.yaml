@@ -1,5 +1,5 @@
 ros__parameters:
   CloudPointTopic: "sensor/RealSense/point_cloud"
   ImageTopic: "sensor/RealSense/image"
-  CloudPointFrame: "sensor/RealSense"
-  ImageFrame: "sensor/RealSense"
+  CloudPointFrame: "sensor/RealSense/depth"
+  ImageFrame: "sensor/RealSense/image"
