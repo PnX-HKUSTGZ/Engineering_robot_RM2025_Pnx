@@ -27,6 +27,7 @@ find_package(pcl_conversions REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(realsense2 REQUIRED)
 
 
 add_library(camera_driver SHARED src/CameraDriver.cpp)
@@ -84,6 +85,36 @@ install(DIRECTORY launch
 
 install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
+)
+
+add_library(realsense_driver SHARED src/RealSenseDriver.cpp)
+
+ament_target_dependencies(realsense_driver 
+  rclcpp
+  OpenCV
+  sensor_msgs
+  cv_bridge
+  rclcpp_components
+  tf2
+  tf2_ros
+  pcl_conversions
+)
+
+target_link_libraries(realsense_driver
+  yaml-cpp::yaml-cpp
+  realsense2
+)
+
+rclcpp_components_register_node(
+  realsense_driver
+  PLUGIN "Engineering_robot_RM2025_Pnx::RealSense"
+  EXECUTABLE realsense_driver_node
+)
+
+install(TARGETS realsense_driver
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 if(BUILD_TESTING)

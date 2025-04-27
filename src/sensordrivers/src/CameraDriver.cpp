@@ -88,9 +88,7 @@ class CameraDriver : public rclcpp::Node{
 
         RCLCPP_INFO(this->get_logger(),"pub camera tf2 ok!");
 
-        #ifdef DEBUG
         debug_pub=this->create_publisher<sensor_msgs::msg::Image>("/sensor/camera/images",10);
-        #endif
         
     }
     private:
