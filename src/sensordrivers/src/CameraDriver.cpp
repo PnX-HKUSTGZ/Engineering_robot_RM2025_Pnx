@@ -44,10 +44,25 @@ class CameraDriver : public rclcpp::Node{
 
         tf_broadcaster_=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
         current_image=nullptr;
-        Image_service = this->create_service<interfaces::srv::Imagerequest>("/sensor/camera/images",
-            std::bind(&CameraDriver::Image_service_callback,this,_1,_2));
+        // Image_service = this->create_service<interfaces::srv::Imagerequest>("/sensor/camera/images",
+        //     std::bind(&CameraDriver::Image_service_callback,this,_1,_2));
 
-        RCLCPP_INFO(this->get_logger(),"tf_broadcaster_ & Image_service init ok!");
+        RCLCPP_INFO(this->get_logger(),"tf_broadcaster_ init ok!");
+
+        try{
+            cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
+            distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
+        }
+        catch(YAML::Exception& e){
+            RCLCPP_ERROR(this->get_logger(),"error reading config file while load cameraMatrix & distCoeffs: %s",e.what());
+            rclcpp::shutdown();
+        }
+        cameraMatrixMat=cv::Mat(cv::Size(3,3),CV_64F);
+        for(int i=0;i<9;i++){
+            cameraMatrixMat.at<double>(i/3,i%3)=cameraMatrix[i];
+        }
+        RCLCPP_INFO(this->get_logger(),"reading config file while load cameraMatrix & distCoeffs OK!");
+
 
         geometry_msgs::msg::TransformStamped to_map;
 
@@ -67,6 +82,7 @@ class CameraDriver : public rclcpp::Node{
             RCLCPP_ERROR(this->get_logger(),"error reading config file while load tf2: %s",e.what());
             rclcpp::shutdown();
         }
+        RCLCPP_INFO(this->get_logger(),"reading config file while load tf2 OK!");
     
         tf_broadcaster_->sendTransform(to_map);
 
@@ -90,6 +106,10 @@ class CameraDriver : public rclcpp::Node{
     std::shared_ptr<std::thread> get_image_thread;
 
     rclcpp::TimerBase::SharedPtr get_image_timer;
+
+    std::vector<double> cameraMatrix;
+    std::vector<double> distCoeffs;
+    cv::Mat cameraMatrixMat;
 
     int nRet = MV_OK;
     
@@ -373,15 +393,14 @@ class CameraDriver : public rclcpp::Node{
         cv::Mat OriginalImage(pFrameInfo->nExtendHeight, pFrameInfo->nExtendWidth,CV_8UC1,pData);
         cv::Mat imageRGB;
         cv::cvtColor(OriginalImage, imageRGB, cv::COLOR_BayerBG2BGR);
+        cv::undistort(imageRGB,OriginalImage,node->cameraMatrixMat,node->distCoeffs);
     
         auto image_ptr=cv_bridge::CvImage(std_msgs::msg::Header(),"bgr8",imageRGB).toImageMsg();
-    
+
         image_ptr->header.frame_id="/sensor/camera";
         image_ptr->header.stamp=node->get_clock()->now();
     
-        #ifdef DEBUG
         node->debug_pub->publish(*image_ptr);
-        #endif
 
         node->image_mutex.lock();
         node->current_image=image_ptr;

@@ -9,6 +9,9 @@ camera:
   ExposureTimeUpper: 10000
   Gain: 7.
 
+RealSense:
+  
+
 RedeemBox_detector:
   LaunchMode:
     DetectArrow: false

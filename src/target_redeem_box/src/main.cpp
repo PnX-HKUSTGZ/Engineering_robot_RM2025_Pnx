@@ -352,7 +352,7 @@ void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
         return;
     }
 
-    cv::undistort(image,OriginalImage,cameraMatrixMat,distCoeffs);
+    // cv::undistort(image,OriginalImage,cameraMatrixMat,distCoeffs);
     OriginalImage_mutex.unlock();
 }
 
