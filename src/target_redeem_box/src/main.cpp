@@ -168,7 +168,7 @@ void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
     cv::Vec4d Quaternion_r=rotationMatrixToQuaternion(rmat);
 
     box_to_camera.header.stamp=this->now();
-    box_to_camera.header.frame_id="sensor/camera";
+    box_to_camera.header.frame_id=ImageFrame;
     box_to_camera.child_frame_id="object/box";
     box_to_camera.transform.translation.x=tvec.at<double>(0);
     box_to_camera.transform.translation.y=tvec.at<double>(1);
@@ -364,8 +364,8 @@ void RedeemBox_detector::CloudSubManage(const sensor_msgs::msg::PointCloud2::Con
 
     try{
         transform=tf2_buffer_->lookupTransform(
-            "sensor/camera",
-            "sensor/mid360",
+            ImageFrame,
+            CloudPointFrame,
             this->now(),
             rclcpp::Duration(1,0)
             );
@@ -451,6 +451,28 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
 
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
     
+    if(!this->has_parameter("CloudPointTopic")){
+        this->declare_parameter<std::string>("CloudPointTopic","sensor/RealSense/point_cloud");
+        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense/point_cloud");
+    }
+    if(!this->has_parameter("ImageTopic")){
+        this->declare_parameter<std::string>("ImageTopic","sensor/RealSense/image");
+        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense/image");
+    }
+    if(!this->has_parameter("CloudPointFrame")){
+        this->declare_parameter<std::string>("CloudPointFrame","sensor/RealSense");
+        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense");
+    }
+    if(!this->has_parameter("ImageFrame")){
+        this->declare_parameter<std::string>("ImageFrame","sensor/RealSense");
+        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense");
+    }
+
+    CloudPointTopic=this->get_parameter("CloudPointTopic").as_string();
+    ImageTopic=this->get_parameter("ImageTopic").as_string();
+    CloudPointFrame=this->get_parameter("CloudPointFrame").as_string();
+    ImageFrame=this->get_parameter("ImageFrame").as_string();
+
     tf2_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_listener_=std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_,this);
 
@@ -536,22 +558,22 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
 
         tf_broadcaster_box_to_camera=std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
-        static_tf_broadcaster_camera_to_arm=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+        // static_tf_broadcaster_camera_to_arm=std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
 
-        geometry_msgs::msg::TransformStamped camera_to_arm;
+        // geometry_msgs::msg::TransformStamped camera_to_arm;
 
-        camera_to_arm.header.frame_id="map";
-        camera_to_arm.child_frame_id="object/arm";
-        camera_to_arm.transform.translation.x=config["object_pos"]["arm"]["translation"]["x"].as<double>();
-        camera_to_arm.transform.translation.y=config["object_pos"]["arm"]["translation"]["y"].as<double>();
-        camera_to_arm.transform.translation.z=config["object_pos"]["arm"]["translation"]["z"].as<double>();
-        camera_to_arm.transform.rotation.w=config["object_pos"]["arm"]["rotate"]["w"].as<double>();
-        camera_to_arm.transform.rotation.x=config["object_pos"]["arm"]["rotate"]["x"].as<double>();
-        camera_to_arm.transform.rotation.y=config["object_pos"]["arm"]["rotate"]["y"].as<double>();
-        camera_to_arm.transform.rotation.z=config["object_pos"]["arm"]["rotate"]["z"].as<double>();
+        // camera_to_arm.header.frame_id="map";
+        // camera_to_arm.child_frame_id="object/arm";
+        // camera_to_arm.transform.translation.x=config["object_pos"]["arm"]["translation"]["x"].as<double>();
+        // camera_to_arm.transform.translation.y=config["object_pos"]["arm"]["translation"]["y"].as<double>();
+        // camera_to_arm.transform.translation.z=config["object_pos"]["arm"]["translation"]["z"].as<double>();
+        // camera_to_arm.transform.rotation.w=config["object_pos"]["arm"]["rotate"]["w"].as<double>();
+        // camera_to_arm.transform.rotation.x=config["object_pos"]["arm"]["rotate"]["x"].as<double>();
+        // camera_to_arm.transform.rotation.y=config["object_pos"]["arm"]["rotate"]["y"].as<double>();
+        // camera_to_arm.transform.rotation.z=config["object_pos"]["arm"]["rotate"]["z"].as<double>();
 
-        static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
+        // static_tf_broadcaster_camera_to_arm->sendTransform(camera_to_arm);
 
     }
     catch(const std::exception& e){
@@ -561,10 +583,10 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
 
     RCLCPP_INFO(this->get_logger(),"MainInit finish, start function laod");
 
-    this->image_client_=this->create_client<interfaces::srv::Imagerequest>("/sensor/camera/images");
+    // this->image_client_=this->create_client<interfaces::srv::Imagerequest>("/sensor/camera/images");
     this->label_image_pub_=this->create_publisher<sensor_msgs::msg::Image>("/arrow_detect/label_image",10);
-    this->Image_sub_=this->create_subscription<sensor_msgs::msg::Image>("/sensor/camera/images",10,std::bind(&RedeemBox_detector::GetImage,this,_1));
-    this->cloud_sub_=this->create_subscription<sensor_msgs::msg::PointCloud2>("/sensor/mid360/point_cloud",
+    this->Image_sub_=this->create_subscription<sensor_msgs::msg::Image>(ImageTopic,10,std::bind(&RedeemBox_detector::GetImage,this,_1));
+    this->cloud_sub_=this->create_subscription<sensor_msgs::msg::PointCloud2>(CloudPointTopic,
         10,
         std::bind(&RedeemBox_detector::CloudSubManage, this, std::placeholders::_1));
     RCLCPP_INFO(this->get_logger(),"RedeemBox_detector client created !");

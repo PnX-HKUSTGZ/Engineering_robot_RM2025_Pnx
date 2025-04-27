@@ -140,7 +140,7 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         
     sensor_msgs::msg::PointCloud2 msg;
     pcl::toROSMsg<pcl::PointXYZ>(ExtractedPointCloud,msg);
-    msg.header.frame_id="sensor/camera";
+    msg.header.frame_id=ImageFrame;
     msg.header.stamp=this->now();
     pcl_test_point_cloud_pub->publish(msg);
 

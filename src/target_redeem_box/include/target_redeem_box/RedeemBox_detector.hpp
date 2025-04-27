@@ -119,7 +119,13 @@ class RedeemBox_detector:public rclcpp::Node{
     RedeemBox_detector(rclcpp::NodeOptions options=rclcpp::NodeOptions());
 
     private:
-    rclcpp::Client<interfaces::srv::Imagerequest>::SharedPtr image_client_;
+
+    std::string CloudPointTopic;
+    std::string ImageTopic;
+    std::string CloudPointFrame;
+    std::string ImageFrame;
+
+    // rclcpp::Client<interfaces::srv::Imagerequest>::SharedPtr image_client_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr Image_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr label_image_pub_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;

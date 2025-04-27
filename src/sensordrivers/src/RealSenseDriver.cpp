@@ -7,10 +7,10 @@ namespace Engineering_robot_RM2025_Pnx{
 
         this->declare_parameter<bool>("USE_VITURAL_POSE",true);
 
-        image_pub_=this->create_publisher<sensor_msgs::msg::Image>("sensor/RealSense/image",1);
+        image_pub_=this->create_publisher<sensor_msgs::msg::Image>("sensor/RealSense/image",10);
         RCLCPP_INFO(this->get_logger(),"pc_pub_ image_pub_ ok !");
 
-        pc_pub_=this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/RealSense/point_cloud",1);
+        pc_pub_=this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/RealSense/point_cloud",10);
         RCLCPP_INFO(this->get_logger(),"pc_pub_ init ok !");
 
         pipe_=std::make_shared<rs2::pipeline>();
@@ -26,8 +26,8 @@ namespace Engineering_robot_RM2025_Pnx{
             geometry_msgs::msg::TransformStamped msg;
             msg.header.stamp=this->now();
             msg.header.frame_id="robot_base";
-            msg.child_frame_id="sensor/realsense";
-            msg.transform.rotation.w=0;
+            msg.child_frame_id="sensor/RealSense";
+            msg.transform.rotation.w=1;
             msg.transform.translation.x=0;
             msg.transform.translation.y=0;
             msg.transform.translation.z=0;
@@ -70,7 +70,7 @@ namespace Engineering_robot_RM2025_Pnx{
         pointcloudmsg.header.frame_id="sensor/RealSense";
         
         pc_pub_->publish(pointcloudmsg);
-        RCLCPP_INFO(this->get_logger(),"pc_pub_ publish ok!");
+        RCLCPP_INFO(this->get_logger(),"pc_pub_ publish ok! with point size : %ld",pcl_point->size());
 
         const int w = color.as<rs2::video_frame>().get_width();
         const int h = color.as<rs2::video_frame>().get_height();
