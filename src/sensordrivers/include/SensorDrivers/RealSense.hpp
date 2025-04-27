@@ -39,6 +39,7 @@
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/filters/passthrough.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <librealsense2/rs.hpp>
@@ -70,11 +71,25 @@ private:
     // rs2 points for pointcloud store
     rs2::points points;
 
+    int depth_wight;
+    int depth_hight;
+    // for the filter for pointcloud , unit: m
+    double depmax,depmin;
 
     void RS_image_pc_pub_callback();
 
 };
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points& points);
+
+// output order xyzw
+std::vector<double> rotationMatrixToQuaternion(const std::vector<double> & matrix);
+// output order xyzw
+std::vector<double> rotationMatrixToQuaternion(const float matrix[9]);
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr filterDepthRange(
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& input_cloud,
+    float depmin,
+    float depmax);
 
 }// Engineering_robot_RM2025_Pnx
