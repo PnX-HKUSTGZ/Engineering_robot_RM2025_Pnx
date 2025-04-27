@@ -67,7 +67,7 @@ class CameraDriver : public rclcpp::Node{
         geometry_msgs::msg::TransformStamped to_map;
 
         try{
-            to_map.header.frame_id="map";
+            to_map.header.frame_id="robot_base";
             to_map.child_frame_id="sensor/camera";
             to_map.header.stamp=this->now();
             to_map.transform.rotation.w=config["object_pos"]["camera"]["rotate"]["w"].as<double>();

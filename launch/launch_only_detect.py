@@ -13,6 +13,7 @@ import launch_ros.descriptions
 def generate_launch_description():
 
     Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
+    topicconfig=os.path.join(get_package_share_directory("target_redeem_box"),"config","config.yaml")
     all = launch_ros.actions.ComposableNodeContainer(
         name="Engineering_robot_RM2025_Pnx_detect",
         namespace="",
@@ -23,7 +24,7 @@ def generate_launch_description():
                 package="target_redeem_box",
                 plugin='Engineering_robot_RM2025_Pnx::RedeemBox_detector',
                 name='RedeemBox_detector',
-                parameters=[Path],
+                parameters=[Path,topicconfig],
             )
         ],
         output="screen"

@@ -4,6 +4,6 @@
     depth_hight: 720
     depmin: 0.2
     depmax: 2.
-    EXPOSURE: 100.
-    GAIN: 4.
+    EXPOSURE: 166.
+    GAIN: 10.
     BRIGHTNESS: 1.

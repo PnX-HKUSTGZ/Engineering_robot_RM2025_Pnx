@@ -113,7 +113,7 @@ namespace Engineering_robot_RM2025_Pnx{
         depth_to_center_msg.header.frame_id="sensor/RealSense";
         depth_to_center_msg.child_frame_id="sensor/RealSense/depth";
         depth_to_center_msg.header.stamp=this->now();
-        depth_to_center_msg.transform.translation.x=0.02;
+        depth_to_center_msg.transform.translation.x=-0.02;
         depth_to_center_msg.transform.translation.y=-1.1*1e-3;
         depth_to_center_msg.transform.translation.z=0;
         depth_to_center_msg.transform.rotation.x=0.7071068;
@@ -124,7 +124,7 @@ namespace Engineering_robot_RM2025_Pnx{
         image_to_center_msg.header.frame_id="sensor/RealSense";
         image_to_center_msg.child_frame_id="sensor/RealSense/image";
         image_to_center_msg.header.stamp=this->now();
-        image_to_center_msg.transform.translation.x=-0.02;
+        image_to_center_msg.transform.translation.x=-0.035;
         image_to_center_msg.transform.translation.y=-1.1*1e-3;
         image_to_center_msg.transform.translation.z=0;
         image_to_center_msg.transform.rotation.x=0.7071068;

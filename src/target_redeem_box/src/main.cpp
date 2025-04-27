@@ -342,9 +342,8 @@ void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 
-    cv::Mat image;
     try{
-        image=std::move(cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8)->image);
+        OriginalImage=std::move(cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8)->image);
     }
     catch(cv_bridge::Exception& e){
         RCLCPP_ERROR(this->get_logger(),"ImageClinentHandle : cv_bridge exception : %s",e.what());
@@ -352,7 +351,6 @@ void RedeemBox_detector::GetImage(const sensor_msgs::msg::Image::SharedPtr msg){
         return;
     }
 
-    // cv::undistort(image,OriginalImage,cameraMatrixMat,distCoeffs);
     OriginalImage_mutex.unlock();
 }
 
@@ -430,27 +428,20 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
 
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
     
-    if(!this->has_parameter("CloudPointTopic")){
-        this->declare_parameter<std::string>("CloudPointTopic","sensor/RealSense/point_cloud");
-        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense/point_cloud");
-    }
-    if(!this->has_parameter("ImageTopic")){
-        this->declare_parameter<std::string>("ImageTopic","sensor/RealSense/image");
-        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense/image");
-    }
-    if(!this->has_parameter("CloudPointFrame")){
-        this->declare_parameter<std::string>("CloudPointFrame","sensor/RealSense");
-        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense");
-    }
-    if(!this->has_parameter("ImageFrame")){
-        this->declare_parameter<std::string>("ImageFrame","sensor/RealSense");
-        RCLCPP_WARN(this->get_logger(),"CloudPointTopic dosen't declare! use default value sensor/RealSense");
-    }
+    this->declare_parameter<std::string>("CloudPointTopic","sensor/RealSense/point_cloud");
+    this->declare_parameter<std::string>("ImageTopic","sensor/RealSense/image");
+    this->declare_parameter<std::string>("CloudPointFrame","sensor/RealSense/depth");
+    this->declare_parameter<std::string>("ImageFrame","sensor/RealSense/image");
 
     CloudPointTopic=this->get_parameter("CloudPointTopic").as_string();
     ImageTopic=this->get_parameter("ImageTopic").as_string();
     CloudPointFrame=this->get_parameter("CloudPointFrame").as_string();
     ImageFrame=this->get_parameter("ImageFrame").as_string();
+
+    RCLCPP_INFO_STREAM(this->get_logger(),"CloudPointTopic : "<<CloudPointTopic);
+    RCLCPP_INFO_STREAM(this->get_logger(),"ImageTopic : "<<ImageTopic);
+    RCLCPP_INFO_STREAM(this->get_logger(),"CloudPointFrame : "<<CloudPointFrame);
+    RCLCPP_INFO_STREAM(this->get_logger(),"ImageFrame : "<<ImageFrame);
 
     tf2_buffer_=std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf2_listener_=std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_,this);
@@ -629,6 +620,7 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
         ImageProcessorThread=std::thread([this](){
             while(1){
                 CallDetectorFunctions();
+                std::this_thread::sleep_for(10ms);
                 if(!rclcpp::ok()){
                     rclcpp::shutdown();
                 }

@@ -1,5 +1,6 @@
-ros__parameters:
-  CloudPointTopic: "sensor/RealSense/point_cloud"
-  ImageTopic: "sensor/RealSense/image"
-  CloudPointFrame: "sensor/RealSense/depth"
-  ImageFrame: "sensor/RealSense/image"
+RedeemBox_detector:
+  ros__parameters:
+    CloudPointTopic: "sensor/RealSense/point_cloud"
+    ImageTopic: "/sensor/camera/images"
+    CloudPointFrame: "sensor/RealSense/depth"
+    ImageFrame: "sensor/camera"
