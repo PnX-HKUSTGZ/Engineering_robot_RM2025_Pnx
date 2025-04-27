@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <iostream>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/duration.hpp>
@@ -78,11 +79,16 @@ private:
     int depth_hight;
     // for the filter for pointcloud , unit: m
     double depmax,depmin;
+    double EXPOSURE;
+    double GAIN;
+    double BRIGHTNESS;
 
     void RS_pc_pub_callback();
     void RS_image_pub_callback();
+    void LoadParams();
 
 };
+
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points& points);
 
@@ -95,6 +101,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr filterDepthRange(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr& input_cloud,
     float depmin,
     float depmax);
+
+std::ostream& operator<<(std::ostream& os, const rs2::option_range& range);
 
 }// Engineering_robot_RM2025_Pnx
 

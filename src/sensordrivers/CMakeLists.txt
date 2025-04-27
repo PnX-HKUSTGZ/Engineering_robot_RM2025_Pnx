@@ -75,18 +75,6 @@ target_link_libraries(mid360_driver
   yaml-cpp::yaml-cpp
   )
 
-install(TARGETS 
-  mid360_driver
-  DESTINATION lib/${PROJECT_NAME})
-
-install(DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(DIRECTORY config
-  DESTINATION share/${PROJECT_NAME}
-)
-
 add_library(realsense_driver SHARED src/RealSenseDriver.cpp)
 
 ament_target_dependencies(realsense_driver 
@@ -116,6 +104,14 @@ install(TARGETS realsense_driver
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
 )
+
+install(TARGETS 
+  mid360_driver
+  DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

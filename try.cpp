@@ -1,193 +1,147 @@
-#include "detector.hpp"
+#include <librealsense2/rs2.hpp>
+#include <iostream>
+#include <thread> // For std::this_thread::sleep_for
+#include <chrono> // For std::chrono::seconds
+#include <limits> // For std::numeric_limits
 
-/*
-由于没有相机，所以没有对于画面的畸变矫正
+int main() {
+    rs2::pipeline p;
+    rs2::config cfg;
 
-这里完成了通道分离，二值化
+    // 配置您需要的流 (例如，深度和彩色流)
+    // 确保选择支持的分辨率和帧率
+    int width = 640;
+    int height = 480;
+    int fps = 30;
 
-注意坑在于 split mixChannels merge 函数
-*/
-cv::Mat preprocess_image_exchange(const cv::Mat& image){
-    Splited_images channels;
-    Mat image_binary;
-    //通道顺序为 BGR
-    cv::split(image,channels);
-    Mat image_BR(channels[0].size(),channels[0].type());
+    cfg.enable_stream(RS2_STREAM_DEPTH, width, height, RS2_FORMAT_Z16, fps);
+    cfg.enable_stream(RS2_STREAM_COLOR, width, height, RS2_FORMAT_YUY2, fps); // 或 RS2_FORMAT_BGR8 等，取决于您的需求和支持
 
-    const vector<int> from_to={
-        0,0,
-        1,0
-    };
+    try {
+        // 启动流水线
+        rs2::pipeline_profile profile = p.start(cfg);
+        std::cout << "流水线已启动，配置成功。" << std::endl;
 
-    cv::mixChannels(vector<cv::Mat>{channels[0],channels[2]},vector<cv::Mat>{image_BR},from_to);
+        // --- 获取传感器对象 ---
+        rs2::device dev = profile.get_device();
+        rs2::depth_sensor depth_sensor = dev.first<rs2::depth_sensor>();
+        rs2::color_sensor color_sensor = dev.first<rs2::color_sensor>();
 
-    cv::threshold(image_BR,image_binary,100,200,cv::THRESH_BINARY);
+        std::cout << "\n获取到传感器对象。" << std::endl;
 
-    // std::cout<<image_BR.channels()<<std::endl;
+        // --- 设置深度传感器的固定曝光 ---
+        std::cout << "\n--- 设置深度传感器固定曝光 ---" << std::endl;
 
-    // cv::namedWindow("1");
-    // cv::namedWindow("2");
-    // cv::namedWindow("3");
-    // cv::imshow("1",image);
-    // cv::imshow("2",image_BR);
-    // cv::imshow("3",image_binary);
-    // cv::waitKey(0);
-    return  image_binary;
-}
+        // 1. 禁用自动曝光
+        if (depth_sensor.supports(RS2_OPTION_AUTO_EXPOSURE_ENABLED)) {
+            std::cout << "深度传感器支持 RS2_OPTION_AUTO_EXPOSURE_ENABLED。" << std::endl;
+            depth_sensor.set_option(RS2_OPTION_AUTO_EXPOSURE_ENABLED, 0.0f); // 0.0 表示禁用自动曝光
+            std::cout << "  深度传感器自动曝光已禁用。" << std::endl;
 
-bool find_front_exchange_slot(const Mat& image_pre,Mat& image){
-    Counters counter_1,counter_2,counter_3;
-    vector<cv::RotatedRect> counter_3rects;
-    vector<int> counter_size;
-    cv::findContours(image_pre,counter_1,cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
-    Counter result;
-    cv::RotatedRect rect;
-    cv::Size2f siz;
-    // cv::drawContours(image,counter_1,-1,blue,5);
-    // cv::imshow("1",image);
-    // cv::waitKey(0);
-    for(const Counter &counter : counter_1){
-        // auto I=image.clone();
-        // cv::drawContours(I,Counters{counter},-1,blue,5);
-        // cv::imshow("1",I);
-        // cv::waitKey(0);
-        //这里的epsilon的值是没有确定的，要看之后怎么调；
-        cv::approxPolyDP(counter,result,10,1);
-        rect=cv::minAreaRect(counter);
-        siz=rect.size;
-        int pixel_num=cv::contourArea(counter);
-        //参数全部等待确定，和相机与工作距离有关
-        bool height_to_width=(siz.width>eps)&&(siz.height>eps)&&(siz.height/siz.width<4.5 && siz.width/siz.height<4.5);
-        // bool siz_counter=1;
-        bool siz_counter=(pixel_num>400 && pixel_num<6000);
-        bool approxPolyDP_counters=(result.size()>=4 && result.size()<9);
-        if(height_to_width&&siz_counter&&approxPolyDP_counters) counter_2.push_back(counter),counter_size.push_back(pixel_num),cout<<1<<endl;
-        else counter_3.push_back(counter),counter_3rects.push_back(rect);
-    }
-    sort(counter_size.begin(),counter_size.end());
-    if(counter_2.size()!=4||(counter_size[0]*10<=counter_size[3])) return 0;
-    //找到了四个角
-
-    // cv::drawContours(image,counter_2,-1,blue,5);
-    // cv::imshow("1",image);
-    // cv::waitKey(0);
-
-    Circles circles(4);
-    Counters trangles(4);
-    Counter rectangle;
-    cv::Point2f center;
-    vector<float> angles;
-
-    for(int i=0;i<4;i++){
-        vector<cv::Point2f> add;
-        for(int e=i-1;e<i+2;e++){
-            //vector中的⻆点顺序永远为逆时针顺序
-            for(const auto& point : counter_2[(e+4)%4]) add.push_back(point);
-        }
-        cv::minEnclosingCircle(add,circles[i].center,circles[i].radius);
-        cv::minEnclosingTriangle(add,trangles[i]);
-
-        // Mat Image=image.clone();
-        // cv::drawContours(Image,Counters{trangles[i]},-1,blue,5);
-        // cv::imshow("1",Image);
-        // cv::waitKey(0);
-    }
-
-    for(auto & i: circles) center+=i.center;
-    center/=4;
-
-    // cv::circle(image,center,3,blue,-3);
-    // cv::imshow("1",image);
-    // cv::waitKey(0);
-    
-    for(const auto& trangle:trangles){
-        // Mat Image=image.clone();
-        // cv::drawContours(Image,Counters{trangle},-1,blue,5);
-        // cv::imshow("1",Image);
-        // cv::waitKey(0);
-        bool get_across=0;
-        angles=get_trangle_angle(trangle);
-        for(int i=0;i<3;i++){
-            if(angles[i]>=130){
-                rectangle.push_back(trangle[i]);
-                get_across=1;
-                break;
+            // 禁用自动曝光后，通常自动增益也会被禁用或忽略。
+            // 如果您需要显式控制增益，也可以设置 RS2_OPTION_GAIN。
+            // 检查并设置增益 (可选，但推荐固定)
+             if (depth_sensor.supports(RS2_OPTION_GAIN)) {
+                rs2::option_range gain_range = depth_sensor.get_option_range(RS2_OPTION_GAIN);
+                float desired_gain = std::min((float)32.0f, gain_range.max); // 选择一个合适的增益值，例如 32
+                if (desired_gain >= gain_range.min && desired_gain <= gain_range.max) {
+                    depth_sensor.set_option(RS2_OPTION_GAIN, desired_gain);
+                    std::cout << "  深度传感器手动增益设置为: " << depth_sensor.get_option(RS2_OPTION_GAIN) << std::endl;
+                } else {
+                    std::cerr << "  请求的深度传感器增益值 " << desired_gain << " 超出范围。" << std::endl;
+                }
             }
-        }
-        if(get_across) continue;
 
-        float minn=1e9;int index=-1;
-        for(int i=0;i<3;i++){
-            // cv::circle(Image,trangle[i],3,green,-3);
-            // cv::imshow("1",Image);
-            // cv::waitKey(0);
-            //判断逻辑还要改一下，不太清楚
-            float dis=distanceBetweenPoint(trangle[i],center);
-            if(dis<=minn) minn=dis,index=i;
+
+            // 2. 设置手动曝光时间
+            if (depth_sensor.supports(RS2_OPTION_EXPOSURE)) {
+                rs2::option_range exposure_range = depth_sensor.get_option_range(RS2_OPTION_EXPOSURE);
+                // 曝光时间单位是微秒 (µs)
+                // 数据手册 Table 4-21 中的值描述为 ms，但在 SDK 中通常是 µs，请以 get_option_range 的范围为准
+                // 例如，设置 10 毫秒 = 10000 微秒
+                float desired_exposure_us = 10000.0f;
+
+                if (desired_exposure_us >= exposure_range.min && desired_exposure_us <= exposure_range.max) {
+                    depth_sensor.set_option(RS2_OPTION_EXPOSURE, desired_exposure_us);
+                    std::cout << "  深度传感器手动曝光设置为: " << depth_sensor.get_option(RS2_OPTION_EXPOSURE) << " 微秒" << std::endl;
+                } else {
+                    std::cerr << "  请求的深度传感器曝光值 " << desired_exposure_us << " 微秒超出范围 ["
+                              << exposure_range.min << ", " << exposure_range.max << "]." << std::endl;
+                }
+            } else {
+                 std::cerr << "深度传感器不支持 RS2_OPTION_EXPOSURE 选项。" << std::endl;
+            }
+
+        } else {
+            std::cerr << "深度传感器不支持 RS2_OPTION_AUTO_EXPOSURE_ENABLED 选项，可能无法禁用自动曝光。" << std::endl;
         }
-        rectangle.push_back(trangle[index]);
+
+
+        // --- 设置彩色传感器的固定曝光 ---
+        std::cout << "\n--- 设置彩色传感器固定曝光 ---" << std::endl;
+
+        // 1. 禁用自动曝光
+        if (color_sensor.supports(RS2_OPTION_AUTO_EXPOSURE_ENABLED)) {
+            std::cout << "彩色传感器支持 RS2_OPTION_AUTO_EXPOSURE_ENABLED。" << std::endl;
+            color_sensor.set_option(RS2_OPTION_AUTO_EXPOSURE_ENABLED, 0.0f); // 0.0 表示禁用自动曝光
+            std::cout << "  彩色传感器自动曝光已禁用。" << std::endl;
+
+            // 如果禁用自动曝光，通常自动增益和自动白平衡也会被禁用或忽略。
+            // 如果需要显式控制增益和白平衡，可以设置 RS2_OPTION_GAIN, RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE 等。
+             // 检查并设置增益 (可选，但推荐固定)
+            if (color_sensor.supports(RS2_OPTION_GAIN)) {
+                rs2::option_range gain_range = color_sensor.get_option_range(RS2_OPTION_GAIN);
+                float desired_gain = std::min((float)64.0f, gain_range.max); // 选择一个合适的增益值，例如 64
+                 if (desired_gain >= gain_range.min && desired_gain <= gain_range.max) {
+                    color_sensor.set_option(RS2_OPTION_GAIN, desired_gain);
+                    std::cout << "  彩色传感器手动增益设置为: " << color_sensor.get_option(RS2_OPTION_GAIN) << std::endl;
+                } else {
+                     std::cerr << "  请求的彩色传感器增益值 " << desired_gain << " 超出范围。" << std::endl;
+                }
+            }
+
+            // 2. 设置手动曝光时间
+            if (color_sensor.supports(RS2_OPTION_EXPOSURE)) {
+                rs2::option_range exposure_range = color_sensor.get_option_range(RS2_OPTION_EXPOSURE);
+                 // 曝光时间单位是微秒 (µs)
+                // 数据手册 Table 4-22 说范围是 1 到 10000 (无单位)，这很可能是微秒
+                // 例如，设置 5 毫秒 = 5000 微秒
+                float desired_exposure_us = 5000.0f;
+
+                if (desired_exposure_us >= exposure_range.min && desired_exposure_us <= exposure_range.max) {
+                    color_sensor.set_option(RS2_OPTION_EXPOSURE, desired_exposure_us);
+                    std::cout << "  彩色传感器手动曝光设置为: " << color_sensor.get_option(RS2_OPTION_EXPOSURE) << " 微秒" << std::endl;
+                } else {
+                    std::cerr << "  请求的彩色传感器曝光值 " << desired_exposure_us << " 微秒超出范围 ["
+                              << exposure_range.min << ", " << exposure_range.max << "]." << std::endl;
+                }
+            } else {
+                 std::cerr << "彩色传感器不支持 RS2_OPTION_EXPOSURE 选项。" << std::endl;
+            }
+
+        } else {
+             std::cerr << "彩色传感器不支持 RS2_OPTION_AUTO_EXPOSURE_ENABLED 选项，可能无法禁用自动曝光。" << std::endl;
+        }
+
+
+        // 让流水线运行一段时间，以便新的曝光设置生效并捕获帧进行观察 (可选)
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        // 在这里可以进入帧获取循环，使用 p.wait_for_frames() 获取帧并进行处理
+        // 在固定曝光下，图像的亮度应该保持一致 (除非场景光照变化很大)
+        // 每次获取帧时，曝光和增益会保持您设置的手动值
+
+        // 停止流水线
+        p.stop();
+        std::cout << "\n流水线已停止。" << std::endl;
+
+    } catch (const rs2::error & e) {
+        std::cerr << "RealSense 错误: " << e.what() << std::endl;
+        return 1;
+    } catch (const std::exception& e) {
+        std::cerr << "通用错误: " << e.what() << std::endl;
+        return 1;
     }
 
-    // cv::drawContours(image,Counters{rectangle},-1,blue,5);
-    // cv::imshow("1",image);
-    // cv::waitKey(0);
-
-    //找完了四个角，开始排序
-
-    // Counters small_rects;
-    // int index_0;
-
-    // for(int i=counter_3.size()-1;i>=0;i--){
-    //     double siz_counter=cv::contourArea(counter_3[i]),siz_rect=counter_3rects[i].size.area();
-    //     bool siz_factor=siz_counter>=50&&siz_counter<=200;
-    //     bool siz_counter_to_siz_rect=siz_rect<=siz_counter*1.2;
-    //     bool width_to_height=counter_3rects[i].size.height/counter_3rects[i].size.width<=2&&counter_3rects[i].size.width/counter_3rects[i].size.height<=2;
-    //     if(siz_factor&&siz_counter_to_siz_rect&&width_to_height){
-    //         small_rects.push_back(counter_3[i]);
-    //     }
-    // }
-
-    // if(small_rects.empty()){
-    //     for(auto & i : )
-    // }
-
-    //这里使用的是识别一个特殊的角来确定方向
-
-    std::sort(rectangle.begin(),rectangle.end(),[&center](const cv::Point &x1,const cv::Point &x2){
-        float angle1=angleBetweenVectors(cv::Point2f(1,0),cv::Point2f(x1)-center);
-        float angle2=angleBetweenVectors(cv::Point2f(1,0),cv::Point2f(x2)-center);
-        if(x1.y>=center.y) angle1=360-angle1;
-        if(x2.y>=center.y) angle2=360-angle2;
-        return angle1<angle2;
-    });
-    // 这个是按照顺时针存的，第一个角是当前图片中最左上角
-    cv::drawContours(image,Counters{rectangle},-1,blue,5);
-    cv::imshow("1",image);
-    cv::waitKey(0);
-    
-    return 1;
-}
-
-void process_image_front(cv::Mat& image){
-    cv::Mat image_binary=preprocess_image_exchange(image);
-    find_front_exchange_slot(image_binary,image);
-}
-
-float angleBetweenVectors(const cv::Point2f& v1, const cv::Point2f& v2) {
-    float cosAngle = v1.dot(v2) / (cv::norm(v1) * cv::norm(v2));
-    return std::acos(cosAngle); // 返回的是弧度值
-}
-
-float distanceBetweenPoint(const cv::Point2f& v1, const cv::Point2f& v2){
-    return sqrt((v1.x-v2.x)*(v1.x-v2.x)+(v1.y-v2.y)*(v1.y-v2.y));
-}
-
-vector<float> get_trangle_angle(const Counter& trangle){
-    //存对边
-    vector<float> angles;
-    if(trangle.size()!=3){std::cerr<<"the trangle.size() is not 3\n";exit(0);}
-    for(int i=0;i<3;i++){
-        angles.push_back(angleBetweenVectors(trangle[(i+1)%3]-trangle[i],trangle[(i+2)%3]-trangle[i])*180.0/CV_PI);
-    }
-    return angles;
+    return 0;
 }

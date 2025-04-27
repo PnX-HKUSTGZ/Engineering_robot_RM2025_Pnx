@@ -4,35 +4,13 @@ namespace Engineering_robot_RM2025_Pnx{
 
     RealSense::RealSense(rclcpp::NodeOptions options):
         rclcpp::Node("RealSenseDriver",options){
-
-        this->declare_parameter<bool>("USE_VITURAL_POSE",true);
-        if(!this->has_parameter("depth_wight")){
-            RCLCPP_WARN(this->get_logger(),"not set depth_wight, use default 1280");
-            this->declare_parameter<int>("depth_wight",1280);
-        }
-        if(!this->has_parameter("depth_hight")){
-            RCLCPP_WARN(this->get_logger(),"not set depth_hight, use default 720");
-            this->declare_parameter<int>("depth_hight",720);
-        }
-        if(!this->has_parameter("depmin")){
-            RCLCPP_WARN(this->get_logger(),"not set depmin, use default 0.2");
-            this->declare_parameter<double>("depmin",0.2);
-        }
-        if(!this->has_parameter("depmax")){
-            RCLCPP_WARN(this->get_logger(),"not set depmax, use default 2");
-            this->declare_parameter<double>("depmax",2);
-        }
-        depth_wight=this->get_parameter("depth_wight").as_int();
-        depth_hight=this->get_parameter("depth_hight").as_int();
-        depmax=this->get_parameter("depmax").as_double();
-        depmin=this->get_parameter("depmin").as_double();
+        LoadParams();
 
         image_pub_=this->create_publisher<sensor_msgs::msg::Image>("sensor/RealSense/image",10);
         RCLCPP_INFO(this->get_logger(),"pc_pub_ image_pub_ ok !");
 
         pc_pub_=this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor/RealSense/point_cloud",10);
         RCLCPP_INFO(this->get_logger(),"pc_pub_ init ok !");
-
 
         geometry_msgs::msg::TransformStamped image_to_center_msg;
         geometry_msgs::msg::TransformStamped depth_to_center_msg;
@@ -62,13 +40,13 @@ namespace Engineering_robot_RM2025_Pnx{
                 if (p.stream_type() == RS2_STREAM_DEPTH) {
                     depth_profile = p;
                     depth_profile_ok=1;
-                    if(auto pf=p.as<rs2::video_stream_profile>()){
-                        RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
-                    }
+                    // if(auto pf=p.as<rs2::video_stream_profile>()){
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
+                    // }
                 }
             }
     
@@ -78,29 +56,38 @@ namespace Engineering_robot_RM2025_Pnx{
                 if (p.stream_type() == RS2_STREAM_COLOR){
                     color_profile = p;
                     color_profile_ok=1;
-                    if(auto pf=p.as<rs2::video_stream_profile>()){
-                        RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
-                        RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
-                    }
+                    // if(auto pf=p.as<rs2::video_stream_profile>()){
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
+                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
+                    // }
                 }
 
             }
-    
-            if (!depth_profile_ok || !color_profile_ok) {
-                RCLCPP_FATAL(this->get_logger(),"fail to find the depth or color profile");
-            }
+
+            // get_config
+            auto camera_config=pipline_profile_image.get_device().first<rs2::color_sensor>();
+
+            RCLCPP_INFO_STREAM(this->get_logger(),"EXPOSURE TIME range"<<camera_config.get_option_range(RS2_OPTION_EXPOSURE));
+            RCLCPP_INFO_STREAM(this->get_logger(),"GAIN range"<<camera_config.get_option_range(RS2_OPTION_GAIN));
+            RCLCPP_INFO_STREAM(this->get_logger(),"BRIGHTNESS range"<<camera_config.get_option_range(RS2_OPTION_BRIGHTNESS));
+            
+            camera_config.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE,0.0f); // DISABLE_AUTO_EXPOSURE
+            camera_config.set_option(RS2_OPTION_EXPOSURE,EXPOSURE);
+            camera_config.set_option(RS2_OPTION_GAIN,GAIN);
+            camera_config.set_option(RS2_OPTION_BRIGHTNESS,BRIGHTNESS);
+            
+            RCLCPP_INFO_STREAM(this->get_logger(),"set EXPOSURE TIME "<<camera_config.get_option(RS2_OPTION_EXPOSURE));
+            RCLCPP_INFO_STREAM(this->get_logger(),"set GAIN "<<camera_config.get_option(RS2_OPTION_GAIN));
+            RCLCPP_INFO_STREAM(this->get_logger(),"set BRIGHTNESS "<<camera_config.get_option(RS2_OPTION_BRIGHTNESS));
+
         }
         catch(const std::exception & e){
             RCLCPP_FATAL(this->get_logger(),"pipe launch fail with %s",e.what());
             rclcpp::shutdown();
         }
-
-        // set camera param
-
-
 
         tf2_static_pub_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
         RCLCPP_INFO(this->get_logger(),"static_tf2 init ok !");
@@ -218,6 +205,25 @@ namespace Engineering_robot_RM2025_Pnx{
 
     }
 
+    void RealSense::LoadParams(){
+        this->declare_parameter<bool>("USE_VITURAL_POSE",true);
+        this->declare_parameter<int>("depth_wight",1280);
+        this->declare_parameter<int>("depth_hight",720);
+        this->declare_parameter<double>("depmin",0.2);
+        this->declare_parameter<double>("depmax",2);
+        this->declare_parameter<double>("EXPOSURE",166);
+        this->declare_parameter<double>("GAIN",10);
+        this->declare_parameter<double>("BRIGHTNESS",0);
+
+        depth_wight=this->get_parameter("depth_wight").as_int();
+        depth_hight=this->get_parameter("depth_hight").as_int();
+        depmax=this->get_parameter("depmax").as_double();
+        depmin=this->get_parameter("depmin").as_double();
+        EXPOSURE=this->get_parameter("EXPOSURE").as_double();
+        GAIN=this->get_parameter("GAIN").as_double();
+        BRIGHTNESS=this->get_parameter("BRIGHTNESS").as_double();
+    }
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points& points){
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -328,6 +334,27 @@ namespace Engineering_robot_RM2025_Pnx{
         return filtered_cloud;
     }
 
+    std::ostream& operator<<(std::ostream& os, const rs2::option_range& range) {
+        // 保存当前的流格式，以便在函数结束后恢复
+        std::ios_base::fmtflags flags = os.flags();
+        std::streamsize precision = os.precision();
+    
+        // 设置浮点数输出格式，例如固定小数点并设置精度
+        os << std::fixed << std::setprecision(4); // 您可以根据需要调整精度
+    
+        // 将 option_range 的信息写入流
+        os << "[min: " << range.min
+           << ", max: " << range.max
+           << ", step: " << range.step
+           << ", default: " << range.def << "]";
+    
+        // 恢复原始的流格式
+        os.flags(flags);
+        os.precision(precision);
+    
+        // 返回流的引用，以便可以链式调用
+        return os;
+    }
 
 }// Engineering_robot_RM2025_Pnx
 

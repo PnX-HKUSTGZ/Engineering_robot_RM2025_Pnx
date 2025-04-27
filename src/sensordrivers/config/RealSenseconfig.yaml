@@ -1,2 +1,9 @@
-ros__parameters:
-  
+/RealSenseDriver:
+  ros__parameters:
+    depth_wight: 1280
+    depth_hight: 720
+    depmin: 0.2
+    depmax: 2.
+    EXPOSURE: 100.
+    GAIN: 4.
+    BRIGHTNESS: 1.
