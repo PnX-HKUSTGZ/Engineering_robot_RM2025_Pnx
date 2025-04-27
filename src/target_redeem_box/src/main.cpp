@@ -391,44 +391,23 @@ void RedeemBox_detector::CloudSubManage(const sensor_msgs::msg::PointCloud2::Con
     tf2::doTransform(*cloud_msg,TransformedCloudPoint,transform);
     pcl::fromROSMsg(TransformedCloudPoint,InputCloud);
 
-    InTimeCloudUpdate();
+    // InTimeCloudUpdate();
 
     Cloudmtx.lock();
 
-    for(auto &point :InputCloud){
-        InTimeCloud.push_back(point);
-    }
-    InTimeCloud.width=InTimeCloud.size();
-    InTimeCloud.height=1;
-    InTimeCloud.is_dense=true;
-    CloudTimeStamp.push(tmp);
+    // for(auto &point :InputCloud){
+    //     InTimeCloud.push_back(point);
+    // }
+    // InTimeCloud.width=InTimeCloud.size();
+    // InTimeCloud.height=1;
+    // InTimeCloud.is_dense=true;
+    // CloudTimeStamp.push(tmp);
+    InTimeCloud = std::move(InputCloud);
 
     # ifdef test_pointcloud_main_log
 
-    RCLCPP_INFO(this->get_logger(),"[CloudSubManage] : add point cloud %d , now point cloud size %d", 
-        InputCloud.size(), 
+    RCLCPP_INFO(this->get_logger(),"[CloudSubManage] : now point cloud size %d", 
         InTimeCloud.size());
-
-    // PCL可视化 - 更安全的实现方式
-    // try {
-    //     static bool viewer_initialized = false;
-    //     static pcl::visualization::PCLVisualizer::Ptr viewer;
-        
-    //     if(!viewer_initialized) {
-    //         viewer.reset(new pcl::visualization::PCLVisualizer("3D Viewer"));
-    //         viewer->setBackgroundColor(0, 0, 0);
-    //         viewer_initialized = true;
-    //     }
-        
-    //     if(!viewer->wasStopped()) {
-    //         viewer->removeAllPointClouds();
-    //         viewer->addPointCloud<pcl::PointXYZ>(InputCloud.makeShared(), "input_cloud");
-    //         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "input_cloud");
-    //         viewer->spinOnce(10);
-    //     }
-    // } catch (const std::exception& e) {
-    //     RCLCPP_ERROR(this->get_logger(), "PCL Visualization error: %s", e.what());
-    // }
 
     #endif
 

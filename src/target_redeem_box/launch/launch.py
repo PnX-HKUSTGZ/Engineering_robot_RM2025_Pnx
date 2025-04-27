@@ -9,7 +9,7 @@ from launch.actions import DeclareLaunchArgument
 
 def generate_launch_description():
     config_file=os.path.join(
-    get_package_share_directory('detect_arrow'),'config','ArrowDetectorConfig.yaml')
+    get_package_share_directory('detect_arrow'),'config','config.yaml')
 
     return LaunchDescription([
         DeclareLaunchArgument('config_file', default_value=config_file,description='Path to config file'),
