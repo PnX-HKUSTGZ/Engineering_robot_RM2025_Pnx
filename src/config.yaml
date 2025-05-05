@@ -3,11 +3,11 @@
 camera:
   height: 1080
   width: 1920
-  dist_coeffs: [-0.07807535960667517, 0.4561398877981337, 0.001014173252333453, 0.001055173981673902, -0.7555189787815824]
-  camera_matrix: [2384.568667818371, 0, 719.5006984838791 , 0, 2384.999951098244, 574.2751687415551, 0.0, 0.0, 1.0]
+  dist_coeffs: [-0.1311527961012596, -11.53840508696448, -0.01010300330906334, -0.0001000462299694614, 318.9510032044851]
+  camera_matrix: [2385.365282605292, 0, 718.6933378820362 , 0, 2387.169784778189, 566.8953908281001, 0.0, 0.0, 1.0]
   ExposureTimeLower: 10000
   ExposureTimeUpper: 10000
-  Gain: 7.
+  Gain: 10
 
 RealSense:
   
@@ -65,7 +65,7 @@ RedeemBox_detector:
   Parameters:
     arrow_detect:
       ArrowDetectorPixelNumMax: 80000
-      ArrowDetectorPixelNumMin: 5000
+      ArrowDetectorPixelNumMin: 1000
       ArrowDetectorLengthWidthRatioMax: 3
       ArrowDetectorLengthWidthRatioMin: 1.1
       ArrowDetectorApproxSizeMax: 8.
@@ -146,9 +146,9 @@ object_pos:
       z: 0.7071068
   camera: # camera to map
     translation:
-      x: 0.
-      y: 0.
-      z: 0.01443
+      x: -0.0864
+      y: -0.0135
+      z: 0.3567
     rotate:
       w: 0.7071068
       x: -0.7071068

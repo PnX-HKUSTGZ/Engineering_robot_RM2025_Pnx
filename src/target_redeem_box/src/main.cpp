@@ -429,9 +429,9 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
     this->declare_parameter<std::string>("Location","/home/pnx/code/Engineering_robot_RM2025_Pnx/");
     
     this->declare_parameter<std::string>("CloudPointTopic","sensor/RealSense/point_cloud");
-    this->declare_parameter<std::string>("ImageTopic","sensor/RealSense/image");
+    this->declare_parameter<std::string>("ImageTopic","sensor/camera/images");
     this->declare_parameter<std::string>("CloudPointFrame","sensor/RealSense/depth");
-    this->declare_parameter<std::string>("ImageFrame","sensor/RealSense/image");
+    this->declare_parameter<std::string>("ImageFrame","sensor/camera");
 
     CloudPointTopic=this->get_parameter("CloudPointTopic").as_string();
     ImageTopic=this->get_parameter("ImageTopic").as_string();

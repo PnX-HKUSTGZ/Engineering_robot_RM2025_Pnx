@@ -98,12 +98,15 @@ namespace Engineering_robot_RM2025_Pnx{
 
             geometry_msgs::msg::TransformStamped msg;
             msg.header.stamp=this->now();
-            msg.header.frame_id="robot_base";
+            msg.header.frame_id="robot_base_link";
             msg.child_frame_id="sensor/RealSense";
+            msg.transform.translation.x=0.142;
+            msg.transform.translation.y=-0.0135;
+            msg.transform.translation.z=0.3697;
             msg.transform.rotation.w=1;
-            msg.transform.translation.x=0;
-            msg.transform.translation.y=0;
-            msg.transform.translation.z=0;
+            msg.transform.rotation.x=0;
+            msg.transform.rotation.y=0;
+            msg.transform.rotation.z=0;
 
             tf2_static_pub_->sendTransform(msg);
 
