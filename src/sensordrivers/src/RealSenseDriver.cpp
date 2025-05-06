@@ -101,8 +101,8 @@ namespace Engineering_robot_RM2025_Pnx{
             msg.header.frame_id="robot_base_link";
             msg.child_frame_id="sensor/RealSense";
             msg.transform.translation.x=0.142;
-            msg.transform.translation.y=-0.0135;
-            msg.transform.translation.z=0.3697;
+            msg.transform.translation.y=-0.0475;
+            msg.transform.translation.z=0.3632;
             msg.transform.rotation.w=1;
             msg.transform.rotation.x=0;
             msg.transform.rotation.y=0;

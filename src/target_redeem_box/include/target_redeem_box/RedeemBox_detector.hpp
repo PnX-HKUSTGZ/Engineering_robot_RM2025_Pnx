@@ -49,8 +49,8 @@
 #define arrow_draw
 #define Imageshow
 // #define TargetArrowtest
-#define test_pcl_manage
-#define test_pointcloud_main_log
+// #define test_pcl_manage
+// #define test_pointcloud_main_log
 // #define test_LocalCornerOpitimize
 // #define drawFinalres
 #define DetectorRectangle_test

@@ -89,60 +89,60 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         return 1;
     }
 
-    # ifdef test_pcl_manage
+    // # ifdef test_pcl_manage
 
     std::stringstream coefficientsss;
-    coefficientsss<<"A :"<<coefficient(0)<<" ";
-    coefficientsss<<"B :"<<coefficient(1)<<" ";
-    coefficientsss<<"C :"<<coefficient(2)<<" ";
-    coefficientsss<<"D :"<<coefficient(3)<<" ";
+    // coefficientsss<<"A :"<<coefficient(0)<<" ";
+    // coefficientsss<<"B :"<<coefficient(1)<<" ";
+    // coefficientsss<<"C :"<<coefficient(2)<<" ";
+    // coefficientsss<<"D :"<<coefficient(3)<<" ";
 
-    for(auto &i : Points3D){
-        std::stringstream Points3Dsss;
-        Points3Dsss<<"Points3Dsss: "<<i.x<<" "<<i.y<<" "<<i.z;
-        RCLCPP_INFO(this->get_logger(),"%s",Points3Dsss.str().c_str());
-    }
+    // for(auto &i : Points3D){
+    //     std::stringstream Points3Dsss;
+    //     Points3Dsss<<"Points3Dsss: "<<i.x<<" "<<i.y<<" "<<i.z;
+    //     RCLCPP_INFO(this->get_logger(),"%s",Points3Dsss.str().c_str());
+    // }
     RCLCPP_INFO(this->get_logger(),"Points3Dsss end");
 
     RCLCPP_INFO(this->get_logger(),"coefficient %s",coefficientsss.str().c_str());
         
-    std::srand(this->now().nanoseconds()%100000);
-    std::vector<cv::Point3d> RandomTranglePoints;
-    for(int i=0;i<8;i++){
-        double z=-0.0001*i,y=1.25;
-        if(i==0) y=-0.10698 ,z=1.19216;
-        if(i==1) y=-0.107181 ,z=1.13963;
-        if(i==2) y=-0.0200642,z= 0.845218;
-        if(i==3) y=-0.0341553,z= 0.843324;
-        if(i==4) y=-0.201081 ,z=0.820894;
-        if(i==5) y=-0.186004 ,z=0.82292;
-        if(i==6) y=-0.100522 ,z=1.16639;
-        if(i==7) y=-0.113646 ,z=1.16586;
+    // std::srand(this->now().nanoseconds()%100000);
+    // std::vector<cv::Point3d> RandomTranglePoints;
+    // for(int i=0;i<8;i++){
+    //     double z=-0.0001*i,y=1.25;
+    //     if(i==0) y=-0.10698 ,z=1.19216;
+    //     if(i==1) y=-0.107181 ,z=1.13963;
+    //     if(i==2) y=-0.0200642,z= 0.845218;
+    //     if(i==3) y=-0.0341553,z= 0.843324;
+    //     if(i==4) y=-0.201081 ,z=0.820894;
+    //     if(i==5) y=-0.186004 ,z=0.82292;
+    //     if(i==6) y=-0.100522 ,z=1.16639;
+    //     if(i==7) y=-0.113646 ,z=1.16586;
         
         
 
-        double x=CalculatePlantEquality(coefficient,std::vector<double>{double(y),double(z)},0);
+    //     double x=CalculatePlantEquality(coefficient,std::vector<double>{double(y),double(z)},0);
 
-        if(std::isnan(y)) continue;
+    //     if(std::isnan(y)) continue;
 
-        RCLCPP_INFO(this->get_logger(),"Plant3DPoints %lf, %lf, %lf",x,y,z);
-        cv::Point3d inputome=cv::Point3d(x,y,z);
-        RandomTranglePoints.push_back(inputome);
+    //     // RCLCPP_INFO(this->get_logger(),"Plant3DPoints %lf, %lf, %lf",x,y,z);
+    //     cv::Point3d inputome=cv::Point3d(x,y,z);
+    //     RandomTranglePoints.push_back(inputome);
 
-    }
+    // }
 
-    std::vector<cv::Point2d> PlantImagePoints = Points3to2Transform(cameraMatrixEigen,RandomTranglePoints);
+    // std::vector<cv::Point2d> PlantImagePoints = Points3to2Transform(cameraMatrixEigen,RandomTranglePoints);
 
-    for(auto &i : PlantImagePoints){
-        RCLCPP_INFO(this->get_logger(),"PlantImagePoints %lf, %lf",i.x,i.y);
-        cv::circle(OriginalImage_pcl,i,6,cv::Scalar(167,55,90),-1);
-    }
+    // for(auto &i : PlantImagePoints){
+    //     RCLCPP_INFO(this->get_logger(),"PlantImagePoints %lf, %lf",i.x,i.y);
+    //     cv::circle(OriginalImage_pcl,i,6,cv::Scalar(167,55,90),-1);
+    // }
         
-    sensor_msgs::msg::PointCloud2 msg;
-    pcl::toROSMsg<pcl::PointXYZ>(ExtractedPointCloud,msg);
-    msg.header.frame_id=ImageFrame;
-    msg.header.stamp=this->now();
-    pcl_test_point_cloud_pub->publish(msg);
+    // sensor_msgs::msg::PointCloud2 msg;
+    // pcl::toROSMsg<pcl::PointXYZ>(ExtractedPointCloud,msg);
+    // msg.header.frame_id=ImageFrame;
+    // msg.header.stamp=this->now();
+    // pcl_test_point_cloud_pub->publish(msg);
 
     for(auto i : ExtractedPointCloud){
         Eigen::Matrix<double,4,1>  ExtractedPointCloudEigen;
@@ -153,7 +153,7 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
     }
 
 
-    #endif
+    // #endif
 
 
     bool KabschAlgorithmCheck=KabschAlgorithm(objpoints,Points3D,tvec,rvec);
@@ -290,6 +290,14 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     cloudress.push(PnPresult(tvec,rvec,this->now()));
     cloudressMtx.unlock();
     #endif
+
+    DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,40));
+
+    std::stringstream test_pcl_managesss;
+    test_pcl_managesss<<rvec<<"\n"<<tvec;
+    RCLCPP_INFO(this->get_logger(),"test_pcl_managesss : %s",test_pcl_managesss.str().c_str());
+    cv::imshow("OriginalImage_pcl",OriginalImage_pcl);
+    cv::waitKey(1);
 
     # ifdef test_pcl_manage
     DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,40));
