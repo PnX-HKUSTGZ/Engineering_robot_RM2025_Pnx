@@ -14,7 +14,7 @@ RealSense:
 
 RedeemBox_detector:
   LaunchMode:
-    DetectArrow: false
+    DetectArrow: True
     TargetRectangle: false
     PclManage: True
   KeyPoints:
@@ -76,12 +76,12 @@ RedeemBox_detector:
       ArrowDetectorHoughTheta: 0.00436332312998582394230922638889
       ArrowDetectorHoughThreshold: 35.
       ArrowDetectParallelThreshold: 0.523598775598298873077
-      ArrowDetectorThresholdThresh: 100.
+      ArrowDetectorThresholdThresh: 130.
       ArrowDetectorThresholdMaxval: 300.
       ArrowDetectorThresholdThreshold: 5.
       ArrowDetectorIterations: 5.
       ArrowDetectorapproxPolyDPEpsilon: 10.
-      ArrowDetectorLongShortRateMax: 20.
+      ArrowDetectorLongShortRateMax: 25.
       ArrowDetectorLongShortRateMin: 5.
     rectangle_detect:
       DetectRectangleBlockSize: 9
@@ -148,9 +148,9 @@ object_pos:
       z: 0.7071068
   camera: # camera to map
     translation:
-      x: -0.0864
-      y: 0.0165
-      z: 0.3567
+      x: -0.080000000000085
+      y: 0.0121000016614134
+      z: 0.36124073844197
     rotate:
       w: 0.7071068
       x: -0.7071068

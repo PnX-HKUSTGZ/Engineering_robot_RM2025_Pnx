@@ -122,6 +122,12 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         Eigen::Matrix<double,3,1> I=cameraMatrixEigen*signMat*PlanePointCloudEigen;
         I/=I(2);
         cv::circle(OriginalImage_pcl,cv::Point(I(0),I(1)),1,cv::Scalar(130,100,22),-1);
+        for(const auto & e : CornerPoints){
+            if(DistancePoints(cv::Point2f(I(0),I(1)),e)<=CloseThresehold){
+                cv::circle(OriginalImage_pcl,cv::Point(I(0),I(1)),1,cv::Scalar(30,23,122),-1);
+                break;
+            }
+        }
     }
 
     #endif
