@@ -14,7 +14,7 @@ RealSense:
 
 RedeemBox_detector:
   LaunchMode:
-    DetectArrow: True
+    DetectArrow: false
     TargetRectangle: false
     PclManage: True
   KeyPoints:

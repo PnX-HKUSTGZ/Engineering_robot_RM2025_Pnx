@@ -208,10 +208,10 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     cv::Rect boundingCounterBox=cv::boundingRect(CornerPointsf);
 
     //extend Rect
-    boundingCounterBox.x=std::max(0,boundingCounterBox.x-boundingCounterBox.width/2);
-    boundingCounterBox.y=std::max(0,boundingCounterBox.y-boundingCounterBox.height/2);
-    boundingCounterBox.width=std::min(boundingCounterBox.width*2,OriginalImage_pcl.cols-boundingCounterBox.x);
-    boundingCounterBox.height=std::min(boundingCounterBox.height*2,OriginalImage_pcl.rows-boundingCounterBox.y);
+    // boundingCounterBox.x=std::max(0,boundingCounterBox.x-boundingCounterBox.width/2);
+    // boundingCounterBox.y=std::max(0,boundingCounterBox.y-boundingCounterBox.height/2);
+    // boundingCounterBox.width=std::min(boundingCounterBox.width*2,OriginalImage_pcl.cols-boundingCounterBox.x);
+    // boundingCounterBox.height=std::min(boundingCounterBox.height*2,OriginalImage_pcl.rows-boundingCounterBox.y);
 
     pcl::PointCloud<pcl::PointXYZ> PreprocessedCloudPoint;
     std::vector<Eigen::Matrix<double,3,1>> CloudPointImagePoint;
@@ -219,6 +219,7 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     Cloudmtx.lock();
     
     for(auto & i : InTimeCloud){
+        if(i.z>=1.2) continue;
         Eigen::Matrix<double,4,1> cloudpointEigen;
         Eigen::Matrix<double,3,1> imagePoint;
         cloudpointEigen<<i.x, i.y, i.z, 1;
