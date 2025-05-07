@@ -617,4 +617,11 @@ void AppendCounters(const std::vector<std::vector<cv::Point_<T>>> & source,std::
 template void AppendCounters<int>(const std::vector<std::vector<cv::Point_<int>>> & source,std::vector<cv::Point_<int>> & target);
 template void AppendCounters<double>(const std::vector<std::vector<cv::Point_<double>>> & source,std::vector<cv::Point_<double>> & target);
 
+void DrawRect(cv::Mat & Image, const cv::Rect & rect, cv::Scalar color, int thickness){
+    cv::line(Image,cv::Point(rect.x,rect.y),cv::Point(rect.x,rect.y+rect.height),color,thickness);
+    cv::line(Image,cv::Point(rect.x,rect.y),cv::Point(rect.x+rect.width,rect.y),color,thickness);
+    cv::line(Image,cv::Point(rect.x+rect.width,rect.y+rect.height),cv::Point(rect.x,rect.y+rect.height),color,thickness);
+    cv::line(Image,cv::Point(rect.x+rect.width,rect.y+rect.height),cv::Point(rect.x+rect.width,rect.y),color,thickness);
+}
+
 } // namespace 

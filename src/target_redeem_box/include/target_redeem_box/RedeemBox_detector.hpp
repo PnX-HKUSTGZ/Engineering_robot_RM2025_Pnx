@@ -49,7 +49,7 @@
 #define arrow_draw
 #define Imageshow
 // #define TargetArrowtest
-// #define test_pcl_manage
+#define test_pcl_manage
 // #define test_pointcloud_main_log
 // #define test_LocalCornerOpitimize
 // #define drawFinalres
@@ -112,6 +112,17 @@ class CombGenerator{
     //record the place
     std::vector<int> recorder;
     bool update();
+};
+
+struct PlaneData {
+    pcl::ModelCoefficients coefficients; // 平面模型系数 (a, b, c, d for ax + by + cz + d = 0)
+    pcl::PointCloud<pcl::PointXYZ>::Ptr points; // Point cloud containing only points belonging to this plane
+};
+
+struct RoiPointInfo {
+    pcl::PointXYZ point3D;
+    cv::Point2d point2D_proj;
+    int roi_cloud_index; // Index in the PreprocessedCloudPoint cloud
 };
 
 class RedeemBox_detector:public rclcpp::Node{
@@ -299,6 +310,8 @@ private:
 
     double ransacDistanceThreshold;
     int ransacMaxIterations;
+    int ransacMinInliersNum;
+    double CloseThresehold;
 
 private://Rectangle_Detector
     /*
@@ -460,6 +473,27 @@ template<typename T>
 void AppendCounters(const std::vector<std::vector<cv::Point_<T>>> & source,std::vector<cv::Point_<T>> & target);
 
 void DrawTrangle(cv::Mat & Image,Counter2f & CornerPoints,cv::Scalar color,int thickness);
+
+void DrawRect(cv::Mat & Image, const cv::Rect & rect, cv::Scalar color, int thickness);
+
+/**
+ * @brief 将点云分割成多个平面，返回平面模型系数和属于该平面的点云
+ *
+ * 此函数迭代地使用 RANSAC 查找平面，并将找到的平面点从点云中移除，在剩余点中继续查找。
+ *
+ * @param original_cloud 原始输入点云
+ * @param distanceThreshold RANSAC分割的距离阈值
+ * @param minInliersNum 视为有效平面的最小内点数
+ * @param MaxIterations 最大迭代次数
+ * @param logger ros2 logger
+ * @return std::vector<PlaneData> 包含所有找到的平面的信息（系数和点云）
+ */
+std::vector<PlaneData> segmentPlanesWithPoints(
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& original_cloud,
+    double distanceThreshold,
+    int MaxIterations,
+    int minInliersNum,
+    const rclcpp::Logger& logger=rclcpp::get_logger("segmentPlanesWithPoints"));
 
 } // end namespace Engineering_robot_RM2025_Pnx
 

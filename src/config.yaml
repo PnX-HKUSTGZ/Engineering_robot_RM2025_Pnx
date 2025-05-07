@@ -108,6 +108,8 @@ RedeemBox_detector:
     PCLManager:
       ransacDistanceThreshold: 1
       ransacMaxIterations: 1000
+      ransacMinInliersNum: 15
+      CloseThresehold: 15
     Main:
       SyncPubBoxPos:
         queuesiz: 20
