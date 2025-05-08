@@ -10,6 +10,13 @@ camera:
   Gain: 10
 
 RealSense:
+  EXPOSURE: 166
+  GAIN: 10
+  BRIGHTNESS: 0
+  depth_wight: 1280
+  depth_hight: 720
+  depmin: 0.2
+  depmax: 2
   
 
 RedeemBox_detector:
@@ -106,8 +113,8 @@ RedeemBox_detector:
       TargetRectangleSlopeHorizonThreshold: 15
       TargetRectanglePairFourCornersThreshold: 100
     PCLManager:
-      ransacDistanceThreshold: 1
-      ransacMaxIterations: 1000
+      ransacDistanceThreshold: 0.02
+      ransacMaxIterations: 10
       ransacMinInliersNum: 15
       CloseThresehold: 15
     Main:
@@ -179,9 +186,9 @@ object_pos:
   RealSense:
     deep:
       translation:
-        x: 0.0303
+        x: -0.015
         y: 0.0043
-        z: 0.
+        z: -0.016
       rotate:
         w: -0.7071068
         x: 0.7071068
@@ -195,6 +202,16 @@ object_pos:
       rotate:
         w: -0.7071068
         x: 0.7071068
+        y: 0.
+        z: 0.
+    main:
+      translation:
+        x: 0.16999970395237
+        y: -0.033000353576592
+        z: 0.36374073844197
+      rotate:
+        w: 1.0
+        x: 0.
         y: 0.
         z: 0.
   

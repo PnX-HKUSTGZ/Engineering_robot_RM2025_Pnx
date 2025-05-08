@@ -208,10 +208,14 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     cv::Rect boundingCounterBox=cv::boundingRect(CornerPointsf);
 
     //extend Rect
-    // boundingCounterBox.x=std::max(0,boundingCounterBox.x-boundingCounterBox.width/2);
-    // boundingCounterBox.y=std::max(0,boundingCounterBox.y-boundingCounterBox.height/2);
-    // boundingCounterBox.width=std::min(boundingCounterBox.width*2,OriginalImage_pcl.cols-boundingCounterBox.x);
-    // boundingCounterBox.height=std::min(boundingCounterBox.height*2,OriginalImage_pcl.rows-boundingCounterBox.y);
+    boundingCounterBox.x=std::max(0,boundingCounterBox.x-boundingCounterBox.width/2);
+    boundingCounterBox.y=std::max(0,boundingCounterBox.y-boundingCounterBox.height/2);
+    boundingCounterBox.width=std::min(boundingCounterBox.width*2,OriginalImage_pcl.cols-boundingCounterBox.x);
+    boundingCounterBox.height=std::min(boundingCounterBox.height*2,OriginalImage_pcl.rows-boundingCounterBox.y);
+
+    cv::Point2f center;float radius;
+    cv::minEnclosingCircle(CornerPointsf,center,radius);
+    radius*=1.6;
 
     pcl::PointCloud<pcl::PointXYZ> PreprocessedCloudPoint;
     std::vector<Eigen::Matrix<double,3,1>> CloudPointImagePoint;
@@ -228,8 +232,9 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
         if(std::abs(imagePoint(2))<1e-6) continue;
         imagePoint/=imagePoint(2);
 
-        if(boundingCounterBox.x<=imagePoint(0)&&imagePoint(0)<=boundingCounterBox.x+boundingCounterBox.width&&
-            boundingCounterBox.y<=imagePoint(1)&&imagePoint(1)<=boundingCounterBox.y+boundingCounterBox.height
+        // if(boundingCounterBox.x<=imagePoint(0)&&imagePoint(0)<=boundingCounterBox.x+boundingCounterBox.width&&
+        //     boundingCounterBox.y<=imagePoint(1)&&imagePoint(1)<=boundingCounterBox.y+boundingCounterBox.height
+        if(inCircle(center,radius,imagePoint)
             ){
                 PreprocessedCloudPoint.push_back(i);
                 CloudPointImagePoint.push_back(std::move(imagePoint));
@@ -246,6 +251,8 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     }
 
     DrawRect(OriginalImage_pcl,boundingCounterBox,cv::Scalar(102,32,210),1);
+
+    cv::circle(OriginalImage_pcl,cv::Point(center.x,center.y),radius,cv::Scalar(102,32,210));
     
 
     # endif

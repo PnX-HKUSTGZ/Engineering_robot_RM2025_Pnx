@@ -26,25 +26,21 @@ namespace Engineering_robot_RM2025_Pnx{
         tf2_static_pub_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
         RCLCPP_INFO(this->get_logger(),"static_tf2 init ok !");
 
-        // if(this->get_parameter("USE_VITURAL_POSE").as_bool()){
-        //     RCLCPP_INFO(this->get_logger(),"USE_VITURAL_POSE is true, use vitral link robot_base and realsense");
 
-        //     geometry_msgs::msg::TransformStamped msg;
-        //     msg.header.stamp=this->now();
-        //     msg.header.frame_id="robot_base_link";
-        //     msg.child_frame_id="sensor/RealSense";
-        //     msg.transform.translation.x=0.156999970395237;
-        //     msg.transform.translation.y=-0.033000353576592;
-        //     msg.transform.translation.z=0.36374073844197;
-        //     msg.transform.rotation.w=1;
-        //     msg.transform.rotation.x=0;
-        //     msg.transform.rotation.y=0;
-        //     msg.transform.rotation.z=0;
+        geometry_msgs::msg::TransformStamped msg;
+        msg.header.stamp=this->now();
+        msg.header.frame_id="robot_base_link";
+        msg.child_frame_id="sensor/RealSense";
+        msg.transform.translation.x=config["main"]["translation"]["x"].as<double>();
+        msg.transform.translation.y=config["main"]["translation"]["y"].as<double>();
+        msg.transform.translation.z=config["main"]["translation"]["z"].as<double>();
+        msg.transform.rotation.w=config["main"]["rotate"]["w"].as<double>();
+        msg.transform.rotation.x=config["main"]["rotate"]["x"].as<double>();
+        msg.transform.rotation.y=config["main"]["rotate"]["y"].as<double>();
+        msg.transform.rotation.z=config["main"]["rotate"]["z"].as<double>();
 
-        //     tf2_static_pub_->sendTransform(msg);
+        tf2_static_pub_->sendTransform(msg);
 
-        //     RCLCPP_INFO(this->get_logger(),"send robot_base to RealSense static transform OK!");
-        // }
 
         depth_to_center_msg.header.frame_id="sensor/RealSense";
         depth_to_center_msg.child_frame_id="sensor/RealSense/depth";
@@ -125,6 +121,9 @@ namespace Engineering_robot_RM2025_Pnx{
         try_open_pipe=1;
 
         while(!pipeok){
+            if(!rclcpp::ok()){
+                rclcpp::shutdown();
+            }
             try{
                 pipe_pointcloud_=std::make_shared<rs2::pipeline>();
                 pipe_image_=std::make_shared<rs2::pipeline>();
@@ -215,6 +214,9 @@ namespace Engineering_robot_RM2025_Pnx{
         RCLCPP_INFO(this->get_logger(),"stop pipe");
 
         while(!pipeok){
+            if(!rclcpp::ok()){
+                rclcpp::shutdown();
+            }
             try{
                 pipe_pointcloud_=std::make_shared<rs2::pipeline>();
                 pipe_image_=std::make_shared<rs2::pipeline>();
@@ -335,9 +337,11 @@ namespace Engineering_robot_RM2025_Pnx{
 
     void RealSense::LoadParams(){
 
+        YAML::Node configparam;
         this->declare_parameter<std::string>("Location", "/home/pnx/code/Engineering_robot_RM2025_Pnx/");
         try{
             config=YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
+            configparam=config["RealSense"];
             config=config["object_pos"]["RealSense"];
         }
         catch(YAML::Exception& e){
@@ -345,22 +349,22 @@ namespace Engineering_robot_RM2025_Pnx{
             rclcpp::shutdown();
         }
 
-        this->declare_parameter<bool>("USE_VITURAL_POSE",true);
-        this->declare_parameter<int>("depth_wight",1280);
-        this->declare_parameter<int>("depth_hight",720);
-        this->declare_parameter<double>("depmin",0.2);
-        this->declare_parameter<double>("depmax",2);
-        this->declare_parameter<double>("EXPOSURE",166);
-        this->declare_parameter<double>("GAIN",10);
-        this->declare_parameter<double>("BRIGHTNESS",0);
+        // this->declare_parameter<bool>("USE_VITURAL_POSE",true);
+        // this->declare_parameter<int>("depth_wight",1280);
+        // this->declare_parameter<int>("depth_hight",720);
+        // this->declare_parameter<double>("depmin",0.2);
+        // this->declare_parameter<double>("depmax",2);
+        // this->declare_parameter<double>("EXPOSURE",166);
+        // this->declare_parameter<double>("GAIN",10);
+        // this->declare_parameter<double>("BRIGHTNESS",0);
 
-        depth_wight=this->get_parameter("depth_wight").as_int();
-        depth_hight=this->get_parameter("depth_hight").as_int();
-        depmax=this->get_parameter("depmax").as_double();
-        depmin=this->get_parameter("depmin").as_double();
-        EXPOSURE=this->get_parameter("EXPOSURE").as_double();
-        GAIN=this->get_parameter("GAIN").as_double();
-        BRIGHTNESS=this->get_parameter("BRIGHTNESS").as_double();
+        depth_wight=configparam["depth_wight"].as<int>();
+        depth_hight=configparam["depth_hight"].as<int>();
+        depmax=configparam["depmax"].as<double>();
+        depmin=configparam["depmin"].as<double>();
+        EXPOSURE=configparam["EXPOSURE"].as<int>();
+        GAIN=configparam["GAIN"].as<int>();
+        BRIGHTNESS=configparam["BRIGHTNESS"].as<int>();
     }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points& points){
