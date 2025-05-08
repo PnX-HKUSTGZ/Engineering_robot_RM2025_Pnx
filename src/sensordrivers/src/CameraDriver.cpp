@@ -142,6 +142,11 @@ class CameraDriver : public rclcpp::Node{
     }
 
     void get_image(){
+
+        if(!rclcpp::ok()){
+            rclcpp::shutdown();
+        }
+
         void* handle = NULL;
         nRet = MV_CC_Initialize();
     do{

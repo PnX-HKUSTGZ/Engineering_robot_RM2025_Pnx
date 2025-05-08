@@ -25,17 +25,23 @@ def generate_launch_description():
                 name="camera_driver",
                 parameters=[Path],
             ),
+            launch_ros.descriptions.ComposableNode(
+                package="sensordrivers",
+                plugin="Engineering_robot_RM2025_Pnx::RealSense",
+                name="realsense_driver",
+                parameters=[Path],
+            ),
         ],
         output="screen"
     )
-    mid360 = Node(
-        package='sensordrivers',
-        executable='mid360_driver',
-        name='mid360_driver',
-        output='screen',
-        parameters=[Path]
-    )
+    # mid360 = Node(
+    #     package='sensordrivers',
+    #     executable='mid360_driver',
+    #     name='mid360_driver',
+    #     output='screen',
+    #     parameters=[Path]
+    # )
     return LaunchDescription([
         all,
-        mid360,
+        # mid360,
     ])

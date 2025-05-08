@@ -15,125 +15,58 @@ namespace Engineering_robot_RM2025_Pnx{
         geometry_msgs::msg::TransformStamped image_to_center_msg;
         geometry_msgs::msg::TransformStamped depth_to_center_msg;
 
-        rs2::config cfg_pointcloud;
-        rs2::config cfg_image;
         // cfg.enable_stream(RS2_STREAM_DEPTH,640,360,RS2_FORMAT_Z16,30);
         // cfg.enable_stream(RS2_STREAM_COLOR,1920,1080,RS2_FORMAT_YUYV,30);
         cfg_pointcloud.enable_stream(RS2_STREAM_DEPTH,depth_wight,depth_hight,RS2_FORMAT_Z16);
         cfg_image.enable_stream(RS2_STREAM_COLOR,1920,1080,RS2_FORMAT_RGB8);
 
-        try{
-            pipe_pointcloud_=std::make_shared<rs2::pipeline>();
-            pipe_image_=std::make_shared<rs2::pipeline>();
-            pc_=std::make_shared<rs2::pointcloud>();
-            auto pipline_profile_pc=pipe_pointcloud_->start(cfg_pointcloud);
-            RCLCPP_INFO(this->get_logger(),"rs2 pipe point cloud start ok !");
-            auto pipline_profile_image=pipe_image_->start(cfg_image);
-            RCLCPP_INFO(this->get_logger(),"rs2 pipe image start ok !");
-
-            auto depth_sensor = pipline_profile_pc.get_device().first<rs2::depth_sensor>();
-            auto color_sensor = pipline_profile_image.get_device().first<rs2::color_sensor>();
-    
-            rs2::stream_profile depth_profile;
-            bool depth_profile_ok=0;
-            for (auto p : depth_sensor.get_stream_profiles()){
-                if (p.stream_type() == RS2_STREAM_DEPTH) {
-                    depth_profile = p;
-                    depth_profile_ok=1;
-                    // if(auto pf=p.as<rs2::video_stream_profile>()){
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
-                    // }
-                }
-            }
-    
-            rs2::stream_profile color_profile;
-            bool color_profile_ok=0;
-            for (auto p : color_sensor.get_stream_profiles()){
-                if (p.stream_type() == RS2_STREAM_COLOR){
-                    color_profile = p;
-                    color_profile_ok=1;
-                    // if(auto pf=p.as<rs2::video_stream_profile>()){
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
-                    //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
-                    // }
-                }
-
-            }
-
-            // get_config
-            auto camera_config=pipline_profile_image.get_device().first<rs2::color_sensor>();
-
-            RCLCPP_INFO_STREAM(this->get_logger(),"EXPOSURE TIME range"<<camera_config.get_option_range(RS2_OPTION_EXPOSURE));
-            RCLCPP_INFO_STREAM(this->get_logger(),"GAIN range"<<camera_config.get_option_range(RS2_OPTION_GAIN));
-            RCLCPP_INFO_STREAM(this->get_logger(),"BRIGHTNESS range"<<camera_config.get_option_range(RS2_OPTION_BRIGHTNESS));
-            
-            camera_config.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE,0.0f); // DISABLE_AUTO_EXPOSURE
-            camera_config.set_option(RS2_OPTION_EXPOSURE,EXPOSURE);
-            camera_config.set_option(RS2_OPTION_GAIN,GAIN);
-            camera_config.set_option(RS2_OPTION_BRIGHTNESS,BRIGHTNESS);
-            
-            RCLCPP_INFO_STREAM(this->get_logger(),"set EXPOSURE TIME "<<camera_config.get_option(RS2_OPTION_EXPOSURE));
-            RCLCPP_INFO_STREAM(this->get_logger(),"set GAIN "<<camera_config.get_option(RS2_OPTION_GAIN));
-            RCLCPP_INFO_STREAM(this->get_logger(),"set BRIGHTNESS "<<camera_config.get_option(RS2_OPTION_BRIGHTNESS));
-
-        }
-        catch(const std::exception & e){
-            RCLCPP_FATAL(this->get_logger(),"pipe launch fail with %s",e.what());
-            rclcpp::shutdown();
-        }
+        pipe_state=0;
+        OpenPipe();
 
         tf2_static_pub_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
         RCLCPP_INFO(this->get_logger(),"static_tf2 init ok !");
 
-        if(this->get_parameter("USE_VITURAL_POSE").as_bool()){
-            RCLCPP_INFO(this->get_logger(),"USE_VITURAL_POSE is true, use vitral link robot_base and realsense");
+        // if(this->get_parameter("USE_VITURAL_POSE").as_bool()){
+        //     RCLCPP_INFO(this->get_logger(),"USE_VITURAL_POSE is true, use vitral link robot_base and realsense");
 
+        //     geometry_msgs::msg::TransformStamped msg;
+        //     msg.header.stamp=this->now();
+        //     msg.header.frame_id="robot_base_link";
+        //     msg.child_frame_id="sensor/RealSense";
+        //     msg.transform.translation.x=0.156999970395237;
+        //     msg.transform.translation.y=-0.033000353576592;
+        //     msg.transform.translation.z=0.36374073844197;
+        //     msg.transform.rotation.w=1;
+        //     msg.transform.rotation.x=0;
+        //     msg.transform.rotation.y=0;
+        //     msg.transform.rotation.z=0;
 
-            geometry_msgs::msg::TransformStamped msg;
-            msg.header.stamp=this->now();
-            msg.header.frame_id="robot_base_link";
-            msg.child_frame_id="sensor/RealSense";
-            msg.transform.translation.x=0.156999970395237;
-            msg.transform.translation.y=-0.033000353576592;
-            msg.transform.translation.z=0.36374073844197;
-            msg.transform.rotation.w=1;
-            msg.transform.rotation.x=0;
-            msg.transform.rotation.y=0;
-            msg.transform.rotation.z=0;
+        //     tf2_static_pub_->sendTransform(msg);
 
-            tf2_static_pub_->sendTransform(msg);
-
-            RCLCPP_INFO(this->get_logger(),"send robot_base to RealSense static transform OK!");
-        }
+        //     RCLCPP_INFO(this->get_logger(),"send robot_base to RealSense static transform OK!");
+        // }
 
         depth_to_center_msg.header.frame_id="sensor/RealSense";
         depth_to_center_msg.child_frame_id="sensor/RealSense/depth";
         depth_to_center_msg.header.stamp=this->now();
-        depth_to_center_msg.transform.translation.x=-0.02;
-        depth_to_center_msg.transform.translation.y=-1.1*1e-3;
-        depth_to_center_msg.transform.translation.z=0;
-        depth_to_center_msg.transform.rotation.x=0.7071068;
-        depth_to_center_msg.transform.rotation.y=0;
-        depth_to_center_msg.transform.rotation.z=0;
-        depth_to_center_msg.transform.rotation.w=-0.7071068;
+        depth_to_center_msg.transform.translation.x=config["deep"]["translation"]["x"].as<double>();
+        depth_to_center_msg.transform.translation.y=config["deep"]["translation"]["y"].as<double>();
+        depth_to_center_msg.transform.translation.z=config["deep"]["translation"]["z"].as<double>();
+        depth_to_center_msg.transform.rotation.x=config["deep"]["rotate"]["x"].as<double>();
+        depth_to_center_msg.transform.rotation.y=config["deep"]["rotate"]["y"].as<double>();
+        depth_to_center_msg.transform.rotation.z=config["deep"]["rotate"]["z"].as<double>();
+        depth_to_center_msg.transform.rotation.w=config["deep"]["rotate"]["w"].as<double>();
 
         image_to_center_msg.header.frame_id="sensor/RealSense";
         image_to_center_msg.child_frame_id="sensor/RealSense/image";
         image_to_center_msg.header.stamp=this->now();
-        image_to_center_msg.transform.translation.x=-0.035;
-        image_to_center_msg.transform.translation.y=-1.1*1e-3;
-        image_to_center_msg.transform.translation.z=0;
-        image_to_center_msg.transform.rotation.x=0.7071068;
-        image_to_center_msg.transform.rotation.y=0;
-        image_to_center_msg.transform.rotation.z=0;
-        image_to_center_msg.transform.rotation.w=-0.7071068;
+        image_to_center_msg.transform.translation.x=config["color"]["translation"]["x"].as<double>();
+        image_to_center_msg.transform.translation.y=config["color"]["translation"]["y"].as<double>();
+        image_to_center_msg.transform.translation.z=config["color"]["translation"]["z"].as<double>();
+        image_to_center_msg.transform.rotation.x=config["color"]["rotate"]["x"].as<double>();
+        image_to_center_msg.transform.rotation.y=config["color"]["rotate"]["y"].as<double>();
+        image_to_center_msg.transform.rotation.z=config["color"]["rotate"]["z"].as<double>();
+        image_to_center_msg.transform.rotation.w=config["color"]["rotate"]["w"].as<double>();
 
         tf2_static_pub_->sendTransform(depth_to_center_msg);
         RCLCPP_INFO(this->get_logger(),"send RealSense to depthcenter static transform OK!");
@@ -142,8 +75,18 @@ namespace Engineering_robot_RM2025_Pnx{
 
         point_cloud_thread_=std::make_shared<std::thread>([this](){
             while(1){
+                if(!pipe_state) continue;
                 auto start_time = std::chrono::steady_clock::now();
-                this->RS_pc_pub_callback();
+                try{
+                    this->RS_pc_pub_callback();
+                }
+                catch(const std::exception & e){
+                    pipe_state=0;
+                    RCLCPP_ERROR(this->get_logger(),"RS_pc_pub_callback fail with %s, try to reopen pipe",e.what());
+                    if(!try_open_pipe){
+                        ReOpenPipe();
+                    }
+                }
                 auto end_time = std::chrono::steady_clock::now();
                 auto duration = end_time - start_time;
                 auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
@@ -153,8 +96,18 @@ namespace Engineering_robot_RM2025_Pnx{
 
         image_thread_=std::make_shared<std::thread>([this](){
             while(1){
+                if(!pipe_state) continue;
                 auto start_time = std::chrono::steady_clock::now();
-                this->RS_image_pub_callback();
+                try{
+                    this->RS_image_pub_callback();
+                }
+                catch(const std::exception & e){
+                    pipe_state=0;
+                    RCLCPP_ERROR(this->get_logger(),"RS_image_pub_callback fail with %s, try to reopen pipe",e.what());
+                    if(!try_open_pipe){
+                        ReOpenPipe();
+                    }
+                }
                 auto end_time = std::chrono::steady_clock::now();
                 auto duration = end_time - start_time;
                 auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
@@ -165,6 +118,178 @@ namespace Engineering_robot_RM2025_Pnx{
         RCLCPP_INFO(this->get_logger(),"Init OK!");
 
     }
+
+    void RealSense::OpenPipe(){
+        bool pipeok=0;
+        pipe_state=0;
+        try_open_pipe=1;
+
+        while(!pipeok){
+            try{
+                pipe_pointcloud_=std::make_shared<rs2::pipeline>();
+                pipe_image_=std::make_shared<rs2::pipeline>();
+                pc_=std::make_shared<rs2::pointcloud>();
+                auto pipline_profile_pc=pipe_pointcloud_->start(cfg_pointcloud);
+                RCLCPP_INFO(this->get_logger(),"rs2 pipe point cloud start ok !");
+                auto pipline_profile_image=pipe_image_->start(cfg_image);
+                RCLCPP_INFO(this->get_logger(),"rs2 pipe image start ok !");
+
+                auto depth_sensor = pipline_profile_pc.get_device().first<rs2::depth_sensor>();
+                auto color_sensor = pipline_profile_image.get_device().first<rs2::color_sensor>();
+        
+                // rs2::stream_profile depth_profile;
+                // bool depth_profile_ok=0;
+                // for (auto p : depth_sensor.get_stream_profiles()){
+                //     if (p.stream_type() == RS2_STREAM_DEPTH) {
+                //         depth_profile = p;
+                //         depth_profile_ok=1;
+                //         // if(auto pf=p.as<rs2::video_stream_profile>()){
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
+                //         // }
+                //     }
+                // }
+        
+                // rs2::stream_profile color_profile;
+                // bool color_profile_ok=0;
+                // for (auto p : color_sensor.get_stream_profiles()){
+                //     if (p.stream_type() == RS2_STREAM_COLOR){
+                //         color_profile = p;
+                //         color_profile_ok=1;
+                //         // if(auto pf=p.as<rs2::video_stream_profile>()){
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
+                //         // }
+                //     }
+
+                // }
+
+                // get_config
+                auto camera_config=pipline_profile_image.get_device().first<rs2::color_sensor>();
+
+                RCLCPP_INFO_STREAM(this->get_logger(),"EXPOSURE TIME range"<<camera_config.get_option_range(RS2_OPTION_EXPOSURE));
+                RCLCPP_INFO_STREAM(this->get_logger(),"GAIN range"<<camera_config.get_option_range(RS2_OPTION_GAIN));
+                RCLCPP_INFO_STREAM(this->get_logger(),"BRIGHTNESS range"<<camera_config.get_option_range(RS2_OPTION_BRIGHTNESS));
+                
+                camera_config.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE,0.0f); // DISABLE_AUTO_EXPOSURE
+                camera_config.set_option(RS2_OPTION_EXPOSURE,EXPOSURE);
+                camera_config.set_option(RS2_OPTION_GAIN,GAIN);
+                camera_config.set_option(RS2_OPTION_BRIGHTNESS,BRIGHTNESS);
+                
+                RCLCPP_INFO_STREAM(this->get_logger(),"set EXPOSURE TIME "<<camera_config.get_option(RS2_OPTION_EXPOSURE));
+                RCLCPP_INFO_STREAM(this->get_logger(),"set GAIN "<<camera_config.get_option(RS2_OPTION_GAIN));
+                RCLCPP_INFO_STREAM(this->get_logger(),"set BRIGHTNESS "<<camera_config.get_option(RS2_OPTION_BRIGHTNESS));
+
+                pipeok=1;
+
+            }
+            catch(const std::exception & e){
+                RCLCPP_FATAL(this->get_logger(),"pipe launch fail with %s, try again!",e.what());
+                pipeok=0;
+            }
+        }
+
+        pipe_state=1;
+        try_open_pipe=0;
+        RCLCPP_INFO(this->get_logger(),"pipe launch ok! set pipe_state 1");
+    }
+
+    void RealSense::ReOpenPipe(){
+        bool pipeok=0;
+        pipe_state=0;
+        try_open_pipe=1;
+
+        try{
+            pipe_pointcloud_->stop();
+            pipe_image_->stop();
+        }
+        catch(const std::exception& e){
+            RCLCPP_ERROR(this->get_logger(),"try to stop pipe failed with %s",e.what());
+        }
+        RCLCPP_INFO(this->get_logger(),"stop pipe");
+
+        while(!pipeok){
+            try{
+                pipe_pointcloud_=std::make_shared<rs2::pipeline>();
+                pipe_image_=std::make_shared<rs2::pipeline>();
+                pc_=std::make_shared<rs2::pointcloud>();
+                auto pipline_profile_pc=pipe_pointcloud_->start(cfg_pointcloud);
+                RCLCPP_INFO(this->get_logger(),"rs2 pipe point cloud start ok !");
+                auto pipline_profile_image=pipe_image_->start(cfg_image);
+                RCLCPP_INFO(this->get_logger(),"rs2 pipe image start ok !");
+
+                auto depth_sensor = pipline_profile_pc.get_device().first<rs2::depth_sensor>();
+                auto color_sensor = pipline_profile_image.get_device().first<rs2::color_sensor>();
+        
+                // rs2::stream_profile depth_profile;
+                // bool depth_profile_ok=0;
+                // for (auto p : depth_sensor.get_stream_profiles()){
+                //     if (p.stream_type() == RS2_STREAM_DEPTH) {
+                //         depth_profile = p;
+                //         depth_profile_ok=1;
+                //         // if(auto pf=p.as<rs2::video_stream_profile>()){
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
+                //         // }
+                //     }
+                // }
+        
+                // rs2::stream_profile color_profile;
+                // bool color_profile_ok=0;
+                // for (auto p : color_sensor.get_stream_profiles()){
+                //     if (p.stream_type() == RS2_STREAM_COLOR){
+                //         color_profile = p;
+                //         color_profile_ok=1;
+                //         // if(auto pf=p.as<rs2::video_stream_profile>()){
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," Stream config :");
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream name : "<<pf.stream_name());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream type : "<<pf.stream_type());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream fps : "<<pf.fps());
+                //         //     RCLCPP_INFO_STREAM(this->get_logger()," stream resolution ratio ["<<pf.width()<<","<<pf.height()<<"]");
+                //         // }
+                //     }
+
+                // }
+
+                // get_config
+                auto camera_config=pipline_profile_image.get_device().first<rs2::color_sensor>();
+
+                RCLCPP_INFO_STREAM(this->get_logger(),"EXPOSURE TIME range"<<camera_config.get_option_range(RS2_OPTION_EXPOSURE));
+                RCLCPP_INFO_STREAM(this->get_logger(),"GAIN range"<<camera_config.get_option_range(RS2_OPTION_GAIN));
+                RCLCPP_INFO_STREAM(this->get_logger(),"BRIGHTNESS range"<<camera_config.get_option_range(RS2_OPTION_BRIGHTNESS));
+                
+                camera_config.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE,0.0f); // DISABLE_AUTO_EXPOSURE
+                camera_config.set_option(RS2_OPTION_EXPOSURE,EXPOSURE);
+                camera_config.set_option(RS2_OPTION_GAIN,GAIN);
+                camera_config.set_option(RS2_OPTION_BRIGHTNESS,BRIGHTNESS);
+                
+                RCLCPP_INFO_STREAM(this->get_logger(),"set EXPOSURE TIME "<<camera_config.get_option(RS2_OPTION_EXPOSURE));
+                RCLCPP_INFO_STREAM(this->get_logger(),"set GAIN "<<camera_config.get_option(RS2_OPTION_GAIN));
+                RCLCPP_INFO_STREAM(this->get_logger(),"set BRIGHTNESS "<<camera_config.get_option(RS2_OPTION_BRIGHTNESS));
+
+                pipeok=1;
+
+            }
+            catch(const std::exception & e){
+                RCLCPP_FATAL(this->get_logger(),"pipe launch fail with %s, try again!",e.what());
+                pipeok=0;
+            }
+        }
+
+        pipe_state=1;
+        try_open_pipe=0;
+        RCLCPP_INFO(this->get_logger(),"pipe launch ok! set pipe_state 1");
+    }
+
 
     void RealSense::RS_pc_pub_callback(){
         auto frames = pipe_pointcloud_->wait_for_frames();
@@ -209,6 +334,17 @@ namespace Engineering_robot_RM2025_Pnx{
     }
 
     void RealSense::LoadParams(){
+
+        this->declare_parameter<std::string>("Location", "/home/pnx/code/Engineering_robot_RM2025_Pnx/");
+        try{
+            config=YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
+            config=config["object_pos"]["RealSense"];
+        }
+        catch(YAML::Exception& e){
+            RCLCPP_ERROR(this->get_logger(),"error reading config file: %s",e.what());
+            rclcpp::shutdown();
+        }
+
         this->declare_parameter<bool>("USE_VITURAL_POSE",true);
         this->declare_parameter<int>("depth_wight",1280);
         this->declare_parameter<int>("depth_hight",720);

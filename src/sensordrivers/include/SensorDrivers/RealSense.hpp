@@ -83,9 +83,20 @@ private:
     double GAIN;
     double BRIGHTNESS;
 
+    rs2::config cfg_pointcloud;
+    rs2::config cfg_image;
+
     void RS_pc_pub_callback();
     void RS_image_pub_callback();
     void LoadParams();
+
+    void OpenPipe();
+    void ReOpenPipe();
+
+    YAML::Node config;
+
+    std::atomic_bool pipe_state=0;
+    std::atomic_bool try_open_pipe=0;
 
 };
 

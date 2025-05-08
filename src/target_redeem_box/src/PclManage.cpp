@@ -219,7 +219,7 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     Cloudmtx.lock();
     
     for(auto & i : InTimeCloud){
-        if(i.z>=1.2) continue;
+        // if(i.z>=1.2) continue;
         Eigen::Matrix<double,4,1> cloudpointEigen;
         Eigen::Matrix<double,3,1> imagePoint;
         cloudpointEigen<<i.x, i.y, i.z, 1;
