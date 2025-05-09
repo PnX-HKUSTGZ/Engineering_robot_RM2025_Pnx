@@ -42,7 +42,7 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         return 0;
     }
 
-    auto ExtractedPlanes = segmentPlanesWithPoints(
+    const auto ExtractedPlanes = segmentPlanesWithPoints(
         std::make_shared<pcl::PointCloud<pcl::PointXYZ> >(inputPointCloudWiderROI),
         ransacDistanceThreshold,
         ransacMaxIterations,
@@ -171,7 +171,7 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         
     {    
     sensor_msgs::msg::PointCloud2 msg;
-    pcl::toROSMsg<pcl::PointXYZ>(PlanePointClouds,msg);
+    pcl::toROSMsg<pcl::PointXYZ>(pcl::PointCloud<pcl::PointXYZ>(),msg);
     msg.header.frame_id=ImageFrame;
     msg.header.stamp=this->now();
     pcl_test_point_cloud_pub->publish(msg);
@@ -228,7 +228,7 @@ bool RedeemBox_detector::ImagePointTo3DPoint_Plant(const Counter2d& Points2D, co
             RCLCPP_WARN(this->get_logger(),"Points3DnoZEigen get nan");
             return 1;
         }
-        Points3D.push_back(cv::Point3d(i(0),i(1),Z));
+        Points3D.push_back(cv::Point3d(i(0)*Z,i(1)*Z,Z));
     }
     // RCLCPP_INFO(this->get_logger(),"Points3D size %ld",Points3D.size());
 
