@@ -574,6 +574,26 @@ std::vector<double> determinePlaneFromThreePoints(
     const Eigen::Vector3d& p3,
     double epsilon = 1e-9);
 
+/**
+ * @brief Calculates the distance from a point to a plane defined by a vector of coefficients.
+ *
+ * The plane is defined by coefficients (a, b, c, d) in the vector for the equation ax + by + cz + d = 0.
+ * It assumes (a, b, c) is a normalized normal vector, so sqrt(a^2 + b^2 + c^2) ≈ 1.
+ * The distance from point (x0, y0, z0) is |a*x0 + b*y0 + c*z0 + d|.
+ *
+ * @param point The 3D point (x0, y0, z0).
+ * @param plane_coefficients A vector of doubles containing the plane coefficients {a, b, c, d}.
+ *                           Assumed to have size 4 and (a, b, c) normalized.
+ * @return The distance from the point to the plane. Returns NaN if coefficients vector is invalid.
+ */
+float PointToPlaneDistance(
+    const pcl::PointXYZ& point,
+    const std::vector<double>& plane_coefficients);
+
+float PointToPlaneDistance(
+    const pcl::PointXYZ& point,
+    const std::vector<float>& plane_coefficients);
+
 } // end namespace Engineering_robot_RM2025_Pnx
 
 #endif

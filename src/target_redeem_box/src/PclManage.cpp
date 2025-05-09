@@ -69,72 +69,72 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
 
     std::vector<double> PNPPlane;
 
-    {// get plane
+    // {// get plane
 
-    cv::Mat rmat;
-    cv::Rodrigues(pnprvec,rmat);
-    Eigen::Matrix<double,4,4> rtvecEigen;
+    // cv::Mat rmat;
+    // cv::Rodrigues(pnprvec,rmat);
+    // Eigen::Matrix<double,4,4> rtvecEigen;
 
-    for(int i=0;i<3;i++){
-        for(int e=0;e<3;e++){
-            rtvecEigen(i,e)=rmat.at<double>(i,e);
-        }
-        rtvecEigen(i,3)=pnptvec.at<double>(i);
-    }
-    for(int i=0;i<3;i++) rtvecEigen(3, i) = 0.0;
-    rtvecEigen(3, 3) = 1.0;
+    // for(int i=0;i<3;i++){
+    //     for(int e=0;e<3;e++){
+    //         rtvecEigen(i,e)=rmat.at<double>(i,e);
+    //     }
+    //     rtvecEigen(i,3)=pnptvec.at<double>(i);
+    // }
+    // for(int i=0;i<3;i++) rtvecEigen(3, i) = 0.0;
+    // rtvecEigen(3, 3) = 1.0;
 
-    Eigen::Matrix<double,4,1> point1_,point2_,point3_;
-    Eigen::Matrix<double,3,1> point1,point2,point3;
-    point1_=rtvecEigen*objpointsEigen[0];
-    point2_=rtvecEigen*objpointsEigen[2];
-    point3_=rtvecEigen*objpointsEigen[4];
+    // Eigen::Matrix<double,4,1> point1_,point2_,point3_;
+    // Eigen::Matrix<double,3,1> point1,point2,point3;
+    // point1_=rtvecEigen*objpointsEigen[0];
+    // point2_=rtvecEigen*objpointsEigen[2];
+    // point3_=rtvecEigen*objpointsEigen[4];
 
-    point1=Eigen::Matrix<double,3,1>(point1_(0)/point1_(3),point1_(1)/point1_(3),point1_(2)/point1_(3));
-    point2=Eigen::Matrix<double,3,1>(point2_(0)/point2_(3),point2_(1)/point2_(3),point2_(2)/point2_(3));
-    point3=Eigen::Matrix<double,3,1>(point3_(0)/point3_(3),point3_(1)/point3_(3),point3_(2)/point3_(3));
+    // point1=Eigen::Matrix<double,3,1>(point1_(0)/point1_(3),point1_(1)/point1_(3),point1_(2)/point1_(3));
+    // point2=Eigen::Matrix<double,3,1>(point2_(0)/point2_(3),point2_(1)/point2_(3),point2_(2)/point2_(3));
+    // point3=Eigen::Matrix<double,3,1>(point3_(0)/point3_(3),point3_(1)/point3_(3),point3_(2)/point3_(3));
 
-    PNPPlane=determinePlaneFromThreePoints(point1,point2,point3);
+    // PNPPlane=determinePlaneFromThreePoints(point1,point2,point3);
 
-    if(!PNPPlane.size()){
-        RCLCPP_ERROR(this->get_logger(),"determinePlaneFromThreePoints fail!");
-        return 0;
-    }
+    // if(!PNPPlane.size()){
+    //     RCLCPP_ERROR(this->get_logger(),"determinePlaneFromThreePoints fail!");
+    //     return 0;
+    // }
 
-    }
+    // }
 
     // the num of points aroud corners of each plant 
-    // std::vector<int> scores;
-    // std::vector<double> distance;
+    std::vector<int> scores;
+    std::vector<double> distance;
 
-    // cv::Point2f center;
-    // float radius;
-    // cv::minEnclosingCircle([&CornerPoints](){
-    //     Counter2f con;
-    //     for(auto & i : CornerPoints){
-    //         con.push_back(cv::Point2f(i.x,i.y));
-    //     }
-    //     return con;
-    // }(),center,radius);
+    cv::Point2f center;
+    float radius;
+    cv::minEnclosingCircle([&CornerPoints](){
+        Counter2f con;
+        for(auto & i : CornerPoints){
+            con.push_back(cv::Point2f(i.x,i.y));
+        }
+        return con;
+    }(),center,radius);
 
-    // for(const auto & plant : ExtractedPlanes){
-    //     if(IntersectionDistanceAlongZ(plant)<minPlaneDisThreshold) continue;
-    //     int score=0;
-    //     for(const auto i : *plant.points){
-    //         Eigen::Matrix<double,4,1> cloudpointEigen;
-    //         Eigen::Matrix<double,3,1> imagePoint;
-    //         cloudpointEigen<<i.x, i.y, i.z, 1;
-    //         imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
-    //         if(std::abs(imagePoint(2))<1e-6) continue;
-    //         imagePoint/=imagePoint(2);
+    for(const auto & plant : ExtractedPlanes){
+        if(IntersectionDistanceAlongZ(plant)<minPlaneDisThreshold) continue;
+        int score=0;
+        for(const auto i : *plant.points){
+            Eigen::Matrix<double,4,1> cloudpointEigen;
+            Eigen::Matrix<double,3,1> imagePoint;
+            cloudpointEigen<<i.x, i.y, i.z, 1;
+            imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
+            if(std::abs(imagePoint(2))<1e-6) continue;
+            imagePoint/=imagePoint(2);
 
-    //         if(DistancePoints(cv::Point2f(imagePoint(0),imagePoint(1)),center)<=radius){
-    //             score++;
-    //         }
-    //     }
-    //     scores.push_back(score);
-    //     distance.push_back(IntersectionDistanceAlongZ(plant));
-    // }
+            if(DistancePoints(cv::Point2f(imagePoint(0),imagePoint(1)),center)<=radius){
+                score++;
+            }
+        }
+        scores.push_back(score);
+        distance.push_back(IntersectionDistanceAlongZ(plant));
+    }
 
     Eigen::Vector4f coefficient;
     pcl::PointCloud<pcl::PointXYZ> PlanePointClouds;
@@ -149,13 +149,8 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
             indexs.push_back(i);
         }
 
-        std::sort(indexs.begin(),indexs.end(),[PNPPlane,&ExtractedPlanes](const int & a,const int & b){
-            double sa=0,sb=0;
-            for(int i=0;i<4;i++){
-                sa+=(PNPPlane[i]-ExtractedPlanes[a].coefficients.values[i])*(PNPPlane[i]-ExtractedPlanes[a].coefficients.values[i]);
-                sb+=(PNPPlane[i]-ExtractedPlanes[b].coefficients.values[i])*(PNPPlane[i]-ExtractedPlanes[b].coefficients.values[i]);
-            }
-            return sa<sb;
+        std::sort(indexs.begin(),indexs.end(),[&scores](const int & a,const int & b){
+            return scores[a]>scores[b];
         });
 
         for(int i=0;i<4;i++){
@@ -327,7 +322,7 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     auto start_circle = std::chrono::high_resolution_clock::now();
     cv::Point2f center;float radius;
     cv::minEnclosingCircle(CornerPointsf,center,radius);
-    radius*=2.5;
+    radius*=2;
     auto end_circle = std::chrono::high_resolution_clock::now();
     auto duration_circle = std::chrono::duration_cast<std::chrono::milliseconds>(end_circle - start_circle).count();
     RCLCPP_INFO_STREAM(this->get_logger(),"[MainPclManager] Min enclosing circle time: " << duration_circle << " ms");
@@ -355,24 +350,106 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     // --- Start Timing for Point Cloud Filtering and Projection (including mutex) ---
     auto start_pcl_filter = std::chrono::high_resolution_clock::now();
     
+    cv::Mat pnprvec,pnptvec;
 
-    for(auto & i : *VisibleCloudCameraFrame){
-        // if(i.z>=1.2) continue;
-        Eigen::Matrix<double,4,1> cloudpointEigen;
-        Eigen::Matrix<double,3,1> imagePoint;
-        cloudpointEigen<<i.x, i.y, i.z, 1;
+    bool solvePnPcheck=cv::solvePnP(objpoints,CornerPoints,cameraMatrixMat,std::vector<double>{0,0,0,0,0},pnprvec,pnptvec,0,cv::SOLVEPNP_IPPE);
 
-        imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
-        if(std::abs(imagePoint(2))<1e-6) continue;
-        imagePoint/=imagePoint(2);
+    if(!solvePnPcheck){
+        RCLCPP_ERROR(this->get_logger(),"[GetTRvecPointCloud_PC] PnP failed!");
+        return 0;
+    }
 
-        // if(boundingCounterBox.x<=imagePoint(0)&&imagePoint(0)<=boundingCounterBox.x+boundingCounterBox.width&&
-            // boundingCounterBox.y<=imagePoint(1)&&imagePoint(1)<=boundingCounterBox.y+boundingCounterBox.height
-        if(inCircle(center,radius,imagePoint) // This 'if' condition needs to match the filtering logic
-            ){
-                PreprocessedCloudPoint.push_back(i);
-                CloudPointImagePoint.push_back(std::move(imagePoint));
+    std::vector<double> PNPPlane;
+
+    {// get plane
+
+    cv::Mat rmat;
+    cv::Rodrigues(pnprvec,rmat);
+    Eigen::Matrix<double,4,4> rtvecEigen;
+
+    for(int i=0;i<3;i++){
+        for(int e=0;e<3;e++){
+            rtvecEigen(i,e)=rmat.at<double>(i,e);
         }
+        rtvecEigen(i,3)=pnptvec.at<double>(i);
+    }
+    for(int i=0;i<3;i++) rtvecEigen(3, i) = 0.0;
+    rtvecEigen(3, 3) = 1.0;
+
+    Eigen::Matrix<double,4,1> point1_,point2_,point3_;
+    Eigen::Matrix<double,3,1> point1,point2,point3;
+    point1_=rtvecEigen*objpointsEigen[0];
+    point2_=rtvecEigen*objpointsEigen[2];
+    point3_=rtvecEigen*objpointsEigen[4];
+
+    point1=Eigen::Matrix<double,3,1>(point1_(0)/point1_(3),point1_(1)/point1_(3),point1_(2)/point1_(3));
+    point2=Eigen::Matrix<double,3,1>(point2_(0)/point2_(3),point2_(1)/point2_(3),point2_(2)/point2_(3));
+    point3=Eigen::Matrix<double,3,1>(point3_(0)/point3_(3),point3_(1)/point3_(3),point3_(2)/point3_(3));
+
+    # ifdef test_pcl_manage
+
+    # endif
+    PNPPlane=determinePlaneFromThreePoints(point1,point2,point3);
+
+    if(!PNPPlane.size()){
+        RCLCPP_ERROR(this->get_logger(),"determinePlaneFromThreePoints fail!");
+        return 0;
+    }
+
+    }
+
+    {
+        pcl::PointCloud<pcl::PointXYZ> PreprocessedCloudPointpnp;
+        for(auto & i : *VisibleCloudCameraFrame){
+            if(i.z>=1.5) continue;
+            if(PointToPlaneDistance(i,PNPPlane)>0.03) continue;
+            Eigen::Matrix<double,4,1> cloudpointEigen;
+            Eigen::Matrix<double,3,1> imagePoint;
+            cloudpointEigen<<i.x, i.y, i.z, 1;
+
+            imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
+            if(std::abs(imagePoint(2))<1e-6) continue;
+            imagePoint/=imagePoint(2);
+
+            // if(boundingCounterBox.x<=imagePoint(0)&&imagePoint(0)<=boundingCounterBox.x+boundingCounterBox.width&&
+                // boundingCounterBox.y<=imagePoint(1)&&imagePoint(1)<=boundingCounterBox.y+boundingCounterBox.height
+            if(inCircle(center,radius,imagePoint) // This 'if' condition needs to match the filtering logic
+                ){
+                    PreprocessedCloudPointpnp.push_back(i);
+            }
+        }
+
+        auto FirstExtractedPlanes = segmentPlanesWithPoints(
+                std::make_shared<pcl::PointCloud<pcl::PointXYZ> >(PreprocessedCloudPointpnp),
+                ransacDistanceThreshold,
+                ransacMaxIterations,
+                PreprocessedCloudPointpnp.size()/2,
+                1);
+
+        if(!FirstExtractedPlanes.size()){
+            RCLCPP_ERROR(this->get_logger(),"first segmentPlanesWithPoints failed");
+            return 0;
+        }
+
+        for(auto & i : *VisibleCloudCameraFrame){
+            if(i.z>=1.5) continue;
+            if(PointToPlaneDistance(i,FirstExtractedPlanes[0].coefficients.values)>0.03) continue;
+            Eigen::Matrix<double,4,1> cloudpointEigen;
+            Eigen::Matrix<double,3,1> imagePoint;
+            cloudpointEigen<<i.x, i.y, i.z, 1;
+
+            imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
+            if(std::abs(imagePoint(2))<1e-6) continue;
+            imagePoint/=imagePoint(2);
+
+            // if(boundingCounterBox.x<=imagePoint(0)&&imagePoint(0)<=boundingCounterBox.x+boundingCounterBox.width&&
+                // boundingCounterBox.y<=imagePoint(1)&&imagePoint(1)<=boundingCounterBox.y+boundingCounterBox.height
+            if(inCircle(center,radius,imagePoint) // This 'if' condition needs to match the filtering logic
+                ){
+                    PreprocessedCloudPoint.push_back(i);
+            }
+        }
+
     }
 
 
@@ -384,6 +461,9 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     # ifdef test_pcl_manage
     // --- Start Timing for Drawing (Conditional) ---
     auto start_draw = std::chrono::high_resolution_clock::now();
+
+    DrawPnPResult(OriginalImage_pcl,pnprvec,pnptvec,cv::Scalar(33,223,123),1,cv::Point(-312312,-31231));
+
     for(auto i : CloudPointImagePoint){
         cv::circle(OriginalImage_pcl,cv::Point(i(0),i(1)),1,cv::Scalar(22,33,130),-1);
     }

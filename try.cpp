@@ -1,111 +1,103 @@
 #include <iostream>
 #include <vector>
-#include <cmath>    // For std::sqrt, std::fabs
+#include <cmath>    // For std::fabs
 #include <limits>   // For std::numeric_limits
 
-// For Eigen vectors and matrix operations (double precision)
-#include <Eigen/Dense>
+#include <pcl/point_types.h> // For pcl::PointXYZ
 
 /**
- * @brief Determines the plane defined by three given points.
- *        Input points are Eigen::Vector3d (Eigen::Matrix<double, 3, 1>).
+ * @brief Calculates the distance from a point to a plane defined by a vector of coefficients.
  *
- * The plane equation is ax + by + cz + d = 0, where (a, b, c) is the normalized normal vector.
+ * The plane is defined by coefficients (a, b, c, d) in the vector for the equation ax + by + cz + d = 0.
+ * It assumes (a, b, c) is a normalized normal vector, so sqrt(a^2 + b^2 + c^2) ≈ 1.
+ * The distance from point (x0, y0, z0) is |a*x0 + b*y0 + c*z0 + d|.
  *
- * @param p1 The first point (Eigen::Vector3d).
- * @param p2 The second point (Eigen::Vector3d).
- * @param p3 The third point (Eigen::Vector3d).
- * @param epsilon Tolerance for checking if points are collinear (normal vector is close to zero).
- * @return A std::vector<double> containing the coefficients {a, b, c, d} if successful (size 4).
- *         Returns an empty std::vector<double> if the three points are collinear.
+ * @param point The 3D point (x0, y0, z0).
+ * @param plane_coefficients A vector of doubles containing the plane coefficients {a, b, c, d}.
+ *                           Assumed to have size 4 and (a, b, c) normalized.
+ * @return The distance from the point to the plane. Returns NaN if coefficients vector is invalid.
  */
-std::vector<double> determinePlaneFromThreePoints(
-    const Eigen::Vector3d& p1,
-    const Eigen::Vector3d& p2,
-    const Eigen::Vector3d& p3,
-    double epsilon = 1e-9) // Using double precision epsilon
+float calculatePointToPlaneDistance(
+    const pcl::PointXYZ& point,
+    const std::vector<double>& plane_coefficients)
 {
-    // Calculate two vectors on the plane using double precision
-    Eigen::Vector3d v12 = p2 - p1;
-    Eigen::Vector3d v13 = p3 - p1;
-
-    // Calculate the normal vector as the cross product (double precision)
-    Eigen::Vector3d normal = v12.cross(v13);
-
-    // Check if the normal vector is close to zero (points are collinear) using double precision norm
-    if (normal.norm() < epsilon) {
-        std::cerr << "Error: The three points are collinear. Cannot determine a unique plane." << std::endl;
-        return std::vector<double>(); // Return empty vector to indicate failure
+    // Ensure the coefficients vector has the correct size for a plane (a, b, c, d)
+    if (plane_coefficients.size() != 4) {
+        std::cerr << "Error: Invalid number of plane coefficients ("
+                  << plane_coefficients.size() << " instead of 4)." << std::endl;
+        return std::numeric_limits<float>::quiet_NaN(); // Return NaN for invalid input
     }
 
-    // Normalize the normal vector (double precision)
-    Eigen::Vector3d normalized_normal = normal.normalized();
+    // Use double for intermediate calculations for better precision, cast to float at the end if needed.
+    // However, since pcl::PointXYZ uses float, the precision might be limited by the input point anyway.
+    // Let's use float for consistency with pcl::PointXYZ. If higher precision is needed,
+    // consider taking Eigen::Vector3d as input instead of pcl::PointXYZ.
+    float a = static_cast<float>(plane_coefficients[0]);
+    float b = static_cast<float>(plane_coefficients[1]);
+    float c = static_cast<float>(plane_coefficients[2]);
+    float d = static_cast<float>(plane_coefficients[3]);
 
-    // Calculate the d coefficient: d = -(a*x + b*y + c*z) for any point (x,y,z) on the plane
-    // Using p1 and double precision dot product: d = -(normalized_normal . p1)
-    double d = -normalized_normal.dot(p1);
+    float x0 = point.x;
+    float y0 = point.y;
+    float z0 = point.z;
 
-    // Store normalized a, b, c coefficients and d into a vector<double>
-    std::vector<double> coefficients;
-    coefficients.push_back(normalized_normal.x()); // a
-    coefficients.push_back(normalized_normal.y()); // b
-    coefficients.push_back(normalized_normal.z()); // c
-    coefficients.push_back(d);                    // d
+    // The signed distance is a*x0 + b*y0 + c*z0 + d
+    // Since (a, b, c) are assumed normalized, sqrt(a^2+b^2+c^2) is 1.
+    // We take the absolute value for the non-negative distance.
+    float signed_distance = a * x0 + b * y0 + c * z0 + d;
+    float distance = std::fabs(signed_distance); // Use std::fabs for float
 
-    return coefficients; // Return the vector of coefficients
+    return distance;
 }
 
 // --- Example Usage ---
 int main() {
-    // --- Example 1: Three non-collinear points ---
-    // Points: (1, 0, 0), (0, 1, 0), (0, 0, 1)
-    // These points lie on the plane x + y + z - 1 = 0
-    Eigen::Vector3d p1(1.0, 0.0, 0.0);
-    Eigen::Vector3d p2(0.0, 1.0, 0.0);
-    Eigen::Vector3d p3(0.0, 0.0, 1.0);
+    // Define a plane: x + y + z - 1 = 0 (coeffs: [1/sqrt(3), 1/sqrt(3), 1/sqrt(3), -1/sqrt(3)])
+    // Normalization factor = sqrt(1^2 + 1^2 + 1^2) = sqrt(3)
+    double norm_factor = std::sqrt(3.0);
+    std::vector<double> plane_coeffs;
+    plane_coeffs.push_back(1.0 / norm_factor); // a
+    plane_coeffs.push_back(1.0 / norm_factor); // b
+    plane_coeffs.push_back(1.0 / norm_factor); // c
+    plane_coeffs.push_back(-1.0 / norm_factor); // d
 
-    std::vector<double> plane_coeffs = determinePlaneFromThreePoints(p1, p2, p3);
+    // --- Example 1: Point on the plane (1, 0, 0) ---
+    // x + y + z - 1 = 1 + 0 + 0 - 1 = 0. Distance should be 0.
+    pcl::PointXYZ p1(1.0f, 0.0f, 0.0f);
+    float dist1 = calculatePointToPlaneDistance(p1, plane_coeffs);
+    std::cout << "Point (" << p1.x << "," << p1.y << "," << p1.z << ") to plane x+y+z-1=0 distance: " << dist1 << std::endl;
+    // Expected: ~0.0
 
-    if (!plane_coeffs.empty()) {
-        std::cout << "Plane from points (" << p1.transpose() << "), "
-                  << "(" << p2.transpose() << "), "
-                  << "(" << p3.transpose() << ") Coefficients: ";
-        std::cout << "a=" << plane_coeffs[0]
-                  << ", b=" << plane_coeffs[1]
-                  << ", c=" << plane_coeffs[2]
-                  << ", d=" << plane_coeffs[3] << std::endl;
-        // Expected (approximately, due to normalization):
-        // Normal should be proportional to (1, 1, 1)
-        // Normalized normal is (1/sqrt(3), 1/sqrt(3), 1/sqrt(3)) ≈ (0.577, 0.577, 0.577)
-        // d = -(0.577*1 + 0.577*0 + 0.577*0) = -0.577
-        // So coeffs should be roughly [0.577, 0.577, 0.577, -0.577] (or the negative of these)
+    // --- Example 2: Point (0, 0, 0) (origin) ---
+    // Distance from origin to x+y+z-1=0 is |-1|/sqrt(3) = 1/sqrt(3) ≈ 0.577
+    pcl::PointXYZ p2(0.0f, 0.0f, 0.0f);
+    float dist2 = calculatePointToPlaneDistance(p2, plane_coeffs);
+    std::cout << "Point (" << p2.x << "," << p2.y << "," << p2.z << ") to plane x+y+z-1=0 distance: " << dist2 << std::endl;
+    // Expected: ~0.577
 
-    } else {
-        std::cout << "Failed to determine plane for example 1." << std::endl;
-    }
+    // --- Example 3: Point (1, 1, 1) ---
+    // 1 + 1 + 1 - 1 = 2. Distance should be |2|/sqrt(3) = 2/sqrt(3) ≈ 1.154
+    pcl::PointXYZ p3(1.0f, 1.0f, 1.0f);
+    float dist3 = calculatePointToPlaneDistance(p3, plane_coeffs);
+    std::cout << "Point (" << p3.x << "," << p3.y << "," << p3.z << ") to plane x+y+z-1=0 distance: " << dist3 << std::endl;
+    // Expected: ~1.154
 
-    std::cout << "\n";
+     // --- Example 4: Point (0, 0, 5) ---
+     // 0 + 0 + 5 - 1 = 4. Distance should be |4|/sqrt(3) = 4/sqrt(3) ≈ 2.309
+    pcl::PointXYZ p4(0.0f, 0.0f, 5.0f);
+    float dist4 = calculatePointToPlaneDistance(p4, plane_coeffs);
+    std::cout << "Point (" << p4.x << "," << p4.y << "," << p4.z << ") to plane x+y+z-1=0 distance: " << dist4 << std::endl;
+    // Expected: ~2.309
 
-    // --- Example 2: Three collinear points ---
-    // Points: (0, 0, 0), (1, 0, 0), (2, 0, 0) - all on the X axis
-    Eigen::Vector3d p4(0.0, 0.0, 0.0);
-    Eigen::Vector3d p5(1.0, 0.0, 0.0);
-    Eigen::Vector3d p6(2.0, 0.0, 0.0);
 
-    std::vector<double> plane_coeffs_collinear = determinePlaneFromThreePoints(p4, p5, p6);
+    // --- Example 5: Invalid coefficients ---
+    std::vector<double> invalid_coeffs;
+    invalid_coeffs.push_back(1.0); // Only one coefficient
 
-     if (!plane_coeffs_collinear.empty()) {
-        std::cout << "Plane from collinear points (" << p4.transpose() << "), "
-                  << "(" << p5.transpose() << "), "
-                  << "(" << p6.transpose() << ") Coefficients: ";
-        std::cout << "a=" << plane_coeffs_collinear[0]
-                  << ", b=" << plane_coeffs_collinear[1]
-                  << ", c=" << plane_coeffs_collinear[2]
-                  << ", d=" << plane_coeffs_collinear[3] << std::endl;
-        // Should not reach here
-    } else {
-        std::cout << "Correctly failed to determine plane for example 2 (collinear points)." << std::endl;
-    }
+    pcl::PointXYZ p5(0.0f, 0.0f, 0.0f);
+    float dist5 = calculatePointToPlaneDistance(p5, invalid_coeffs);
+    std::cout << "Point (" << p5.x << "," << p5.y << "," << p5.z << ") to invalid plane distance: " << dist5 << std::endl;
+    // Expected: NaN
 
     return 0;
 }

@@ -836,4 +836,58 @@ std::vector<double> determinePlaneFromThreePoints(
     return coefficients; // Return the vector of coefficients
 }
 
+/**
+ * @brief Calculates the distance from a point to a plane defined by a vector of coefficients.
+ *
+ * The plane is defined by coefficients (a, b, c, d) in the vector for the equation ax + by + cz + d = 0.
+ * It assumes (a, b, c) is a normalized normal vector, so sqrt(a^2 + b^2 + c^2) ≈ 1.
+ * The distance from point (x0, y0, z0) is |a*x0 + b*y0 + c*z0 + d|.
+ *
+ * @param point The 3D point (x0, y0, z0).
+ * @param plane_coefficients A vector of doubles containing the plane coefficients {a, b, c, d}.
+ *                           Assumed to have size 4 and (a, b, c) normalized.
+ * @return The distance from the point to the plane. Returns NaN if coefficients vector is invalid.
+ */
+float PointToPlaneDistance(
+    const pcl::PointXYZ& point,
+    const std::vector<double>& plane_coefficients)
+{
+    // Ensure the coefficients vector has the correct size for a plane (a, b, c, d)
+    if (plane_coefficients.size() != 4) {
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("PointToPlaneDistance"),"Error: Invalid number of plane coefficients ("<< plane_coefficients.size() << " instead of 4)." );
+        return std::numeric_limits<float>::quiet_NaN(); // Return NaN for invalid input
+    }
+
+    // Use double for intermediate calculations for better precision, cast to float at the end if needed.
+    // However, since pcl::PointXYZ uses float, the precision might be limited by the input point anyway.
+    // Let's use float for consistency with pcl::PointXYZ. If higher precision is needed,
+    // consider taking Eigen::Vector3d as input instead of pcl::PointXYZ.
+    float a = static_cast<float>(plane_coefficients[0]);
+    float b = static_cast<float>(plane_coefficients[1]);
+    float c = static_cast<float>(plane_coefficients[2]);
+    float d = static_cast<float>(plane_coefficients[3]);
+
+    float x0 = point.x;
+    float y0 = point.y;
+    float z0 = point.z;
+
+    // The signed distance is a*x0 + b*y0 + c*z0 + d
+    // Since (a, b, c) are assumed normalized, sqrt(a^2+b^2+c^2) is 1.
+    // We take the absolute value for the non-negative distance.
+    float signed_distance = a * x0 + b * y0 + c * z0 + d;
+    float distance = std::fabs(signed_distance); // Use std::fabs for float
+
+    return distance;
+}
+
+float PointToPlaneDistance(
+    const pcl::PointXYZ& point,
+    const std::vector<float>& plane_coefficients){
+        std::vector<double> coe;
+        for(auto i : plane_coefficients){
+            coe.push_back(i);
+        }
+        return PointToPlaneDistance(point,coe);
+    }
+
 } // namespace 
