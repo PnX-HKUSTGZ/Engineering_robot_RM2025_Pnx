@@ -18,6 +18,11 @@ RealSense:
   depmin: 0.2
   depmax: 2
   
+  LeafSize: 0.005 # unit m
+
+  StddevMulThresh: 1.0
+  MeanK: 50
+  
 
 RedeemBox_detector:
   LaunchMode:
@@ -113,10 +118,13 @@ RedeemBox_detector:
       TargetRectangleSlopeHorizonThreshold: 15
       TargetRectanglePairFourCornersThreshold: 100
     PCLManager:
-      ransacDistanceThreshold: 0.02
-      ransacMaxIterations: 10
-      ransacMinInliersNum: 15
-      CloseThresehold: 15
+      ransacDistanceThreshold: 0.005
+      ransacMaxIterations: 1
+      ransacMinInliersNum: 400
+      CloseThresehold: 100
+      ransacMaxPlaneNum: 100
+      PlaneOnCornersNumThreshold: 100
+      minPlaneDisThreshold: 0.30
     Main:
       SyncPubBoxPos:
         queuesiz: 20

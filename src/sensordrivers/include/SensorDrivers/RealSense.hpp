@@ -42,6 +42,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 #include <librealsense2/rs.hpp>
 
@@ -82,6 +84,12 @@ private:
     double EXPOSURE;
     double GAIN;
     double BRIGHTNESS;
+
+    //for preprocess pointcloud
+
+    double LeafSize;
+    int MeanK;
+    double StddevMulThresh;
 
     rs2::config cfg_pointcloud;
     rs2::config cfg_image;

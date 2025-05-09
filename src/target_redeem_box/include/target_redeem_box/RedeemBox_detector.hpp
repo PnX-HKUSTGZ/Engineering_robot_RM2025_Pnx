@@ -40,7 +40,8 @@
 #include <pcl/PointIndices.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/visualization/pcl_visualizer.h>
-
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -219,6 +220,11 @@ class RedeemBox_detector:public rclcpp::Node{
     // 兑换框正面到箭头的变换矩阵
     // Eigen::Matrix<double,4,4> CenterToArrowvec;
 
+    // 相机得到的画面宽度
+    int ImageWidth;
+    // 相机得到的画面高度
+    int ImageHeight;
+
     // 降维矩阵
     Eigen::Matrix<double,3,4> signMat;
 
@@ -305,12 +311,16 @@ private:
     # ifdef test_pcl_manage
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_test_point_cloud_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_camera_point_cloud_pub;
 
     # endif
 
     double ransacDistanceThreshold;
     int ransacMaxIterations;
     int ransacMinInliersNum;
+    int ransacMaxPlaneNum;
+    int PlaneOnCornersNumThreshold;
+    double minPlaneDisThreshold;
     double CloseThresehold;
 
 private://Rectangle_Detector
@@ -493,7 +503,76 @@ std::vector<PlaneData> segmentPlanesWithPoints(
     double distanceThreshold,
     int MaxIterations,
     int minInliersNum,
+    int maxPlaneNum,
     const rclcpp::Logger& logger=rclcpp::get_logger("segmentPlanesWithPoints"));
+
+// Function to remove hidden points using Depth Buffering
+// Input:
+//   cloud_camera_frame: Pointer to the input point cloud (MUST BE in camera coordinates)
+//   img_width: Width of the virtual image plane (pixels)
+//   img_height: Height of the virtual image plane (pixels)
+//   fx, fy, cx, cy: Camera intrinsic parameters
+//   near_plane: Near clipping plane distance
+// Output:
+//   A new point cloud containing only the visible points (in camera frame)
+pcl::PointCloud<pcl::PointXYZ>::Ptr removeHiddenPoints(
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_camera_frame,
+    int img_width, int img_height,
+    float fx, float fy, float cx, float cy,
+    float near_plane = 0.01f);
+
+
+/**
+ * @brief Calculates the distance from the origin (0, 0, 0) to the plane defined by the coefficients.
+ *
+ * The plane equation is ax + by + cz + d = 0.
+ * The distance from a point (x0, y0, z0) to the plane is |ax0 + by0 + cz0 + d| / sqrt(a^2 + b^2 + c^2).
+ * For the origin (0, 0, 0), the distance is |a*0 + b*0 + c*0 + d| / sqrt(a^2 + b^2 + c^2) = |d| / sqrt(a^2 + b^2 + c^2).
+ *
+ * @param plane_data The PlaneData struct containing the plane coefficients.
+ * @return The distance from the origin to the plane. Returns NaN if coefficients are invalid
+ *         (not 4 values) or if (a, b, c) vector is zero (not a valid plane normal).
+ */
+float PlaneDistanceToOrigin(const PlaneData& plane_data);
+
+/**
+ * @brief Calculates the distance from the origin (0, 0, 0) to the intersection point
+ *        of the plane with a ray starting at the origin and parallel to the positive Z-axis.
+ *
+ * The plane equation is ax + by + cz + d = 0.
+ * The ray is parameterized as (0, 0, t) for t >= 0.
+ * Substituting into the plane equation gives c*t + d = 0.
+ * If c != 0, t = -d/c. The intersection exists along the positive Z-axis ray if t >= 0.
+ * If c == 0, the plane is parallel to the Z-axis. If d == 0, the plane contains the Z-axis ray.
+ * If c == 0 and d != 0, the plane is parallel to the Z-axis and does not contain the ray.
+ * In cases where c == 0, there is no unique intersection point along the ray.
+ *
+ * @param plane_data The PlaneData struct containing the plane coefficients.
+ * @return The distance 't' if the intersection point is (0, 0, t) with t >= 0.
+ *         Returns NaN if there is no such intersection (plane parallel to Z-axis,
+ *         or intersection is on the negative Z-axis). Returns NaN for invalid coefficients.
+ */
+float IntersectionDistanceAlongZ(const PlaneData& plane_data);
+
+
+/**
+ * @brief Determines the plane defined by three given points.
+ *        Input points are Eigen::Vector3d (Eigen::Matrix<double, 3, 1>).
+ *
+ * The plane equation is ax + by + cz + d = 0, where (a, b, c) is the normalized normal vector.
+ *
+ * @param p1 The first point (Eigen::Vector3d).
+ * @param p2 The second point (Eigen::Vector3d).
+ * @param p3 The third point (Eigen::Vector3d).
+ * @param epsilon Tolerance for checking if points are collinear (normal vector is close to zero).
+ * @return A std::vector<double> containing the coefficients {a, b, c, d} if successful (size 4).
+ *         Returns an empty std::vector<double> if the three points are collinear.
+ */
+std::vector<double> determinePlaneFromThreePoints(
+    const Eigen::Vector3d& p1,
+    const Eigen::Vector3d& p2,
+    const Eigen::Vector3d& p3,
+    double epsilon = 1e-9);
 
 } // end namespace Engineering_robot_RM2025_Pnx
 

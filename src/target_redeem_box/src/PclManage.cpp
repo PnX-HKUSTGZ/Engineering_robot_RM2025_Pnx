@@ -16,13 +16,17 @@ void RedeemBox_detector::PointCloudeInit(){
     # ifdef test_pcl_manage
 
     pcl_test_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10);
+    pcl_camera_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/camerapcl",10);
 
     # endif
 
     ransacDistanceThreshold=PCLManagerConfig["ransacDistanceThreshold"].as<double>();
     ransacMaxIterations=PCLManagerConfig["ransacMaxIterations"].as<int>();
     ransacMinInliersNum=PCLManagerConfig["ransacMinInliersNum"].as<int>();
+    ransacMaxPlaneNum=PCLManagerConfig["ransacMaxPlaneNum"].as<int>();
     CloseThresehold=PCLManagerConfig["CloseThresehold"].as<double>();
+    PlaneOnCornersNumThreshold=PCLManagerConfig["PlaneOnCornersNumThreshold"].as<int>();
+    minPlaneDisThreshold=PCLManagerConfig["minPlaneDisThreshold"].as<double>();
 
     RCLCPP_INFO(this->get_logger(),"finish init PointCloudeInit");
 
@@ -42,7 +46,8 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         std::make_shared<pcl::PointCloud<pcl::PointXYZ> >(inputPointCloudWiderROI),
         ransacDistanceThreshold,
         ransacMaxIterations,
-        ransacMinInliersNum);
+        ransacMinInliersNum,
+        ransacMaxPlaneNum);
 
     if(!ExtractedPlanes.size()){
         RCLCPP_ERROR(this->get_logger(),"segmentPlanesWithPoints fail to get any plane!");
@@ -51,27 +56,85 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
     
     // choose the best plant
 
-    // the num of points aroud corners of each plant 
-    std::vector<int> scores;
+    cv::Mat pnprvec,pnptvec;
 
-    for(const auto & plant : ExtractedPlanes){
-        int score=0;
-        for(const auto i : *plant.points){
-            Eigen::Matrix<double,4,1> cloudpointEigen;
-            Eigen::Matrix<double,3,1> imagePoint;
-            cloudpointEigen<<i.x, i.y, i.z, 1;
-            imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
-            if(std::abs(imagePoint(2))<1e-6) continue;
-            imagePoint/=imagePoint(2);
+    bool solvePnPcheck=cv::solvePnP(objpoints,CornerPoints,cameraMatrixMat,std::vector<double>{0,0,0,0,0},pnprvec,pnptvec,0,cv::SOLVEPNP_IPPE);
 
-            for(const auto & i : CornerPoints){
-                if(DistancePoints(cv::Point2f(imagePoint(0),imagePoint(1)),i)<=CloseThresehold){
-                    score++;
-                }
-            }
-        }
-        scores.push_back(score);
+    DrawPnPResult(OriginalImage_pcl,pnprvec,pnptvec,cv::Scalar(33,223,123),1,cv::Point(-312312,-31231));
+
+    if(!solvePnPcheck){
+        RCLCPP_ERROR(this->get_logger(),"[GetTRvecPointCloud_PC] PnP failed!");
+        return 0;
     }
+
+    std::vector<double> PNPPlane;
+
+    {// get plane
+
+    cv::Mat rmat;
+    cv::Rodrigues(pnprvec,rmat);
+    Eigen::Matrix<double,4,4> rtvecEigen;
+
+    for(int i=0;i<3;i++){
+        for(int e=0;e<3;e++){
+            rtvecEigen(i,e)=rmat.at<double>(i,e);
+        }
+        rtvecEigen(i,3)=pnptvec.at<double>(i);
+    }
+    for(int i=0;i<3;i++) rtvecEigen(3, i) = 0.0;
+    rtvecEigen(3, 3) = 1.0;
+
+    Eigen::Matrix<double,4,1> point1_,point2_,point3_;
+    Eigen::Matrix<double,3,1> point1,point2,point3;
+    point1_=rtvecEigen*objpointsEigen[0];
+    point2_=rtvecEigen*objpointsEigen[2];
+    point3_=rtvecEigen*objpointsEigen[4];
+
+    point1=Eigen::Matrix<double,3,1>(point1_(0)/point1_(3),point1_(1)/point1_(3),point1_(2)/point1_(3));
+    point2=Eigen::Matrix<double,3,1>(point2_(0)/point2_(3),point2_(1)/point2_(3),point2_(2)/point2_(3));
+    point3=Eigen::Matrix<double,3,1>(point3_(0)/point3_(3),point3_(1)/point3_(3),point3_(2)/point3_(3));
+
+    PNPPlane=determinePlaneFromThreePoints(point1,point2,point3);
+
+    if(!PNPPlane.size()){
+        RCLCPP_ERROR(this->get_logger(),"determinePlaneFromThreePoints fail!");
+        return 0;
+    }
+
+    }
+
+    // the num of points aroud corners of each plant 
+    // std::vector<int> scores;
+    // std::vector<double> distance;
+
+    // cv::Point2f center;
+    // float radius;
+    // cv::minEnclosingCircle([&CornerPoints](){
+    //     Counter2f con;
+    //     for(auto & i : CornerPoints){
+    //         con.push_back(cv::Point2f(i.x,i.y));
+    //     }
+    //     return con;
+    // }(),center,radius);
+
+    // for(const auto & plant : ExtractedPlanes){
+    //     if(IntersectionDistanceAlongZ(plant)<minPlaneDisThreshold) continue;
+    //     int score=0;
+    //     for(const auto i : *plant.points){
+    //         Eigen::Matrix<double,4,1> cloudpointEigen;
+    //         Eigen::Matrix<double,3,1> imagePoint;
+    //         cloudpointEigen<<i.x, i.y, i.z, 1;
+    //         imagePoint=cameraMatrixEigen*signMat*cloudpointEigen;
+    //         if(std::abs(imagePoint(2))<1e-6) continue;
+    //         imagePoint/=imagePoint(2);
+
+    //         if(DistancePoints(cv::Point2f(imagePoint(0),imagePoint(1)),center)<=radius){
+    //             score++;
+    //         }
+    //     }
+    //     scores.push_back(score);
+    //     distance.push_back(IntersectionDistanceAlongZ(plant));
+    // }
 
     Eigen::Vector4f coefficient;
     pcl::PointCloud<pcl::PointXYZ> PlanePointClouds;
@@ -80,25 +143,26 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
     std::vector<cv::Point3d> Points3D;
 
     {
-        int maxIndex=-1;
-        int maxscore=0;
-        for(int i=0;i<scores.size();i++){
-            if(maxscore<scores[i]){
-                maxscore=scores[i];
-                maxIndex=i;
-            }
+
+        std::vector<int> indexs;
+        for(int i=0;i<ExtractedPlanes.size();i++){
+            indexs.push_back(i);
         }
 
-        if(maxIndex==-1){
-            RCLCPP_ERROR(this->get_logger(),"fail to find a plane close to the corners");
-            return 0;
-        }
+        std::sort(indexs.begin(),indexs.end(),[PNPPlane,&ExtractedPlanes](const int & a,const int & b){
+            double sa=0,sb=0;
+            for(int i=0;i<4;i++){
+                sa+=(PNPPlane[i]-ExtractedPlanes[a].coefficients.values[i])*(PNPPlane[i]-ExtractedPlanes[a].coefficients.values[i]);
+                sb+=(PNPPlane[i]-ExtractedPlanes[b].coefficients.values[i])*(PNPPlane[i]-ExtractedPlanes[b].coefficients.values[i]);
+            }
+            return sa<sb;
+        });
 
         for(int i=0;i<4;i++){
-            coefficient[i]=ExtractedPlanes[maxIndex].coefficients.values[i];
+            coefficient[i]=ExtractedPlanes[indexs[0]].coefficients.values[i];
         }
 
-        PlanePointClouds=*(ExtractedPlanes[maxIndex].points);
+        PlanePointClouds=*(ExtractedPlanes[indexs[0]].points);
 
     }
     
@@ -110,11 +174,17 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
 
     # ifdef test_pcl_manage
         
+    {    
     sensor_msgs::msg::PointCloud2 msg;
     pcl::toROSMsg<pcl::PointXYZ>(PlanePointClouds,msg);
     msg.header.frame_id=ImageFrame;
     msg.header.stamp=this->now();
     pcl_test_point_cloud_pub->publish(msg);
+    }
+
+    for(const auto & e : CornerPoints){
+        cv::circle(OriginalImage_pcl,cv::Point(e.x,e.y),CloseThresehold,cv::Scalar(225,225,225),2);
+    }
 
     for(auto i : PlanePointClouds){
         Eigen::Matrix<double,4,1>  PlanePointCloudEigen;
@@ -124,7 +194,7 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         cv::circle(OriginalImage_pcl,cv::Point(I(0),I(1)),1,cv::Scalar(130,100,22),-1);
         for(const auto & e : CornerPoints){
             if(DistancePoints(cv::Point2f(I(0),I(1)),e)<=CloseThresehold){
-                cv::circle(OriginalImage_pcl,cv::Point(I(0),I(1)),1,cv::Scalar(30,23,122),-1);
+                cv::circle(OriginalImage_pcl,cv::Point(I(0),I(1)),1,cv::Scalar(225,225,225),-1);
                 break;
             }
         }
@@ -185,12 +255,40 @@ bool RedeemBox_detector::inCircle(const cv::Point2f & Center,
 
 
 int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
-    InTimeCloudUpdate();
-    OriginalImage.copyTo(OriginalImage_pcl);
-    RCLCPP_INFO(this->get_logger(), "Get frame");
 
+    // --- Start Timing for the whole function ---
+    auto start_total = std::chrono::high_resolution_clock::now();
+
+    // --- Start Timing for InTimeCloudUpdate ---
+    auto start_update = std::chrono::high_resolution_clock::now();
+    // InTimeCloudUpdate();
+    auto end_update = std::chrono::high_resolution_clock::now();
+    auto duration_update = std::chrono::duration_cast<std::chrono::milliseconds>(end_update - start_update).count();
+    RCLCPP_INFO_STREAM(this->get_logger(), "[MainPclManager] InTimeCloudUpdate time: " << duration_update << " ms");
+
+    // --- Start Timing for Image Copy ---
+    auto start_copy = std::chrono::high_resolution_clock::now();
+    OriginalImage.copyTo(OriginalImage_pcl);
+    auto end_copy = std::chrono::high_resolution_clock::now();
+    auto duration_copy = std::chrono::duration_cast<std::chrono::milliseconds>(end_copy - start_copy).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"[MainPclManager] Get frame and copy time: " << duration_copy << " ms"); // Combined get frame log here
+
+    // --- Start Timing for PreProgress ---
+    auto start_preproc = std::chrono::high_resolution_clock::now();
     cv::Mat BinaryImage=this->PreProgress(OriginalImage_pcl);
+    auto end_preproc = std::chrono::high_resolution_clock::now();
+    auto duration_preproc = std::chrono::duration_cast<std::chrono::milliseconds>(end_preproc - start_preproc).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"[MainPclManager] PreProgress finish. Time: " << duration_preproc << " ms");
+
+    // --- Start Timing for TargetArrow ---
+    auto start_targetarrow = std::chrono::high_resolution_clock::now();
     Counter2d CornerPoints=this->TargetArrow(BinaryImage,OriginalImage_pcl);
+    auto end_targetarrow = std::chrono::high_resolution_clock::now();
+    auto duration_targetarrow = std::chrono::duration_cast<std::chrono::milliseconds>(end_targetarrow - start_targetarrow).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"[MainPclManager] TargetArrow finish. Time: " << duration_targetarrow << " ms");
+
+    // --- Start Timing for CornerPoints conversion ---
+    auto start_conversion = std::chrono::high_resolution_clock::now();
     Counter2f CornerPointsf=[&CornerPoints](){
         Counter2f ans;
         for(auto & I : CornerPoints){
@@ -198,31 +296,67 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
         }
         return ans;
     }();
+    auto end_conversion = std::chrono::high_resolution_clock::now();
+    auto duration_conversion = std::chrono::duration_cast<std::chrono::milliseconds>(end_conversion - start_conversion).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"[MainPclManager] CornerPoints conversion time: " << duration_conversion << " ms");
+
 
     if(!CornerPoints.size()){
         RCLCPP_INFO(this->get_logger(),"target fail");
+        // --- Log Total time even on failure ---
+        auto end_total_fail = std::chrono::high_resolution_clock::now();
+        auto duration_total_fail = std::chrono::duration_cast<std::chrono::milliseconds>(end_total_fail - start_total).count();
+        RCLCPP_INFO_STREAM(this->get_logger(), "[MainPclManager] Total execution time (target fail): " << duration_total_fail << " ms");
         return 0;
     }
 
+    // --- Start Timing for Bounding Box Calculation ---
+    auto start_bbox = std::chrono::high_resolution_clock::now();
     //Rect bound counter
     cv::Rect boundingCounterBox=cv::boundingRect(CornerPointsf);
-
     //extend Rect
     boundingCounterBox.x=std::max(0,boundingCounterBox.x-boundingCounterBox.width/2);
     boundingCounterBox.y=std::max(0,boundingCounterBox.y-boundingCounterBox.height/2);
     boundingCounterBox.width=std::min(boundingCounterBox.width*2,OriginalImage_pcl.cols-boundingCounterBox.x);
     boundingCounterBox.height=std::min(boundingCounterBox.height*2,OriginalImage_pcl.rows-boundingCounterBox.y);
+    auto end_bbox = std::chrono::high_resolution_clock::now();
+    auto duration_bbox = std::chrono::duration_cast<std::chrono::milliseconds>(end_bbox - start_bbox).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"[MainPclManager] Bounding box calculation time: " << duration_bbox << " ms");
 
+    // --- Start Timing for Min Enclosing Circle ---
+    auto start_circle = std::chrono::high_resolution_clock::now();
     cv::Point2f center;float radius;
     cv::minEnclosingCircle(CornerPointsf,center,radius);
-    radius*=1.6;
+    radius*=2.5;
+    auto end_circle = std::chrono::high_resolution_clock::now();
+    auto duration_circle = std::chrono::duration_cast<std::chrono::milliseconds>(end_circle - start_circle).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"[MainPclManager] Min enclosing circle time: " << duration_circle << " ms");
 
     pcl::PointCloud<pcl::PointXYZ> PreprocessedCloudPoint;
     std::vector<Eigen::Matrix<double,3,1>> CloudPointImagePoint;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr VisibleCloudCameraFrame= std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
 
     Cloudmtx.lock();
+
+    VisibleCloudCameraFrame = removeHiddenPoints(std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(InTimeCloud), ImageWidth, ImageHeight, cameraMatrixEigen(0,0), cameraMatrixEigen(1,1), cameraMatrixEigen(0,2), cameraMatrixEigen(1,2));
     
-    for(auto & i : InTimeCloud){
+    Cloudmtx.unlock();
+
+    # ifdef test_pcl_manage
+
+    sensor_msgs::msg::PointCloud2 msg;
+    pcl::toROSMsg<pcl::PointXYZ>(*VisibleCloudCameraFrame,msg);
+    msg.header.frame_id=ImageFrame;
+    msg.header.stamp=this->now();
+    pcl_camera_point_cloud_pub->publish(msg);
+
+    # endif
+
+    // --- Start Timing for Point Cloud Filtering and Projection (including mutex) ---
+    auto start_pcl_filter = std::chrono::high_resolution_clock::now();
+    
+
+    for(auto & i : *VisibleCloudCameraFrame){
         // if(i.z>=1.2) continue;
         Eigen::Matrix<double,4,1> cloudpointEigen;
         Eigen::Matrix<double,3,1> imagePoint;
@@ -233,47 +367,72 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
         imagePoint/=imagePoint(2);
 
         // if(boundingCounterBox.x<=imagePoint(0)&&imagePoint(0)<=boundingCounterBox.x+boundingCounterBox.width&&
-        //     boundingCounterBox.y<=imagePoint(1)&&imagePoint(1)<=boundingCounterBox.y+boundingCounterBox.height
-        if(inCircle(center,radius,imagePoint)
+            // boundingCounterBox.y<=imagePoint(1)&&imagePoint(1)<=boundingCounterBox.y+boundingCounterBox.height
+        if(inCircle(center,radius,imagePoint) // This 'if' condition needs to match the filtering logic
             ){
                 PreprocessedCloudPoint.push_back(i);
                 CloudPointImagePoint.push_back(std::move(imagePoint));
         }
     }
 
-    Cloudmtx.unlock();
-    
+
+    auto end_pcl_filter = std::chrono::high_resolution_clock::now();
+    auto duration_pcl_filter = std::chrono::duration_cast<std::chrono::milliseconds>(end_pcl_filter - start_pcl_filter).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"Select the appropriate point cloud with size :"<<PreprocessedCloudPoint.size() << ". Time: " << duration_pcl_filter << " ms");
+
 
     # ifdef test_pcl_manage
-
+    // --- Start Timing for Drawing (Conditional) ---
+    auto start_draw = std::chrono::high_resolution_clock::now();
     for(auto i : CloudPointImagePoint){
         cv::circle(OriginalImage_pcl,cv::Point(i(0),i(1)),1,cv::Scalar(22,33,130),-1);
     }
-
     DrawRect(OriginalImage_pcl,boundingCounterBox,cv::Scalar(102,32,210),1);
-
     cv::circle(OriginalImage_pcl,cv::Point(center.x,center.y),radius,cv::Scalar(102,32,210));
-    
-
+    auto end_draw = std::chrono::high_resolution_clock::now();
+    auto duration_draw = std::chrono::duration_cast<std::chrono::milliseconds>(end_draw - start_draw).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"Drawing time: " << duration_draw << " ms");
+    RCLCPP_INFO(this->get_logger(),"DrawRect and circle finish!"); // Keep original log if desired
     # endif
 
     cv::Mat tvec,rvec;
+    // --- Start Timing for GetTRvecPointCloud_PC (PnP) ---
+    auto start_pnp = std::chrono::high_resolution_clock::now();
     bool GetTRvecPointCloud_PCcheck=GetTRvecPointCloud_PC(PreprocessedCloudPoint,CornerPoints,tvec,rvec);
+    auto end_pnp = std::chrono::high_resolution_clock::now();
+    auto duration_pnp = std::chrono::duration_cast<std::chrono::milliseconds>(end_pnp - start_pnp).count();
 
     if(!GetTRvecPointCloud_PCcheck){
-        RCLCPP_ERROR(this->get_logger(),"MainPclManager GetTRvecPointCloud_PC fail!");
+        RCLCPP_ERROR_STREAM(this->get_logger(),"MainPclManager GetTRvecPointCloud_PC fail! Time taken: " << duration_pnp << " ms");
+        // --- Log Total time even on PnP failure ---
+        auto end_total_fail_pnp = std::chrono::high_resolution_clock::now();
+        auto duration_total_fail_pnp = std::chrono::duration_cast<std::chrono::milliseconds>(end_total_fail_pnp - start_total).count();
+        RCLCPP_INFO_STREAM(this->get_logger(), "[MainPclManager] Total execution time (PnP fail): " << duration_total_fail_pnp << " ms");
         return 0;
     }
+    RCLCPP_INFO_STREAM(this->get_logger(),"GetTRvecPointCloud_PC time: " << duration_pnp << " ms");
 
+    // --- Start Timing for SendBoxPosition ---
+    auto start_send = std::chrono::high_resolution_clock::now();
     SendBoxPosition(tvec,rvec);
+    auto end_send = std::chrono::high_resolution_clock::now();
+    auto duration_send = std::chrono::duration_cast<std::chrono::milliseconds>(end_send - start_send).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"SendBoxPosition time: " << duration_send << " ms");
 
     #ifdef SyncPubBoxPos
+    // --- Start Timing for SyncPubBoxPos (Conditional) ---
+    auto start_sync = std::chrono::high_resolution_clock::now();
     cloudressMtx.lock();
     cloudress.push(PnPresult(tvec,rvec,this->now()));
     cloudressMtx.unlock();
+    auto end_sync = std::chrono::high_resolution_clock::now();
+    auto duration_sync = std::chrono::duration_cast<std::chrono::milliseconds>(end_sync - start_sync).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"SyncPubBoxPos time: " << duration_sync << " ms");
     #endif
 
     # ifdef test_pcl_manage
+    // --- Start Timing for Final Drawing/Display (Conditional) ---
+    auto start_final_draw = std::chrono::high_resolution_clock::now();
     DrawPnPResult(OriginalImage_pcl,rvec,tvec,cv::Scalar(225,80,22),3,cv::Point(20,40));
 
     std::stringstream test_pcl_managesss;
@@ -281,7 +440,15 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     RCLCPP_INFO(this->get_logger(),"test_pcl_managesss : %s",test_pcl_managesss.str().c_str());
     cv::imshow("OriginalImage_pcl",OriginalImage_pcl);
     cv::waitKey(1);
+    auto end_final_draw = std::chrono::high_resolution_clock::now();
+    auto duration_final_draw = std::chrono::duration_cast<std::chrono::milliseconds>(end_final_draw - start_final_draw).count();
+    RCLCPP_INFO_STREAM(this->get_logger(),"Final draw/display time: " << duration_final_draw << " ms");
     # endif
+
+    // --- End Timing for the whole function ---
+    auto end_total = std::chrono::high_resolution_clock::now();
+    auto duration_total = std::chrono::duration_cast<std::chrono::milliseconds>(end_total - start_total).count();
+    RCLCPP_INFO_STREAM(this->get_logger(), "[MainPclManager] Total execution time: " << duration_total << " ms");
 
     return 1;
 }
@@ -292,6 +459,7 @@ std::vector<PlaneData> segmentPlanesWithPoints(
     double distanceThreshold,
     int MaxIterations,
     int minInliersNum,
+    int maxPlaneNum,
     const rclcpp::Logger& logger){
     
     std::vector<PlaneData> segmented_planes;
@@ -315,7 +483,7 @@ std::vector<PlaneData> segmentPlanesWithPoints(
 
     RCLCPP_INFO_STREAM(logger,"Starting plane segmentation with " << original_cloud->size() << " points.");
 
-    while (current_indices.size() > minInliersNum){
+    while (current_indices.size() > minInliersNum&& segmented_planes.size()<maxPlaneNum){
         // Create a temporary cloud from the points referenced by current_indices in the original cloud
         pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>());
         pcl::PointIndices::Ptr temp_indices_ptr(new pcl::PointIndices()); // Indices used to extract temp_cloud

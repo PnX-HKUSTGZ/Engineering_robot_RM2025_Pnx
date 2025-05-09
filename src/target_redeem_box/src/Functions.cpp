@@ -624,4 +624,216 @@ void DrawRect(cv::Mat & Image, const cv::Rect & rect, cv::Scalar color, int thic
     cv::line(Image,cv::Point(rect.x+rect.width,rect.y+rect.height),cv::Point(rect.x+rect.width,rect.y),color,thickness);
 }
 
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr removeHiddenPoints(
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_camera_frame,
+    int img_width, int img_height,
+    float fx, float fy, float cx, float cy,
+    float near_plane)
+{
+    if (!cloud_camera_frame || cloud_camera_frame->empty()) {
+        std::cerr << "Input cloud (in camera frame) is empty or null." << std::endl;
+        return pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>());
+    }
+
+    // --- 1. Initialize Depth Buffer and Index Buffer ---
+    std::vector<std::vector<float>> depth_buffer(
+        img_height, std::vector<float>(img_width, std::numeric_limits<float>::max()));
+
+    std::vector<std::vector<int>> index_buffer(
+        img_height, std::vector<int>(img_width, -1));
+
+    // --- 2. Project Points and Populate Buffers ---
+    for (size_t i = 0; i < cloud_camera_frame->points.size(); ++i) {
+        const auto& p = cloud_camera_frame->points[i];
+
+        // Get point coordinates in camera frame (already assumed)
+        float X_c = p.x;
+        float Y_c = p.y;
+        float Z_c = p.z; // Depth
+
+        // Ignore points behind or at the near plane
+        if (Z_c <= near_plane) {
+            continue;
+        }
+        // Also ignore points that might project behind the camera (Z_c should be positive for points in front)
+        if (Z_c <= 0) {
+             continue; // Should already be handled by near_plane if near_plane > 0
+        }
+
+
+        // Perspective Projection to pixel coordinates (u, v)
+        // u = fx * (X_c / Z_c) + cx
+        // v = fy * (Y_c / Z_c) + cy
+        float u_float = fx * (X_c / Z_c) + cx;
+        float v_float = fy * (Y_c / Z_c) + cy;
+
+        // Round to nearest integer pixel coordinates
+        int u = static_cast<int>(std::round(u_float));
+        int v = static_cast<int>(std::round(v_float));
+
+        // Check if the projected point is within the image bounds
+        if (u >= 0 && u < img_width && v >= 0 && v < img_height) {
+            // If this point is closer than the one currently stored at (v, u)
+            if (Z_c < depth_buffer[v][u]) {
+                depth_buffer[v][u] = Z_c;
+                index_buffer[v][u] = static_cast<int>(i); // Store original point index
+            }
+        }
+    }
+
+    // --- 3. Collect Indices of Visible Points ---
+    std::vector<int> visible_indices;
+    visible_indices.reserve(img_width * img_height);
+
+    for (int v = 0; v < img_height; ++v) {
+        for (int u = 0; u < img_width; ++u) {
+            if (index_buffer[v][u] != -1) {
+                visible_indices.push_back(index_buffer[v][u]);
+            }
+        }
+    }
+
+    // --- 4. Create Visible Point Cloud ---
+    pcl::PointCloud<pcl::PointXYZ>::Ptr visible_cloud_camera_frame(new pcl::PointCloud<pcl::PointXYZ>());
+    visible_cloud_camera_frame->points.reserve(visible_indices.size());
+
+    for (int index : visible_indices) {
+        visible_cloud_camera_frame->points.push_back(cloud_camera_frame->points[index]);
+    }
+
+    visible_cloud_camera_frame->width = visible_cloud_camera_frame->points.size();
+    visible_cloud_camera_frame->height = 1;
+    visible_cloud_camera_frame->is_dense = cloud_camera_frame->is_dense;
+
+    return visible_cloud_camera_frame;
+}
+
+float PlaneDistanceToOrigin(const PlaneData& plane_data) {
+    static auto logger=rclcpp::get_logger("PlaneDistanceToOrigin");
+    // Ensure the coefficients vector has the correct size for a plane (a, b, c, d)
+    if (plane_data.coefficients.values.size() != 4) {
+        RCLCPP_ERROR_STREAM(logger, "Error: Invalid number of plane coefficients (" << plane_data.coefficients.values.size() << " instead of 4)." );
+        return std::numeric_limits<float>::quiet_NaN(); // Return NaN for invalid input
+    }
+
+    float a = plane_data.coefficients.values[0];
+    float b = plane_data.coefficients.values[1];
+    float c = plane_data.coefficients.values[2];
+    float d = plane_data.coefficients.values[3];
+
+    // Calculate the magnitude of the normal vector (a, b, c)
+    float normal_magnitude_sq = a*a + b*b + c*c;
+
+    // Check if the normal vector is zero (which would mean it's not a valid plane normal)
+    // Use a small epsilon for floating point comparison with zero
+    const float epsilon = 1e-6f;
+    if (normal_magnitude_sq < epsilon * epsilon) {
+        if (std::abs(d) < epsilon) {
+             // If d is also close to zero, it might represent the entire space (0=0),
+             // which includes the origin. Distance is arguably 0.
+             return 0.0f;
+         } else {
+             // If d is non-zero, 0=d is a contradiction. Not a valid plane.
+            RCLCPP_ERROR(logger,"invalid plane!");
+            return std::numeric_limits<float>::quiet_NaN(); // Return NaN
+         }
+    }
+
+    float normal_magnitude = std::sqrt(normal_magnitude_sq);
+
+    // Distance from origin (0, 0, 0) to ax + by + cz + d = 0 is |d| / sqrt(a^2 + b^2 + c^2)
+    float distance = std::fabs(d) / normal_magnitude;
+
+    return distance;
+}
+
+float IntersectionDistanceAlongZ(const PlaneData& plane_data) {
+    static auto logger=rclcpp::get_logger("IntersectionDistanceAlongZ");
+    // Ensure the coefficients vector has the correct size for a plane (a, b, c, d)
+    if (plane_data.coefficients.values.size() != 4) {
+        RCLCPP_ERROR_STREAM(logger, "Error: Invalid number of plane coefficients (" << plane_data.coefficients.values.size() << " instead of 4).");
+        return std::numeric_limits<float>::quiet_NaN(); // Return NaN for invalid input
+    }
+
+    float a = plane_data.coefficients.values[0];
+    float b = plane_data.coefficients.values[1];
+    float c = plane_data.coefficients.values[2];
+    float d = plane_data.coefficients.values[3];
+
+    const float epsilon = 1e-6f; // Tolerance for floating point comparison with zero
+
+    // Check if the coefficient 'c' is close to zero
+    if (std::fabs(c) < epsilon) {
+        // Plane is parallel to the Z-axis (or is 0=0 space)
+        // If c is zero, the ray (0,0,t) substituted into ax+by+cz+d=0 becomes d=0.
+        // If d is also zero, the plane contains the Z-axis ray. No unique intersection point.
+        // If d is non-zero, there's no solution for t, no intersection.
+        RCLCPP_ERROR(logger, "Warning: Coefficient 'c' is close to zero. Plane is parallel to Z-axis." );
+        // In both c=0, d=0 and c=0, d!=0 cases, there is no unique intersection distance along the ray.
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+
+    // If c is not zero, calculate t = -d / c
+    float t = -d / c;
+
+    // Check if the intersection point is on the positive Z-axis (t >= 0)
+    if (t >= -epsilon) { // Use epsilon to handle floating point results very close to zero
+        return t; // The distance is t
+    } else {
+        // Intersection is on the negative Z-axis
+        RCLCPP_WARN_STREAM(logger, "Info: Intersection point is on the negative Z-axis (t = " << t << "). No intersection along positive ray." );
+        return std::numeric_limits<float>::quiet_NaN(); // No intersection along the positive Z-axis ray
+    }
+}
+
+/**
+ * @brief Determines the plane defined by three given points.
+ *        Input points are Eigen::Vector3d (Eigen::Matrix<double, 3, 1>).
+ *
+ * The plane equation is ax + by + cz + d = 0, where (a, b, c) is the normalized normal vector.
+ *
+ * @param p1 The first point (Eigen::Vector3d).
+ * @param p2 The second point (Eigen::Vector3d).
+ * @param p3 The third point (Eigen::Vector3d).
+ * @param epsilon Tolerance for checking if points are collinear (normal vector is close to zero).
+ * @return A std::vector<double> containing the coefficients {a, b, c, d} if successful (size 4).
+ *         Returns an empty std::vector<double> if the three points are collinear.
+ */
+std::vector<double> determinePlaneFromThreePoints(
+    const Eigen::Vector3d& p1,
+    const Eigen::Vector3d& p2,
+    const Eigen::Vector3d& p3,
+    double epsilon) // Using double precision epsilon
+{
+    // Calculate two vectors on the plane using double precision
+    Eigen::Vector3d v12 = p2 - p1;
+    Eigen::Vector3d v13 = p3 - p1;
+
+    // Calculate the normal vector as the cross product (double precision)
+    Eigen::Vector3d normal = v12.cross(v13);
+
+    // Check if the normal vector is close to zero (points are collinear) using double precision norm
+    if (normal.norm() < epsilon) {
+        RCLCPP_ERROR(rclcpp::get_logger("determinePlaneFromThreePoints"),"Error: The three points are collinear. Cannot determine a unique plane.");
+        return std::vector<double>(); // Return empty vector to indicate failure
+    }
+
+    // Normalize the normal vector (double precision)
+    Eigen::Vector3d normalized_normal = normal.normalized();
+
+    // Calculate the d coefficient: d = -(a*x + b*y + c*z) for any point (x,y,z) on the plane
+    // Using p1 and double precision dot product: d = -(normalized_normal . p1)
+    double d = -normalized_normal.dot(p1);
+
+    // Store normalized a, b, c coefficients and d into a vector<double>
+    std::vector<double> coefficients;
+    coefficients.push_back(normalized_normal.x()); // a
+    coefficients.push_back(normalized_normal.y()); // b
+    coefficients.push_back(normalized_normal.z()); // c
+    coefficients.push_back(d);                    // d
+
+    return coefficients; // Return the vector of coefficients
+}
+
 } // namespace 

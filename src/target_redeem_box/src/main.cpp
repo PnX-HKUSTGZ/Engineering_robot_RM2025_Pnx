@@ -358,7 +358,7 @@ void RedeemBox_detector::CloudSubManage(const sensor_msgs::msg::PointCloud2::Con
     sensor_msgs::msg::PointCloud2 TransformedCloudPoint;
     geometry_msgs::msg::TransformStamped transform;
     std::pair<int,rclcpp::Time> tmp=std::make_pair(cloud_msg->width*cloud_msg->height,cloud_msg->header.stamp);
-    pcl::PointCloud<pcl::PointXYZ> InputCloud;
+    // pcl::PointCloud<pcl::PointXYZ> InputCloud;
 
     try{
         transform=tf2_buffer_->lookupTransform(
@@ -387,20 +387,10 @@ void RedeemBox_detector::CloudSubManage(const sensor_msgs::msg::PointCloud2::Con
         return;
     }
     tf2::doTransform(*cloud_msg,TransformedCloudPoint,transform);
-    pcl::fromROSMsg(TransformedCloudPoint,InputCloud);
-
-    // InTimeCloudUpdate();
 
     Cloudmtx.lock();
-
-    // for(auto &point :InputCloud){
-    //     InTimeCloud.push_back(point);
-    // }
-    // InTimeCloud.width=InTimeCloud.size();
-    // InTimeCloud.height=1;
-    // InTimeCloud.is_dense=true;
-    // CloudTimeStamp.push(tmp);
-    InTimeCloud = std::move(InputCloud);
+    
+    pcl::fromROSMsg(TransformedCloudPoint,InTimeCloud);
 
     # ifdef test_pointcloud_main_log
 
@@ -487,6 +477,8 @@ RedeemBox_detector::RedeemBox_detector(rclcpp::NodeOptions options):
             rclcpp::shutdown();
         }
 
+        ImageWidth=config["camera"]["width"].as<int>();
+        ImageHeight=config["camera"]["height"].as<int>();
         cameraMatrix=config["camera"]["camera_matrix"].as<std::vector<double>>();
         distCoeffs=config["camera"]["dist_coeffs"].as<std::vector<double>>();
         cameraMatrixMat=cv::Mat(cv::Size(3,3),CV_64F);

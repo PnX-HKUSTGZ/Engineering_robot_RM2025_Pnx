@@ -86,7 +86,7 @@ namespace Engineering_robot_RM2025_Pnx{
                 auto end_time = std::chrono::steady_clock::now();
                 auto duration = end_time - start_time;
                 auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-                RCLCPP_INFO_STREAM(this->get_logger(),"One point cloud loop cost :"<<duration_ms.count() <<" ms");
+                // RCLCPP_INFO_STREAM(this->get_logger(),"One point cloud loop cost :"<<duration_ms.count() <<" ms");
             }
         });
 
@@ -107,7 +107,7 @@ namespace Engineering_robot_RM2025_Pnx{
                 auto end_time = std::chrono::steady_clock::now();
                 auto duration = end_time - start_time;
                 auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-                RCLCPP_INFO_STREAM(this->get_logger(),"One image loop cost :"<<duration_ms.count() <<" ms");
+                // RCLCPP_INFO_STREAM(this->get_logger(),"One image loop cost :"<<duration_ms.count() <<" ms");
             }
         });
 
@@ -302,17 +302,36 @@ namespace Engineering_robot_RM2025_Pnx{
 
         auto pcl_point=points_to_pcl(points);
 
-        auto pcl_point_filtered=filterDepthRange(pcl_point,depmin,depmax);
+        auto pclDepthPointFiltered=filterDepthRange(pcl_point,depmin,depmax);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr pclFinalPointFiltered=std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+
+        {// down sample cloud point and remove the stray
+            
+        pcl::PointCloud<pcl::PointXYZ>::Ptr pclDownPointFiltered=std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+
+        pcl::VoxelGrid<pcl::PointXYZ> vg;
+        vg.setInputCloud(pclDepthPointFiltered);
+        vg.setLeafSize(LeafSize,LeafSize,LeafSize);
+        vg.filter(*pclDownPointFiltered);
+        
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+        sor.setInputCloud(pclDownPointFiltered);
+        sor.setMeanK(MeanK);
+        // 任何平均距离大于所有点平均距离 + 标准差 * StddevMulThresh 的点都将被移除
+        sor.setStddevMulThresh(StddevMulThresh);
+        sor.filter(*pclFinalPointFiltered);
+
+        }// down sample cloud point and remove the stray
 
         sensor_msgs::msg::PointCloud2 pointcloudmsg;
 
-        pcl::toROSMsg(*pcl_point_filtered,pointcloudmsg);
+        pcl::toROSMsg(*pclFinalPointFiltered,pointcloudmsg);
 
         pointcloudmsg.header.stamp=this->now();
         pointcloudmsg.header.frame_id="sensor/RealSense/depth";
         
         pc_pub_->publish(pointcloudmsg);
-        RCLCPP_INFO(this->get_logger(),"pc_pub_ publish ok! with point size : %ld",pcl_point_filtered->size());
+        // RCLCPP_INFO(this->get_logger(),"pc_pub_ publish ok! with point size : %ld",pcl_point_filtered->size());
     }
 
     void RealSense::RS_image_pub_callback(){
@@ -331,7 +350,7 @@ namespace Engineering_robot_RM2025_Pnx{
         image_ptr->header.stamp=this->now();
 
         image_pub_->publish(*image_ptr);
-        RCLCPP_INFO(this->get_logger(),"image_pub_ publish ok!");
+        // RCLCPP_INFO(this->get_logger(),"image_pub_ publish ok!");
 
     }
 
@@ -343,28 +362,25 @@ namespace Engineering_robot_RM2025_Pnx{
             config=YAML::LoadFile(this->get_parameter("Location").as_string()+"/src/config.yaml");
             configparam=config["RealSense"];
             config=config["object_pos"]["RealSense"];
+
+            depth_wight=configparam["depth_wight"].as<int>();
+            depth_hight=configparam["depth_hight"].as<int>();
+            depmax=configparam["depmax"].as<double>();
+            depmin=configparam["depmin"].as<double>();
+            EXPOSURE=configparam["EXPOSURE"].as<int>();
+            GAIN=configparam["GAIN"].as<int>();
+            BRIGHTNESS=configparam["BRIGHTNESS"].as<int>();
+    
+            LeafSize=configparam["LeafSize"].as<double>();
+            MeanK=configparam["MeanK"].as<int>();
+            StddevMulThresh=configparam["StddevMulThresh"].as<double>();
+
         }
         catch(YAML::Exception& e){
             RCLCPP_ERROR(this->get_logger(),"error reading config file: %s",e.what());
             rclcpp::shutdown();
         }
 
-        // this->declare_parameter<bool>("USE_VITURAL_POSE",true);
-        // this->declare_parameter<int>("depth_wight",1280);
-        // this->declare_parameter<int>("depth_hight",720);
-        // this->declare_parameter<double>("depmin",0.2);
-        // this->declare_parameter<double>("depmax",2);
-        // this->declare_parameter<double>("EXPOSURE",166);
-        // this->declare_parameter<double>("GAIN",10);
-        // this->declare_parameter<double>("BRIGHTNESS",0);
-
-        depth_wight=configparam["depth_wight"].as<int>();
-        depth_hight=configparam["depth_hight"].as<int>();
-        depmax=configparam["depmax"].as<double>();
-        depmin=configparam["depmin"].as<double>();
-        EXPOSURE=configparam["EXPOSURE"].as<int>();
-        GAIN=configparam["GAIN"].as<int>();
-        BRIGHTNESS=configparam["BRIGHTNESS"].as<int>();
     }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr points_to_pcl(const rs2::points& points){
