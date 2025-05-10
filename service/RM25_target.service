@@ -2,13 +2,17 @@
 # 服务的描述
 Description=RobotMaster Pnx 2025 TargetArrow Service
 # 定义服务在哪些单元之后启动（例如网络就绪、系统日志服务就绪）
-After=network.target syslog.target
+After=network.target syslog.target After=graphical-session.target
 
 [Service]
 Type=simple
 WorkingDirectory=/home/pnx/code/Engineering_robot_RM2025_Pnx/
 User=pnx
+Environment=DISPLAY=:0
 EnvironmentFile=/home/pnx/code/Engineering_robot_RM2025_Pnx/service/env 
 ExecStart=/opt/ros/humble/bin/ros2 launch /home/pnx/code/Engineering_robot_RM2025_Pnx/launch/launch_all.py
 Restart=on-failure 
 RestartSec=1 
+
+[Install]
+WantedBy=graphical-session.target
