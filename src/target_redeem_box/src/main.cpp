@@ -255,6 +255,7 @@ void RedeemBox_detector::CallDetectorFunctions(){
     }
 
     // 显示图像
+    #ifdef Imageshow
     try {
         cv::imshow("Original", imageCopy);
         cv::waitKey(1);
@@ -262,6 +263,7 @@ void RedeemBox_detector::CallDetectorFunctions(){
         RCLCPP_ERROR(this->get_logger(), "OpenCV display error: %s", e.what());
         return;
     }
+    #endif
 
     // 准备线程数据
     struct callTime{

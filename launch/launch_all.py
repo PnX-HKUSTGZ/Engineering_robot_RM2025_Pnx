@@ -12,7 +12,9 @@ import launch_ros.descriptions
 
 def generate_launch_description():
 
-    Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
+    base_path = os.path.join(get_package_share_directory("interfaces"), os.pardir, os.pardir, os.pardir, os.pardir) # 示例相对路径
+    Path = {"Location": base_path + "/"} # 添加斜杠以保持原始逻辑
+    
     all = launch_ros.actions.ComposableNodeContainer(
         name="Engineering_robot_RM2025_Pnx",
         namespace="",
@@ -31,13 +33,21 @@ def generate_launch_description():
                 name="realsense_driver",
                 parameters=[Path],
             ),
-            launch_ros.descriptions.ComposableNode(
-                package="target_redeem_box",
-                plugin="Engineering_robot_RM2025_Pnx::RedeemBox_detector",
-                name="target_redeem_box",
-                parameters=[Path],
-            ),
+            # launch_ros.descriptions.ComposableNode(
+            #     package="target_redeem_box",
+            #     plugin="Engineering_robot_RM2025_Pnx::RedeemBox_detector",
+            #     name="target_redeem_box",
+            #     parameters=[Path],
+            # ),
         ],
+        output="screen",
+        respawn=True,
+    )
+    target_redeem_box=Node(
+        package="target_redeem_box",
+        executable="RedeemBox_detector_node",
+        name="target_redeem_box",
+        parameters=[Path],
         output="screen",
         respawn=True,
     )
@@ -50,5 +60,6 @@ def generate_launch_description():
     # )
     return LaunchDescription([
         all,
+        target_redeem_box,
         # mid360,
     ])

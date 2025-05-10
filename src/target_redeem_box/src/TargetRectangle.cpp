@@ -225,13 +225,14 @@ std::vector<cv::Point2f> RedeemBox_detector::TargetRectangle(const cv::Mat & Bin
         }
     }
 
-    // # ifdef DetectorRectangle_test_target
+    # ifdef DetectorRectangle_test_target
     for(auto & e : NoOverlapTargetCornerscounters){
         cv::drawContours(Image,std::vector<Counter>{e},-1,cv::Scalar(255,34,123),3);
         RCLCPP_INFO(this->get_logger(),"counter.size= %lf",cv::contourArea(e));
         cv::imshow("TargetRectangle",Image);
         // cv::waitKey(0);
     }
+    # endif
 
     if(NoOverlapTargetCornerscounters.size()<4){
         RCLCPP_WARN(this->get_logger(),"TargetCornerscounters.size()<4 fail size= %ld",NoOverlapTargetCornerscounters.size());
