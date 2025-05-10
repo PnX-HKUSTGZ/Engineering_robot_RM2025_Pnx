@@ -308,9 +308,10 @@ private:
     bool ImagePointTo3DPoint_Plant(const Counter2d& Points2D, const Eigen::VectorXf & plant, std::vector<cv::Point3d> &Points3D);
 
 
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_test_point_cloud_pub;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_camera_point_cloud_sub;
     # ifdef test_pcl_manage
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_test_point_cloud_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_camera_point_cloud_pub;
 
     # endif

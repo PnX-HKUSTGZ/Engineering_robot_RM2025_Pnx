@@ -13,9 +13,12 @@ void RedeemBox_detector::PointCloudeInit(){
     // sync_->setMaxIntervalDuration(rclcpp::Duration(1,0));
     // sync_->registerCallback(&RedeemBox_detector::ImageCloudPointCallBack,this);
 
+    pcl_test_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10);
+    pcl_camera_point_cloud_sub=this->create_subscription<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10,[this](const sensor_msgs::msg::PointCloud2::SharedPtr msg){
+        RCLCPP_INFO(this->get_logger(),"get pcl cloud size : %ld",msg->data.size());
+    });
     # ifdef test_pcl_manage
 
-    pcl_test_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10);
     pcl_camera_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/camerapcl",10);
 
     # endif
@@ -167,11 +170,12 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         return 0;
     }
 
+    RCLCPP_INFO(this->get_logger(),"PlanePointClouds size %ld",PlanePointClouds.size());
     # ifdef test_pcl_manage
         
     {    
     sensor_msgs::msg::PointCloud2 msg;
-    pcl::toROSMsg<pcl::PointXYZ>(pcl::PointCloud<pcl::PointXYZ>(),msg);
+    pcl::toROSMsg<pcl::PointXYZ>(PlanePointClouds,msg);
     msg.header.frame_id=ImageFrame;
     msg.header.stamp=this->now();
     pcl_test_point_cloud_pub->publish(msg);
