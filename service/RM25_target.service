@@ -2,7 +2,7 @@
 # 服务的描述
 Description=RobotMaster Pnx 2025 TargetArrow Service
 # 定义服务在哪些单元之后启动（例如网络就绪、系统日志服务就绪）
-After=network.target syslog.target After=graphical-session.target
+After=network.target syslog.target graphical-session.target
 
 [Service]
 Type=simple
@@ -15,4 +15,4 @@ Restart=on-failure
 RestartSec=1 
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target
