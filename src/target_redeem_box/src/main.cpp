@@ -149,7 +149,7 @@ void RedeemBox_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, con
     return;
 }
 
-void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
+void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat, bool reverse){
 
     CV_Assert((rvecmat.size()==cv::Size(3,3) || rvecmat.size()==cv::Size(3,1) || rvecmat.size()==cv::Size(1,3))&&
         (rvecmat.type()==CV_64F || rvecmat.type()==CV_32F));
@@ -177,6 +177,10 @@ void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat){
     box_to_camera.transform.rotation.x=Quaternion_r[1];
     box_to_camera.transform.rotation.y=Quaternion_r[2];
     box_to_camera.transform.rotation.z=Quaternion_r[3];
+
+    if(reverse){
+        box_to_camera=ReverseTransforme(box_to_camera);
+    }
 
     tf_broadcaster_box_to_camera->sendTransform(box_to_camera);
 

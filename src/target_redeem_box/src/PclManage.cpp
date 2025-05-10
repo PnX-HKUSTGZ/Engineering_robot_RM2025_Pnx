@@ -494,7 +494,21 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
 
     // --- Start Timing for SendBoxPosition ---
     auto start_send = std::chrono::high_resolution_clock::now();
-    SendBoxPosition(tvec,rvec);
+
+
+    //check direction
+
+    if(center.x>CornerPoints[0].x){
+        RCLCPP_INFO(this->get_logger(),"SendBoxPosition reverse direction!");
+        SendBoxPosition(tvec,rvec,true);
+    }
+    else{
+        SendBoxPosition(tvec,rvec,false);
+    }
+
+    
+    
+    
     auto end_send = std::chrono::high_resolution_clock::now();
     auto duration_send = std::chrono::duration_cast<std::chrono::milliseconds>(end_send - start_send).count();
     RCLCPP_INFO_STREAM(this->get_logger(),"SendBoxPosition time: " << duration_send << " ms");

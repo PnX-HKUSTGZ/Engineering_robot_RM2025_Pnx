@@ -25,29 +25,30 @@ def generate_launch_description():
                 name="camera_driver",
                 parameters=[Path],
             ),
-            # launch_ros.descriptions.ComposableNode(
-            #     package="c_strake_conmunication",
-            #     plugin="Engineering_robot_RM2025_Pnx::RMSerialDriver",
-            #     name="RMSerialDriver",
-            #     parameters=[Path],
-            # ),
+            launch_ros.descriptions.ComposableNode(
+                package="sensordrivers",
+                plugin="Engineering_robot_RM2025_Pnx::RealSense",
+                name="realsense_driver",
+                parameters=[Path],
+            ),
             launch_ros.descriptions.ComposableNode(
                 package="target_redeem_box",
-                plugin='Engineering_robot_RM2025_Pnx::RedeemBox_detector',
-                name='RedeemBox_detector',
+                plugin="Engineering_robot_RM2025_Pnx::RedeemBox_detector",
+                name="target_redeem_box",
                 parameters=[Path],
-            )
+            ),
         ],
-        output="screen"
+        output="screen",
+        respawn=True,
     )
-    mid360 = Node(
-        package='sensordrivers',
-        executable='mid360_driver',
-        name='mid360_driver',
-        output='screen',
-        parameters=[Path]
-    )
+    # mid360 = Node(
+    #     package='sensordrivers',
+    #     executable='mid360_driver',
+    #     name='mid360_driver',
+    #     output='screen',
+    #     parameters=[Path]
+    # )
     return LaunchDescription([
         all,
-        mid360,
+        # mid360,
     ])

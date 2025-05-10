@@ -890,4 +890,46 @@ float PointToPlaneDistance(
         return PointToPlaneDistance(point,coe);
     }
 
+geometry_msgs::msg::TransformStamped ReverseTransforme(
+    const geometry_msgs::msg::TransformStamped& transform_A_to_child)
+{
+    // 1. 提取输入的旋转和平移
+    tf2::Quaternion q_A_to_C;
+    // tf2::fromMsg(transform_A_to_child.transform.rotation, q_A_to_C);
+    q_A_to_C.setX(transform_A_to_child.transform.rotation.x);
+    q_A_to_C.setY(transform_A_to_child.transform.rotation.y);
+    q_A_to_C.setZ(transform_A_to_child.transform.rotation.z);
+    q_A_to_C.setW(transform_A_to_child.transform.rotation.w);
+
+    geometry_msgs::msg::Vector3 t_A_to_C = transform_A_to_child.transform.translation;
+
+    // 2. 定义从 C 到 B 的旋转：绕 Z 轴逆时针 90 度 (-90度)
+    // 可以使用 setRPY, setEulerZYX, 或者 setRotation
+    // setRPY(roll, pitch, yaw) 这里的 yaw 是绕 Z 轴的旋转
+    tf2::Quaternion q_C_to_B;
+    q_C_to_B.setRPY(0, 0, -M_PI ); // 逆时针 90 度是 -90 度
+
+    // 3. 计算从 A 到 B 的总旋转
+    // q_A_to_B = q_A_to_C * q_C_to_B; (tf2 的乘法顺序)
+    tf2::Quaternion q_A_to_B = q_A_to_C * q_C_to_B;
+
+    // 4. 从 A 到 B 的平移与从 A 到 C 的平移相同
+    geometry_msgs::msg::Vector3 t_A_to_B = t_A_to_C;
+
+    // 5. 构造输出的 TransformStamped 消息
+    geometry_msgs::msg::TransformStamped transform_A_to_B;
+
+    transform_A_to_B.header.stamp = transform_A_to_child.header.stamp; // 使用相同的时间戳
+    transform_A_to_B.header.frame_id = transform_A_to_child.header.frame_id; // A 坐标系
+    transform_A_to_B.child_frame_id = transform_A_to_child.child_frame_id; // 给新的 B 坐标系命名
+
+    transform_A_to_B.transform.translation = t_A_to_B;
+    transform_A_to_B.transform.rotation.x = q_A_to_B.x();
+    transform_A_to_B.transform.rotation.y = q_A_to_B.y();
+    transform_A_to_B.transform.rotation.z = q_A_to_B.z();
+    transform_A_to_B.transform.rotation.w = q_A_to_B.w();
+
+    return transform_A_to_B;
+}
+
 } // namespace 

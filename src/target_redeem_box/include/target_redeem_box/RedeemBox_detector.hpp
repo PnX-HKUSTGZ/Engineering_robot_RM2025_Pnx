@@ -176,7 +176,7 @@ class RedeemBox_detector:public rclcpp::Node{
     // send box position in camera to tf2
     // @param tvec translate vec
     // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
-    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat);
+    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,bool reverse=false);
     
     void CallDetectorFunctions();
 
@@ -593,6 +593,9 @@ float PointToPlaneDistance(
 float PointToPlaneDistance(
     const pcl::PointXYZ& point,
     const std::vector<float>& plane_coefficients);
+
+geometry_msgs::msg::TransformStamped ReverseTransforme(
+    const geometry_msgs::msg::TransformStamped& transform_A_to_child);
 
 } // end namespace Engineering_robot_RM2025_Pnx
 

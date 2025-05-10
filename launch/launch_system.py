@@ -13,22 +13,35 @@ import launch_ros.descriptions
 def generate_launch_description():
 
     Path = {"Location":get_package_share_directory("interfaces")+"/../../../../"}
-    topicconfig=os.path.join(get_package_share_directory("target_redeem_box"),"config","config.yaml")
     all = launch_ros.actions.ComposableNodeContainer(
-        name="Engineering_robot_RM2025_Pnx_detect",
+        name="Engineering_robot_RM2025_Pnx",
         namespace="",
         package="rclcpp_components",
         executable='component_container_mt',
         composable_node_descriptions=[
             launch_ros.descriptions.ComposableNode(
-                package="target_redeem_box",
-                plugin='Engineering_robot_RM2025_Pnx::RedeemBox_detector',
-                name='RedeemBox_detector',
-                parameters=[Path,topicconfig],
-            )
+                package="sensordrivers",
+                plugin="Engineering_robot_RM2025_Pnx::CameraDriver",
+                name="camera_driver",
+                parameters=[Path],
+            ),
+            launch_ros.descriptions.ComposableNode(
+                package="sensordrivers",
+                plugin="Engineering_robot_RM2025_Pnx::RealSense",
+                name="realsense_driver",
+                parameters=[Path],
+            ),
         ],
         output="screen"
     )
+    # mid360 = Node(
+    #     package='sensordrivers',
+    #     executable='mid360_driver',
+    #     name='mid360_driver',
+    #     output='screen',
+    #     parameters=[Path]
+    # )
     return LaunchDescription([
         all,
+        # mid360,
     ])
