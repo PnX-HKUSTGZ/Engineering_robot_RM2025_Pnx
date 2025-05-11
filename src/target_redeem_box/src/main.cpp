@@ -149,7 +149,7 @@ void RedeemBox_detector::DrawPnPResult(cv::Mat &Image, const cv::Mat & rvec, con
     return;
 }
 
-void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat, bool reverse){
+void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat, bool reverse, std::string frame_id){
 
     CV_Assert((rvecmat.size()==cv::Size(3,3) || rvecmat.size()==cv::Size(3,1) || rvecmat.size()==cv::Size(1,3))&&
         (rvecmat.type()==CV_64F || rvecmat.type()==CV_32F));
@@ -169,7 +169,7 @@ void RedeemBox_detector::SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat, bool 
 
     box_to_camera.header.stamp=this->now();
     box_to_camera.header.frame_id=ImageFrame;
-    box_to_camera.child_frame_id="object/box";
+    box_to_camera.child_frame_id=frame_id;
     box_to_camera.transform.translation.x=tvec.at<double>(0);
     box_to_camera.transform.translation.y=tvec.at<double>(1);
     box_to_camera.transform.translation.z=tvec.at<double>(2);

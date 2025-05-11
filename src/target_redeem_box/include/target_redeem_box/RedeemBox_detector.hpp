@@ -176,7 +176,7 @@ class RedeemBox_detector:public rclcpp::Node{
     // send box position in camera to tf2
     // @param tvec translate vec
     // @param rvecmat rotate vec(3*1,1*3) or rotate mat(3*3)
-    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,bool reverse=false);
+    void SendBoxPosition(cv::Mat & tvec,cv::Mat & rvecmat,bool reverse=false, std::string frame_id="object/box");
     
     void CallDetectorFunctions();
 
@@ -298,7 +298,9 @@ private:
     bool GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> &pointcloud, 
         Counter2d CornerPoints, 
         cv::Mat & tvec, 
-        cv::Mat & rvec);
+        cv::Mat & rvec,
+        PlaneData & choosedPlane
+        );
     
     // kown a plant and know the 2D points are on that plant
     // get the 3D points according to these
@@ -323,6 +325,8 @@ private:
     int PlaneOnCornersNumThreshold;
     double minPlaneDisThreshold;
     double CloseThresehold;
+    double pnpPlaneCloseThresehold;
+    double pnpPlaneCloseAfterThresehold;
 
 private://Rectangle_Detector
     /*
@@ -587,16 +591,31 @@ std::vector<double> determinePlaneFromThreePoints(
  *                           Assumed to have size 4 and (a, b, c) normalized.
  * @return The distance from the point to the plane. Returns NaN if coefficients vector is invalid.
  */
-float PointToPlaneDistance(
+double PointToPlaneDistance(
     const pcl::PointXYZ& point,
     const std::vector<double>& plane_coefficients);
 
-float PointToPlaneDistance(
+double PointToPlaneDistance(
     const pcl::PointXYZ& point,
     const std::vector<float>& plane_coefficients);
 
+double PointsToPlaneDistance(
+    const pcl::PointCloud<pcl::PointXYZ>& point,
+    const std::vector<float>& plane_coefficients);
+double PointsToPlaneDistance(
+    const pcl::PointCloud<pcl::PointXYZ>& point,
+    const std::vector<double>& plane_coefficients);
+
 geometry_msgs::msg::TransformStamped ReverseTransforme(
     const geometry_msgs::msg::TransformStamped& transform_A_to_child);
+
+double ReprojectionError(
+    cv::Mat & rvec,
+    cv::Mat & tvec, 
+    const std::vector<cv::Point3d> & objectPoints, 
+    const std::vector<cv::Point2d> & imagePoints, 
+    const cv::Mat & cameraMatrix, 
+    const cv::Mat & distCoeffs=cv::Mat(0,0,0,0,0));
 
 } // end namespace Engineering_robot_RM2025_Pnx
 

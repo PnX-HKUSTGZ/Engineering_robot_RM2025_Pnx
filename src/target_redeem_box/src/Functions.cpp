@@ -848,7 +848,7 @@ std::vector<double> determinePlaneFromThreePoints(
  *                           Assumed to have size 4 and (a, b, c) normalized.
  * @return The distance from the point to the plane. Returns NaN if coefficients vector is invalid.
  */
-float PointToPlaneDistance(
+double PointToPlaneDistance(
     const pcl::PointXYZ& point,
     const std::vector<double>& plane_coefficients)
 {
@@ -880,7 +880,7 @@ float PointToPlaneDistance(
     return distance;
 }
 
-float PointToPlaneDistance(
+double PointToPlaneDistance(
     const pcl::PointXYZ& point,
     const std::vector<float>& plane_coefficients){
         std::vector<double> coe;
@@ -888,6 +888,32 @@ float PointToPlaneDistance(
             coe.push_back(i);
         }
         return PointToPlaneDistance(point,coe);
+    }
+
+double PointsToPlaneDistance(
+    const pcl::PointCloud<pcl::PointXYZ>& points,
+    const std::vector<float>& plane_coefficients){
+
+        double alldis=0;
+        for(const auto & i : points){
+            alldis+=PointToPlaneDistance(i,plane_coefficients);
+        }
+
+        return alldis;
+
+    }
+
+double PointsToPlaneDistance(
+    const pcl::PointCloud<pcl::PointXYZ>& points,
+    const std::vector<double>& plane_coefficients){
+
+        double alldis=0;
+        for(const auto & i : points){
+            alldis+=PointToPlaneDistance(i,plane_coefficients);
+        }
+
+        return alldis;
+
     }
 
 geometry_msgs::msg::TransformStamped ReverseTransforme(
@@ -930,6 +956,25 @@ geometry_msgs::msg::TransformStamped ReverseTransforme(
     transform_A_to_B.transform.rotation.w = q_A_to_B.w();
 
     return transform_A_to_B;
+}
+
+double ReprojectionError(
+    cv::Mat & rvec,
+    cv::Mat & tvec, 
+    const std::vector<cv::Point3d> & objectPoints, 
+    const std::vector<cv::Point2d> & imagePoints, 
+    const cv::Mat & cameraMatrix, 
+    const cv::Mat & distCoeffs){
+
+    std::vector<cv::Point2d> projectedPoints;
+    cv::projectPoints(objectPoints, rvec, tvec, cameraMatrix, distCoeffs, projectedPoints);
+    double totalError = 0.0;
+    for (size_t i = 0; i < objectPoints.size(); ++i) {
+        cv::Point2d error = imagePoints[i] - projectedPoints[i];
+        totalError += cv::norm(error);
+    }
+    return totalError / objectPoints.size();
+
 }
 
 } // namespace 

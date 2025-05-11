@@ -204,8 +204,8 @@ def generate_launch_description():
         executable="engineering_robot_controller",
         name="engineering_robot_controller",
         parameters=[
-            config_path,
-            moveit_config.to_dict(),
+            # config_path,
+            # moveit_config.to_dict(),
             {"planning_plugins":["ompl_interface/OMPLPlanner", "pilz_industrial_motion_planner/CommandPlanner"]},
             use_sim_time
             ],

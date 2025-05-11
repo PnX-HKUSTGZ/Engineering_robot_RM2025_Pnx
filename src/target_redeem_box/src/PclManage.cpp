@@ -14,9 +14,9 @@ void RedeemBox_detector::PointCloudeInit(){
     // sync_->registerCallback(&RedeemBox_detector::ImageCloudPointCallBack,this);
 
     pcl_test_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10);
-    pcl_camera_point_cloud_sub=this->create_subscription<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10,[this](const sensor_msgs::msg::PointCloud2::SharedPtr msg){
-        RCLCPP_INFO(this->get_logger(),"get pcl cloud size : %ld",msg->data.size());
-    });
+    // pcl_camera_point_cloud_sub=this->create_subscription<sensor_msgs::msg::PointCloud2>("/sensor/onarrowcloud",10,[this](const sensor_msgs::msg::PointCloud2::SharedPtr msg){
+    //     RCLCPP_INFO(this->get_logger(),"get pcl cloud size : %ld",msg->data.size());
+    // });
     # ifdef test_pcl_manage
 
     pcl_camera_point_cloud_pub=this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor/camerapcl",10);
@@ -30,12 +30,19 @@ void RedeemBox_detector::PointCloudeInit(){
     CloseThresehold=PCLManagerConfig["CloseThresehold"].as<double>();
     PlaneOnCornersNumThreshold=PCLManagerConfig["PlaneOnCornersNumThreshold"].as<int>();
     minPlaneDisThreshold=PCLManagerConfig["minPlaneDisThreshold"].as<double>();
+    pnpPlaneCloseThresehold=PCLManagerConfig["pnpPlaneCloseThresehold"].as<double>();
+    pnpPlaneCloseAfterThresehold=PCLManagerConfig["pnpPlaneCloseAfterThresehold"].as<double>();
 
     RCLCPP_INFO(this->get_logger(),"finish init PointCloudeInit");
 
 }
 
-bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointXYZ> & inputPointCloudWiderROI, Counter2d CornerPoints, cv::Mat & tvec, cv::Mat & rvec){
+bool RedeemBox_detector::GetTRvecPointCloud_PC(
+    const pcl::PointCloud<pcl::PointXYZ> & inputPointCloudWiderROI, 
+    Counter2d CornerPoints, 
+    cv::Mat & tvec, 
+    cv::Mat & rvec,
+    PlaneData & choosedPlane){
     if (inputPointCloudWiderROI.empty()) {
         RCLCPP_WARN(this->get_logger(), "Input point cloud is empty");
         return 0;
@@ -59,51 +66,17 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
     
     // choose the best plant
 
-    cv::Mat pnprvec,pnptvec;
+    // cv::Mat pnprvec,pnptvec;
 
-    bool solvePnPcheck=cv::solvePnP(objpoints,CornerPoints,cameraMatrixMat,std::vector<double>{0,0,0,0,0},pnprvec,pnptvec,0,cv::SOLVEPNP_IPPE);
+    // bool solvePnPcheck=cv::solvePnP(objpoints,CornerPoints,cameraMatrixMat,std::vector<double>{0,0,0,0,0},pnprvec,pnptvec,0,cv::SOLVEPNP_IPPE);
 
-    DrawPnPResult(OriginalImage_pcl,pnprvec,pnptvec,cv::Scalar(33,223,123),1,cv::Point(-312312,-31231));
+    // #ifdef test_pcl_manage
+    // DrawPnPResult(OriginalImage_pcl,pnprvec,pnptvec,cv::Scalar(33,223,123),1,cv::Point(-312312,-31231));
+    // #endif
 
-    if(!solvePnPcheck){
-        RCLCPP_ERROR(this->get_logger(),"[GetTRvecPointCloud_PC] PnP failed!");
-        return 0;
-    }
-
-    std::vector<double> PNPPlane;
-
-    // {// get plane
-
-    // cv::Mat rmat;
-    // cv::Rodrigues(pnprvec,rmat);
-    // Eigen::Matrix<double,4,4> rtvecEigen;
-
-    // for(int i=0;i<3;i++){
-    //     for(int e=0;e<3;e++){
-    //         rtvecEigen(i,e)=rmat.at<double>(i,e);
-    //     }
-    //     rtvecEigen(i,3)=pnptvec.at<double>(i);
-    // }
-    // for(int i=0;i<3;i++) rtvecEigen(3, i) = 0.0;
-    // rtvecEigen(3, 3) = 1.0;
-
-    // Eigen::Matrix<double,4,1> point1_,point2_,point3_;
-    // Eigen::Matrix<double,3,1> point1,point2,point3;
-    // point1_=rtvecEigen*objpointsEigen[0];
-    // point2_=rtvecEigen*objpointsEigen[2];
-    // point3_=rtvecEigen*objpointsEigen[4];
-
-    // point1=Eigen::Matrix<double,3,1>(point1_(0)/point1_(3),point1_(1)/point1_(3),point1_(2)/point1_(3));
-    // point2=Eigen::Matrix<double,3,1>(point2_(0)/point2_(3),point2_(1)/point2_(3),point2_(2)/point2_(3));
-    // point3=Eigen::Matrix<double,3,1>(point3_(0)/point3_(3),point3_(1)/point3_(3),point3_(2)/point3_(3));
-
-    // PNPPlane=determinePlaneFromThreePoints(point1,point2,point3);
-
-    // if(!PNPPlane.size()){
-    //     RCLCPP_ERROR(this->get_logger(),"determinePlaneFromThreePoints fail!");
+    // if(!solvePnPcheck){
+    //     RCLCPP_ERROR(this->get_logger(),"[GetTRvecPointCloud_PC] PnP failed!");
     //     return 0;
-    // }
-
     // }
 
     // the num of points aroud corners of each plant 
@@ -161,7 +134,12 @@ bool RedeemBox_detector::GetTRvecPointCloud_PC(const pcl::PointCloud<pcl::PointX
         }
 
         PlanePointClouds=*(ExtractedPlanes[indexs[0]].points);
-
+        // choosedPlane=(ExtractedPlanes[indexs[0]]);
+        choosedPlane.coefficients=ExtractedPlanes[indexs[0]].coefficients;
+        choosedPlane.points.reset(new pcl::PointCloud<pcl::PointXYZ>());
+        for(auto i : *ExtractedPlanes[indexs[0]].points){
+            choosedPlane.points->push_back(i);
+        }
     }
     
     bool ImagePointTo3DPoint_PlantCheck=ImagePointTo3DPoint_Plant(CornerPoints,coefficient,Points3D);
@@ -390,9 +368,6 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     point2=Eigen::Matrix<double,3,1>(point2_(0)/point2_(3),point2_(1)/point2_(3),point2_(2)/point2_(3));
     point3=Eigen::Matrix<double,3,1>(point3_(0)/point3_(3),point3_(1)/point3_(3),point3_(2)/point3_(3));
 
-    # ifdef test_pcl_manage
-
-    # endif
     PNPPlane=determinePlaneFromThreePoints(point1,point2,point3);
 
     if(!PNPPlane.size()){
@@ -406,7 +381,7 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
         pcl::PointCloud<pcl::PointXYZ> PreprocessedCloudPointpnp;
         for(auto & i : *VisibleCloudCameraFrame){
             if(i.z>=1.5) continue;
-            if(PointToPlaneDistance(i,PNPPlane)>0.03) continue;
+            if(PointToPlaneDistance(i,PNPPlane)>pnpPlaneCloseThresehold) continue;
             Eigen::Matrix<double,4,1> cloudpointEigen;
             Eigen::Matrix<double,3,1> imagePoint;
             cloudpointEigen<<i.x, i.y, i.z, 1;
@@ -425,7 +400,7 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
 
         auto FirstExtractedPlanes = segmentPlanesWithPoints(
                 std::make_shared<pcl::PointCloud<pcl::PointXYZ> >(PreprocessedCloudPointpnp),
-                ransacDistanceThreshold,
+                pnpPlaneCloseThresehold,
                 ransacMaxIterations,
                 PreprocessedCloudPointpnp.size()/2,
                 1);
@@ -437,7 +412,7 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
 
         for(auto & i : *VisibleCloudCameraFrame){
             if(i.z>=1.5) continue;
-            if(PointToPlaneDistance(i,FirstExtractedPlanes[0].coefficients.values)>0.03) continue;
+            if(PointToPlaneDistance(i,FirstExtractedPlanes[0].coefficients.values)>pnpPlaneCloseAfterThresehold) continue;
             Eigen::Matrix<double,4,1> cloudpointEigen;
             Eigen::Matrix<double,3,1> imagePoint;
             cloudpointEigen<<i.x, i.y, i.z, 1;
@@ -482,7 +457,8 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     cv::Mat tvec,rvec;
     // --- Start Timing for GetTRvecPointCloud_PC (PnP) ---
     auto start_pnp = std::chrono::high_resolution_clock::now();
-    bool GetTRvecPointCloud_PCcheck=GetTRvecPointCloud_PC(PreprocessedCloudPoint,CornerPoints,tvec,rvec);
+    PlaneData choosedPointCloud;
+    bool GetTRvecPointCloud_PCcheck=GetTRvecPointCloud_PC(PreprocessedCloudPoint,CornerPoints,tvec,rvec,choosedPointCloud);
     auto end_pnp = std::chrono::high_resolution_clock::now();
     auto duration_pnp = std::chrono::duration_cast<std::chrono::milliseconds>(end_pnp - start_pnp).count();
 
@@ -500,14 +476,73 @@ int RedeemBox_detector::MainPclManager(const cv::Mat& OriginalImage){
     auto start_send = std::chrono::high_resolution_clock::now();
 
 
+    double pnpDisAll=0;
+    double pclDisAll=0;
+
+    std::vector<cv::Point3d> pclprojectPoints;
+    std::vector<cv::Point3d> pclunprojectPoints=std::vector<cv::Point3d>{
+            cv::Point3d(0.144, 0, 0.0455),
+            cv::Point3d(0.144, -0.1, 0.1455),
+            cv::Point3d(0.144, 0.1, 0.1455)
+        };
+
+    {// 
+        cv::Mat R;
+        cv::Mat tvecc=tvec;
+        cv::Rodrigues(rvec, R);
+        tvecc = tvecc.t(); // 转置为 3x1
+        if (R.type() != CV_64F) R.convertTo(R, CV_64F);
+        if (tvecc.type() != CV_64F) tvecc.convertTo(tvecc, CV_64F);
+        cv::Mat transform_matrix;
+        cv::hconcat(R, tvecc, transform_matrix);
+        cv::transform(pclunprojectPoints, pclprojectPoints, transform_matrix);
+
+    }
+
+    std::vector<Eigen::Vector3d> pclprojectPointsEigen=[&pclprojectPoints](){
+        std::vector<Eigen::Vector3d> ans;
+        for(const auto & i : pclprojectPoints){
+            Eigen::Vector3d vec;
+            vec<<i.x,i.y,i.z;
+            ans.push_back(vec);
+        }
+        return ans;
+    }();
+
+    std::vector<double> pclplane=determinePlaneFromThreePoints(pclprojectPointsEigen[0],pclprojectPointsEigen[1],pclprojectPointsEigen[2]);
+
+    for(const auto & i : *choosedPointCloud.points){
+        double dispnp=PointToPlaneDistance(i,PNPPlane);
+        double dispcl=PointToPlaneDistance(i,pclplane);
+        pnpDisAll+=dispnp*dispnp;
+        pclDisAll+=dispcl*dispcl;
+    }
+
+    RCLCPP_INFO_STREAM(this->get_logger(),"Disall pnpDisAll "<<pnpDisAll);
+    RCLCPP_INFO_STREAM(this->get_logger(),"Disall pclDisAll "<<pclDisAll);
+
+    cv::Mat finaltvec,finalrvec;
+    if(pnpDisAll<pclDisAll){
+        pnptvec.copyTo(finaltvec);
+        pnprvec.copyTo(finalrvec);
+    }
+    else{
+        tvec.copyTo(finaltvec);
+        rvec.copyTo(finalrvec);
+    }
     //check direction
 
     if(center.x>CornerPoints[0].x){
         RCLCPP_INFO(this->get_logger(),"SendBoxPosition reverse direction!");
-        SendBoxPosition(tvec,rvec,true);
+        SendBoxPosition(finaltvec,finalrvec,true);
+        SendBoxPosition(tvec,rvec,true,"object/pclbox");
+        SendBoxPosition(pnptvec,pnprvec,true,"object/pnpbox");
+
     }
     else{
-        SendBoxPosition(tvec,rvec,false);
+        SendBoxPosition(finaltvec,finalrvec,false);
+        SendBoxPosition(tvec,rvec,false,"object/pclbox");
+        SendBoxPosition(pnptvec,pnprvec,false,"object/pnpbox");
     }
 
     

@@ -118,13 +118,16 @@ RedeemBox_detector:
       TargetRectangleSlopeHorizonThreshold: 15
       TargetRectanglePairFourCornersThreshold: 100
     PCLManager:
-      ransacDistanceThreshold: 0.005
+      ransacDistanceThreshold: 0.03
       ransacMaxIterations: 1
       ransacMinInliersNum: 400
       CloseThresehold: 100
-      ransacMaxPlaneNum: 100
+      ransacMaxPlaneNum: 7
       PlaneOnCornersNumThreshold: 100
       minPlaneDisThreshold: 0.30
+      pnpPlaneCloseThresehold: 0.03
+      pnpPlaneCloseAfterThresehold: 0.03
+
     Main:
       SyncPubBoxPos:
         queuesiz: 20
