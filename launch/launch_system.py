@@ -129,14 +129,14 @@ def generate_launch_description():
     )
 
     # Run Rviz and load the default config to see the state of the move_group node
-    ld.add_action(
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                str(launch_package_path / "launch/moveit_rviz.launch.py")
-            ),
-            condition=IfCondition(LaunchConfiguration("use_rviz")),
-        )
-    )
+    # ld.add_action(
+    #     IncludeLaunchDescription(
+    #         PythonLaunchDescriptionSource(
+    #             str(launch_package_path / "launch/moveit_rviz.launch.py")
+    #         ),
+    #         condition=IfCondition(LaunchConfiguration("use_rviz")),
+    #     )
+    # )
 
     ld.add_action(
         Node(

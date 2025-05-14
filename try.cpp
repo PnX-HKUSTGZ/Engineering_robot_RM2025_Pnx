@@ -91,3 +91,5 @@ for (const auto& p_camera : points_camera_vec) {
 // std::cout << points_camera_mat << std::endl;
 
 return 0; // 示例代码结束
+
+ros2 bag record -o my_bag --duration 300 /your_topic
