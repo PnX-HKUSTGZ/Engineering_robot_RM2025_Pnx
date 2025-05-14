@@ -3,8 +3,8 @@
 camera:
   height: 1080
   width: 1440
-  dist_coeffs: [-0.08731170540424363, 0.21930265103652, -9.738517036387939e-05, 0.0007356128971239429, -0.04740885948388447]
-  camera_matrix: [1837.295709105969, 0, 730.6373079423569 , 0, 1838.719671940605, 569.3603557526557, 0.0, 0.0, 1.0]
+  dist_coeffs: [-0.08514213078611998, 0.2249919871969058, 0.0004426030910578343, -0.0001779668380391995, -0.246659980650563]
+  camera_matrix: [1796.781017873506, 0, 689.1778242334642 , 0, 1797.197922401104, 570.7557440356007, 0.0, 0.0, 1.0]
   ExposureTimeLower: 10000
   ExposureTimeUpper: 10000
   Gain: 10
@@ -26,9 +26,9 @@ RealSense:
 
 RedeemBox_detector:
   LaunchMode:
-    DetectArrow: false
+    DetectArrow: True
     TargetRectangle: false
-    PclManage: True
+    PclManage: false
   KeyPoints:
     redeem_box:
     # 兑换框的四个角点，单位是m，坐标是以侧面箭头顶点位原点，z轴指向内侧的右手系
@@ -77,7 +77,7 @@ RedeemBox_detector:
   Parameters:
     arrow_detect:
       ArrowDetectorPixelNumMax: 80000
-      ArrowDetectorPixelNumMin: 100
+      ArrowDetectorPixelNumMin: 0
       ArrowDetectorLengthWidthRatioMax: 3
       ArrowDetectorLengthWidthRatioMin: 1.1
       ArrowDetectorApproxSizeMax: 8.

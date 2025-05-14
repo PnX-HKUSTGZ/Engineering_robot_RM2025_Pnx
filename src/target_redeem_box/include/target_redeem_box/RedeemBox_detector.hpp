@@ -47,8 +47,8 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-// #define arrow_draw
-// #define Imageshow
+#define arrow_draw
+#define Imageshow
 // #define TargetArrowtest
 #define test_pcl_manage
 // #define test_pointcloud_main_log

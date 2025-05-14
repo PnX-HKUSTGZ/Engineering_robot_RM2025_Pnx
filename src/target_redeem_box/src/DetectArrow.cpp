@@ -583,8 +583,25 @@ int RedeemBox_detector::MainDetectArrow(const cv::Mat & OriginalImage){
 
     if(!PnPsolverCheck) return 1;
 
-    SendBoxPosition(tvec,rvec);
+    cv::Point2f center;
+    float radius;
 
+    cv::minEnclosingCircle([&TargetArrowResult](){
+        std::vector<cv::Point2f> ans;
+        for(auto i : TargetArrowResult){
+            ans.push_back(cv::Point2f(i.x,i.y));
+        }
+        return ans;
+    }(),center,radius);
+
+    if(center.x>TargetArrowResult[0].x){
+        RCLCPP_INFO(this->get_logger(),"SendBoxPosition reverse direction!");
+        SendBoxPosition(tvec,rvec,true,"object/box");
+
+    }
+    else{
+        SendBoxPosition(tvec,rvec,false,"object/box");
+    }
 
     # ifdef arrow_draw
 
